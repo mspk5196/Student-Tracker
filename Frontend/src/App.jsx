@@ -1,5 +1,5 @@
 import React from 'react';
-import SuperAdminTab from './components/SuperAdminTab/SuperAdminTab';
+import SuperAdminTab from './components/TabRouter/SuperAdminTab/SuperAdminTab';
 
 
 function App() {

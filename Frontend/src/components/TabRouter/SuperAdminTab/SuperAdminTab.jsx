@@ -105,7 +105,7 @@ const AcademiaDashboard = () => {
       width: '100%',
       backgroundColor: '#ffffff',
       borderBottom: '1px solid #e5e7eb',
-      padding: '16px 32px',
+      padding: '22px 32px',
       boxSizing: 'border-box'
     },
     headerContent: {

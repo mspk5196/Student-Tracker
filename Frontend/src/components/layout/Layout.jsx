@@ -1,6 +1,6 @@
 import React from 'react';
 import { Outlet } from 'react-router-dom';
-import FacultyTab from '../FacultyTab/FacultyTab';
+import FacultyTab from '../TabRouter/FacultyTab/FacultyTab';
 
 const Layout = () => {
   return (
