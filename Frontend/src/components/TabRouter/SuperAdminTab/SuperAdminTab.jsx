@@ -11,6 +11,7 @@ import {
   Layers,
   Clock
 } from 'lucide-react';
+import EducationDashboard from '../../../pages/SuperAdmin/DashboardPanal/Dashboard';
 
 const AcademiaDashboard = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -193,8 +194,7 @@ const AcademiaDashboard = () => {
   const tabContent = {
     dashboard: {
       title: 'Dashboard',
-      description:
-        'Welcome to the Academia Dashboard. View your institution overview and key metrics here.'
+      description: 'Welcome to the Academia Dashboard. View your institution overview and key metrics here.'
     },
     faculty: {
       title: 'Faculty & Accounts',
@@ -273,7 +273,7 @@ const AcademiaDashboard = () => {
         </nav>
       </aside>
 
-      {/* Main */}
+      {/* Main Content */}
       <main style={styles.mainContent}>
         {/* Header */}
         <header style={styles.header}>
@@ -294,12 +294,16 @@ const AcademiaDashboard = () => {
           </div>
         </header>
 
-        {/* Content */}
+        {/* Dynamic Content */}
         <div style={styles.content}>
-          <div style={styles.tabContent}>
-            <h2 style={styles.tabTitle}>{tabContent[activeTab].title}</h2>
-            <p style={styles.tabDescription}>{tabContent[activeTab].description}</p>
-          </div>
+          {activeTab === 'dashboard' ? (
+            <EducationDashboard />
+          ) : (
+            <div style={styles.tabContent}>
+              <h2 style={styles.tabTitle}>{tabContent[activeTab].title}</h2>
+              <p style={styles.tabDescription}>{tabContent[activeTab].description}</p>
+            </div>
+          )}
         </div>
       </main>
     </div>
