@@ -1,5 +1,5 @@
 import React from 'react';
-import { useApp } from '../context/AppContext';
+import { useApp } from '../../context/AppContext';
 import { Users, BookOpen, Clock, Activity } from 'lucide-react';
 
 const StatCard = ({ title, value, icon: Icon, color }) => (

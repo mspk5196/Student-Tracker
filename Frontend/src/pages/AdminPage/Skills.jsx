@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useApp } from '../context/AppContext';
+import { useApp } from '../../context/AppContext';
 
 const Skills = () => {
   const { classes, students, updateSkill } = useApp();

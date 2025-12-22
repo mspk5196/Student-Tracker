@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useApp } from '../context/AppContext';
+import { useApp } from '../../context/AppContext';
 import { Plus, CheckCircle, Clock } from 'lucide-react';
 
 const Tasks = () => {
