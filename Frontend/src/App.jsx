@@ -13,7 +13,7 @@ import Classes from './pages/Classes';
 import Tasks from './pages/Tasks';
 import Attendance from './pages/Attendance';
 import Skills from './pages/Skills';
-
+// import Login from './pages/Login';
 /**
  * Main Application Component
  * Handles routing and provides global context
@@ -23,6 +23,7 @@ function App() {
     <AppProvider>
       <BrowserRouter>
         <Routes>
+          {/* <Route path="/login" element={<Login />} /> */}
           {/* Main Layout with Sidebar */}
           <Route path="/" element={<Layout />}>
             {/* Dashboard - Default Route */}
