@@ -34,7 +34,7 @@ const SideTab = () => {
 
   /* ================= ROLE BASED MENU ================= */
   const menuByRole = {
-    "admin": [ // ADMIN
+    "admin": [
       { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, section: 'main' },
       { id: 'faculty', label: 'Faculty & Accounts', icon: Users, section: 'main' },
       { id: 'classes', label: 'Classes & Groups', icon: Layers, section: 'main' },
@@ -44,15 +44,13 @@ const SideTab = () => {
       { id: 'reports', label: 'Reports & Analytics', icon: BarChart3, section: 'academic' },
       { id: 'settings', label: 'Settings', icon: Settings, section: 'system' },
     ],
-
-    "faculty": [ // FACULTY
+    "faculty": [
       { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, section: 'main' },
       { id: 'classes', label: 'My Classes', icon: Layers, section: 'main' },
       { id: 'attendance', label: 'Attendance', icon: CheckCircle, section: 'academic' },
       { id: 'tasks', label: 'Assignments', icon: Clock, section: 'academic' },
     ],
-
-    "student": [ // STUDENT
+    "student": [
       { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, section: 'main' },
       { id: 'classes', label: 'My Classes', icon: Layers, section: 'main' },
       { id: 'attendance', label: 'My Attendance', icon: CheckCircle, section: 'academic' },
@@ -106,6 +104,7 @@ const SideTab = () => {
     <div style={styles.container}>
       {/* ================= SIDEBAR ================= */}
       <aside style={styles.sidebar}>
+        {/* LOGO */}
         <div style={styles.logo}>
           <div style={styles.logoContent}>
             <div style={styles.logoIcon}>
@@ -115,32 +114,37 @@ const SideTab = () => {
           </div>
         </div>
 
-        <nav style={styles.nav}>
-          {menuItems.filter(i => i.section === 'main').map(renderNavItem)}
+        {/* NAV + SCROLL */}
+        <div style={styles.navWrapper}>
+          <nav style={styles.nav}>
+            {menuItems.filter(i => i.section === 'main').map(renderNavItem)}
 
-          {menuItems.some(i => i.section === 'academic') && (
-            <div style={styles.navSection}>
-              <div style={styles.navSectionTitle}>ACADEMIC</div>
-              {menuItems.filter(i => i.section === 'academic').map(renderNavItem)}
-            </div>
-          )}
+            {menuItems.some(i => i.section === 'academic') && (
+              <div style={styles.navSection}>
+                <div style={styles.navSectionTitle}>ACADEMIC</div>
+                {menuItems.filter(i => i.section === 'academic').map(renderNavItem)}
+              </div>
+            )}
 
-          {menuItems.some(i => i.section === 'system') && (
-            <div style={styles.navSection}>
-              <div style={styles.navSectionTitle}>SYSTEM</div>
-              {menuItems.filter(i => i.section === 'system').map(renderNavItem)}
-            </div>
-          )}
+            {menuItems.some(i => i.section === 'system') && (
+              <div style={styles.navSection}>
+                <div style={styles.navSectionTitle}>SYSTEM</div>
+                {menuItems.filter(i => i.section === 'system').map(renderNavItem)}
+              </div>
+            )}
+          </nav>
+        </div>
 
-          {/* LOGOUT */}
+        {/* LOGOUT FIXED AT BOTTOM */}
+        <div style={styles.logoutWrapper}>
           <div
-            style={{ ...styles.navItem, color: '#ef4444', marginTop: '12px' }}
+            style={{ ...styles.navItem, color: '#ef4444' }}
             onClick={handleLogout}
           >
             <LogOut size={20} />
             <span>Logout</span>
           </div>
-        </nav>
+        </div>
       </aside>
 
       {/* ================= MAIN ================= */}
@@ -182,149 +186,161 @@ const SideTab = () => {
 export default SideTab;
 
 const styles = {
-    container: {
-      display: 'flex',
-      height: '100vh',
-      backgroundColor: '#f9fafb',
-      fontFamily:
-        '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
-    },
+  container: {
+    display: 'flex',
+    height: '100vh',
+    backgroundColor: '#f9fafb',
+    fontFamily:
+      '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
+  },
 
-    /* ================= SIDEBAR ================= */
-    sidebar: {
-      width: '300px',
-      minWidth: '300px',
-      backgroundColor: '#ffffff',
-      borderRight: '1px solid #e5e7eb',
-      display: 'flex',
-      flexDirection: 'column'
-    },
-    logo: {
-      padding: '24px',
-      borderBottom: '1px solid #e5e7eb'
-    },
-    logoContent: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: '12px'
-    },
-    logoIcon: {
-      width: '40px',
-      height: '40px',
-      backgroundColor: '#2563eb',
-      borderRadius: '8px',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center'
-    },
-    logoText: {
-      fontSize: '20px',
-      fontWeight: '600',
-      color: '#111827'
-    },
+  /* ================= SIDEBAR ================= */
+  sidebar: {
+    width: '300px',
+    minWidth: '300px',
+    height: '100vh',
+    display: 'flex',
+    flexDirection: 'column',
+    backgroundColor: '#ffffff',
+    borderRight: '1px solid #e5e7eb'
+  },
+  logo: {
+    padding: '24px',
+    borderBottom: '1px solid #e5e7eb'
+  },
+  logoContent: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px'
+  },
+  logoIcon: {
+    width: '40px',
+    height: '40px',
+    backgroundColor: '#2563eb',
+    borderRadius: '8px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  logoText: {
+    fontSize: '20px',
+    fontWeight: '600',
+    color: '#111827'
+  },
 
-    nav: {
-      flex: 1,
-      padding: '16px'
-    },
-    navSection: {
-      marginBottom: '24px'
-    },
-    navSectionTitle: {
-      fontSize: '11px',
-      fontWeight: '600',
-      color: '#9ca3af',
-      padding: '0 16px',
-      marginBottom: '12px',
-      letterSpacing: '0.05em'
-    },
-    navItem: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: '12px',
-      padding: '12px 16px',
-      borderRadius: '8px',
-      cursor: 'pointer',
-      marginBottom: '8px',
-      transition: 'all 0.2s',
-      color: '#6b7280',
-      fontWeight: '500'
-    },
-    navItemActive: {
-      backgroundColor: '#eff6ff',
-      color: '#2563eb'
-    },
+  // Scrollable menu
+  navWrapper: {
+    flex: 1,
+    overflowY: 'auto',
+    padding: '16px'
+  },
+  nav: {
+    display: 'flex',
+    flexDirection: 'column'
+  },
+  navSection: {
+    marginBottom: '24px'
+  },
+  navSectionTitle: {
+    fontSize: '11px',
+    fontWeight: '600',
+    color: '#9ca3af',
+    padding: '0 16px',
+    marginBottom: '12px',
+    letterSpacing: '0.05em'
+  },
+  navItem: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+    padding: '12px 16px',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    marginBottom: '8px',
+    transition: 'all 0.2s',
+    color: '#6b7280',
+    fontWeight: '500'
+  },
+  navItemActive: {
+    backgroundColor: '#eff6ff',
+    color: '#2563eb'
+  },
 
-    /* ================= MAIN ================= */
-    mainContent: {
-      flex: 1,
-      display: 'flex',
-      flexDirection: 'column',
-      overflow: 'hidden'
-    },
+  logoutWrapper: {
+    padding: '16px',
+    borderTop: '1px solid #e5e7eb'
+  },
 
-    /* ================= HEADER ================= */
-    header: {
-      position: 'sticky',
-      top: 0,
-      zIndex: 10,
-      width: '100%',
-      backgroundColor: '#ffffff',
-      borderBottom: '1px solid #e5e7eb',
-      padding: '22px 32px',
-      boxSizing: 'border-box'
-    },
-    headerContent: {
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'space-between'
-    },
-    headerTitle: {
-      fontSize: '24px',
-      fontWeight: '600',
-      color: '#111827'
-    },
-    headerRight: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: '16px'
-    },
-    bellButton: {
-      padding: '8px',
-      color: '#9ca3af',
-      cursor: 'pointer',
-      border: 'none',
-      backgroundColor: 'transparent'
-    },
+  /* ================= MAIN ================= */
+  mainContent: {
+    flex: 1,
+    display: 'flex',
+    flexDirection: 'column',
+    overflow: 'hidden'
+  },
 
-    userInfo: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: '12px'
-    },
-    userText: {
-      textAlign: 'right'
-    },
-    userName: {
-      fontSize: '14px',
-      fontWeight: '600',
-      color: '#111827'
-    },
-    userRole: {
-      fontSize: '12px',
-      color: '#6b7280'
-    },
-    userAvatar: {
-      width: '40px',
-      height: '40px',
-      background: 'linear-gradient(135deg, #fb923c 0%, #ec4899 100%)',
-      borderRadius: '50%'
-    },
+  /* ================= HEADER ================= */
+  header: {
+    position: 'sticky',
+    top: 0,
+    zIndex: 10,
+    width: '100%',
+    backgroundColor: '#ffffff',
+    borderBottom: '1px solid #e5e7eb',
+    padding: '22px 32px',
+    boxSizing: 'border-box'
+  },
+  headerContent: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between'
+  },
+  headerTitle: {
+    fontSize: '24px',
+    fontWeight: '600',
+    color: '#111827'
+  },
+  headerRight: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '16px'
+  },
+  bellButton: {
+    padding: '8px',
+    color: '#9ca3af',
+    cursor: 'pointer',
+    border: 'none',
+    backgroundColor: 'transparent'
+  },
 
-    /* ================= CONTENT ================= */
-    content: {
-      flex: 1,
-      overflow: 'auto',
-      padding: '32px'
-    }
-  };
+  userInfo: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px'
+  },
+  userText: {
+    textAlign: 'right'
+  },
+  userName: {
+    fontSize: '14px',
+    fontWeight: '600',
+    color: '#111827'
+  },
+  userRole: {
+    fontSize: '12px',
+    color: '#6b7280'
+  },
+  userAvatar: {
+    width: '40px',
+    height: '40px',
+    background: 'linear-gradient(135deg, #fb923c 0%, #ec4899 100%)',
+    borderRadius: '50%'
+  },
+
+  /* ================= CONTENT ================= */
+  content: {
+    flex: 1,
+    overflow: 'auto',
+    padding: '32px'
+  }
+};
