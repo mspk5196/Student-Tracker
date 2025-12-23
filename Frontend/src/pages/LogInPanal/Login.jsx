@@ -1,9 +1,9 @@
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import GoogleSignInButton from '../components/GoogleSignInButton';
+import GoogleSignInButton from '../../components/GoogleSignInButton';
 import logo from '../assets/logo.png';
-import useUserStore from '../store/useUserStore';
+import useUserStore from '../../store/useUserStore';
 
 const Login = () => {
   const { login, isAuthenticated } = useAuth();

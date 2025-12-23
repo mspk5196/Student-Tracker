@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard,
   Users,
@@ -11,10 +12,21 @@ import {
   Layers,
   Clock
 } from 'lucide-react';
-import EducationDashboard from '../../../pages/SuperAdmin/DashboardPanal/Dashboard';
 
 const AcademiaDashboard = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [activeTab, setActiveTab] = useState('dashboard');
+
+  useEffect(() => {
+    const path = location.pathname.split('/').pop();
+    // Default to dashboard if path matches parent or is empty
+    if (!path || path === 'super-admin' || path === 'dashboard') {
+      setActiveTab('dashboard');
+    } else {
+      setActiveTab(path);
+    }
+  }, [location]);
 
   const styles = {
     container: {
@@ -161,22 +173,6 @@ const AcademiaDashboard = () => {
       flex: 1,
       overflow: 'auto',
       padding: '32px'
-    },
-    tabContent: {
-      padding: '24px',
-      backgroundColor: '#ffffff',
-      borderRadius: '12px',
-      border: '1px solid #e5e7eb'
-    },
-    tabTitle: {
-      fontSize: '20px',
-      fontWeight: '600',
-      color: '#111827',
-      marginBottom: '8px'
-    },
-    tabDescription: {
-      fontSize: '14px',
-      color: '#6b7280'
     }
   };
 
@@ -192,38 +188,19 @@ const AcademiaDashboard = () => {
   ];
 
   const tabContent = {
-    dashboard: {
-      title: 'Dashboard',
-      description: 'Welcome to the Academia Dashboard. View your institution overview and key metrics here.'
-    },
-    faculty: {
-      title: 'Faculty & Accounts',
-      description: 'Manage faculty members, staff accounts, and their permissions.'
-    },
-    classes: {
-      title: 'Classes & Groups',
-      description: 'Organize and manage classes, groups, and course structures.'
-    },
-    students: {
-      title: 'Students',
-      description: 'View and manage student information, enrollment, and academic records.'
-    },
-    attendance: {
-      title: 'Attendance',
-      description: 'Track and manage student attendance across all classes and departments.'
-    },
-    tasks: {
-      title: 'Tasks & Assignments',
-      description: 'Create, assign, and track tasks and assignments for students.'
-    },
-    reports: {
-      title: 'Reports & Analytics',
-      description: 'Generate comprehensive reports and analyze institutional data.'
-    },
-    settings: {
-      title: 'Settings',
-      description: 'Configure system settings, preferences, and administrative options.'
-    }
+    dashboard: { title: 'Dashboard' },
+    faculty: { title: 'Faculty & Accounts' },
+    classes: { title: 'Classes & Groups' },
+    students: { title: 'Students' },
+    attendance: { title: 'Attendance' },
+    tasks: { title: 'Tasks & Assignments' },
+    reports: { title: 'Reports & Analytics' },
+    settings: { title: 'Settings' }
+  };
+
+  const handleNavigation = (id) => {
+    setActiveTab(id);
+    navigate(id === 'dashboard' ? '' : id);
   };
 
   const renderNavItem = (item) => {
@@ -237,7 +214,7 @@ const AcademiaDashboard = () => {
           ...styles.navItem,
           ...(isActive ? styles.navItemActive : {})
         }}
-        onClick={() => setActiveTab(item.id)}
+        onClick={() => handleNavigation(item.id)}
       >
         <Icon size={20} />
         <span>{item.label}</span>
@@ -278,7 +255,7 @@ const AcademiaDashboard = () => {
         {/* Header */}
         <header style={styles.header}>
           <div style={styles.headerContent}>
-            <h1 style={styles.headerTitle}>{tabContent[activeTab].title}</h1>
+            <h1 style={styles.headerTitle}>{tabContent[activeTab]?.title || 'Dashboard'}</h1>
             <div style={styles.headerRight}>
               <button style={styles.bellButton}>
                 <Bell size={24} />
@@ -296,14 +273,7 @@ const AcademiaDashboard = () => {
 
         {/* Dynamic Content */}
         <div style={styles.content}>
-          {activeTab === 'dashboard' ? (
-            <EducationDashboard />
-          ) : (
-            <div style={styles.tabContent}>
-              <h2 style={styles.tabTitle}>{tabContent[activeTab].title}</h2>
-              <p style={styles.tabDescription}>{tabContent[activeTab].description}</p>
-            </div>
-          )}
+          <Outlet />
         </div>
       </main>
     </div>
