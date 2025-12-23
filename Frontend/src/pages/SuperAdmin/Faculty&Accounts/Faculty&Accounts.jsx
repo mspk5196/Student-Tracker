@@ -5,7 +5,10 @@ import {
     MailOutline,
     Edit,
     Delete,
-    KeyboardArrowDown
+    KeyboardArrowDown,
+    Close,
+    CloudUpload,
+    MoreVert
 } from '@mui/icons-material';
 
 // --- Mock Data ---
@@ -32,6 +35,16 @@ const FacultyAccounts = () => {
     const [deptFilter, setDeptFilter] = useState('');
     const [statusFilter, setStatusFilter] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [activeMenu, setActiveMenu] = useState(null);
+    const [formData, setFormData] = useState({
+        name: '',
+        designation: '',
+        facultyId: '',
+        email: '',
+        department: '',
+        profilePic: null
+    });
     const itemsPerPage = 6;
 
     // Get unique departments
@@ -61,6 +74,48 @@ const FacultyAccounts = () => {
 
     const handleNext = () => {
         if (currentPage < totalPages) setCurrentPage(currentPage + 1);
+    };
+
+    // Modal handlers
+    const openModal = () => setIsModalOpen(true);
+    const closeModal = () => {
+        setIsModalOpen(false);
+        setFormData({ name: '', designation: '', facultyId: '', email: '', department: '', profilePic: null });
+    };
+
+    const handleInputChange = (e) => {
+        const { name, value } = e.target;
+        setFormData(prev => ({ ...prev, [name]: value }));
+    };
+
+    const handleFileChange = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            setFormData(prev => ({ ...prev, profilePic: file }));
+        }
+    };
+
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        console.log('Form submitted:', formData);
+        closeModal();
+    };
+
+    // Menu handlers
+    const toggleMenu = (facultyId) => {
+        setActiveMenu(activeMenu === facultyId ? null : facultyId);
+    };
+
+    const handleEdit = (faculty) => {
+        console.log('Editing faculty:', faculty);
+        setActiveMenu(null);
+        // Add your edit logic here
+    };
+
+    const handleDelete = (faculty) => {
+        console.log('Deleting faculty:', faculty);
+        setActiveMenu(null);
+        // Add your delete logic here
     };
 
     return (
@@ -113,7 +168,7 @@ const FacultyAccounts = () => {
                         </select>
                         <KeyboardArrowDown style={styles.selectArrow} sx={{ fontSize: 20 }} />
                     </div>
-                    <button style={styles.addBtn}>
+                    <button style={styles.addBtn} onClick={openModal}>
                         <Add sx={{ fontSize: 20 }} />
                         <span>Add New Faculty</span>
                     </button>
@@ -170,12 +225,34 @@ const FacultyAccounts = () => {
                                     <td style={styles.td}>{faculty.joinDate}</td>
                                     <td style={styles.td}>
                                         <div style={styles.actionBtnsGroup}>
-                                            <button style={styles.actionBtn}>
-                                                <Edit sx={{ fontSize: 18, color: '#64748b' }} />
+                                            <button 
+                                                style={styles.actionBtn}
+                                                onClick={() => toggleMenu(faculty.id)}
+                                            >
+                                                <MoreVert sx={{ fontSize: 18, color: '#64748b' }} />
                                             </button>
-                                            <button style={styles.actionBtn}>
-                                                <Delete sx={{ fontSize: 18, color: '#64748b' }} />
-                                            </button>
+                                            {activeMenu === faculty.id && (
+                                                <div style={styles.actionMenu}>
+                                                    <button 
+                                                        style={styles.menuItem}
+                                                        onClick={() => handleEdit(faculty)}
+                                                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8fafc'}
+                                                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                                                    >
+                                                        <Edit sx={{ fontSize: 16 }} />
+                                                        <span>Edit</span>
+                                                    </button>
+                                                    <button 
+                                                        style={styles.menuItemDelete}
+                                                        onClick={() => handleDelete(faculty)}
+                                                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#fef2f2'}
+                                                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                                                    >
+                                                        <Delete sx={{ fontSize: 16 }} />
+                                                        <span>Delete</span>
+                                                    </button>
+                                                </div>
+                                            )}
                                         </div>
                                     </td>
                                 </tr>
@@ -207,6 +284,124 @@ const FacultyAccounts = () => {
                     </div>
                 </div>
             </div>
+
+            {/* Add Faculty Modal */}
+            {isModalOpen && (
+                <div style={styles.modalOverlay} onClick={closeModal}>
+                    <div style={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+                        <div style={styles.modalHeader}>
+                            <h2 style={styles.modalTitle}>Add New Faculty</h2>
+                            <button style={styles.closeBtn} onClick={closeModal}>
+                                <Close sx={{ fontSize: 24, color: '#64748b' }} />
+                            </button>
+                        </div>
+
+                        <div style={styles.form}>
+                            <div style={styles.formGrid}>
+                                <div style={styles.formGroup}>
+                                    <label style={styles.label}>Full Name *</label>
+                                    <input
+                                        type="text"
+                                        name="name"
+                                        value={formData.name}
+                                        onChange={handleInputChange}
+                                        placeholder="Enter full name"
+                                        style={styles.input}
+                                        required
+                                    />
+                                </div>
+
+                                <div style={styles.formGroup}>
+                                    <label style={styles.label}>Designation *</label>
+                                    <input
+                                        type="text"
+                                        name="designation"
+                                        value={formData.designation}
+                                        onChange={handleInputChange}
+                                        placeholder="e.g., Professor, Lecturer"
+                                        style={styles.input}
+                                        required
+                                    />
+                                </div>
+
+                                <div style={styles.formGroup}>
+                                    <label style={styles.label}>Faculty ID *</label>
+                                    <input
+                                        type="text"
+                                        name="facultyId"
+                                        value={formData.facultyId}
+                                        onChange={handleInputChange}
+                                        placeholder="e.g., FAC-001"
+                                        style={styles.input}
+                                        required
+                                    />
+                                </div>
+
+                                <div style={styles.formGroup}>
+                                    <label style={styles.label}>Email Address *</label>
+                                    <input
+                                        type="email"
+                                        name="email"
+                                        value={formData.email}
+                                        onChange={handleInputChange}
+                                        placeholder="example@uni.edu"
+                                        style={styles.input}
+                                        required
+                                    />
+                                </div>
+                            </div>
+
+                            <div style={styles.formGroup}>
+                                <label style={styles.label}>Department *</label>
+                                <div style={styles.selectWrapper}>
+                                    <select
+                                        name="department"
+                                        value={formData.department}
+                                        onChange={handleInputChange}
+                                        style={styles.selectModal}
+                                        required
+                                    >
+                                        <option value="">Select Department</option>
+                                        {departments.map(dept => (
+                                            <option key={dept} value={dept}>{dept}</option>
+                                        ))}
+                                    </select>
+                                    <KeyboardArrowDown style={styles.selectArrow} sx={{ fontSize: 20 }} />
+                                </div>
+                            </div>
+
+                            <div style={styles.formGroup}>
+                                <label style={styles.label}>Profile Picture</label>
+                                <div style={styles.uploadArea}>
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        onChange={handleFileChange}
+                                        style={styles.fileInput}
+                                        id="profile-pic"
+                                    />
+                                    <label htmlFor="profile-pic" style={styles.uploadLabel}>
+                                        <CloudUpload sx={{ fontSize: 32, color: '#94a3b8', marginBottom: '8px' }} />
+                                        <span style={styles.uploadText}>
+                                            {formData.profilePic ? formData.profilePic.name : 'Click to upload or drag and drop'}
+                                        </span>
+                                        <span style={styles.uploadSubtext}>PNG, JPG or JPEG (max. 5MB)</span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div style={styles.modalFooter}>
+                                <button type="button" style={styles.cancelBtn} onClick={closeModal}>
+                                    Cancel
+                                </button>
+                                <button type="button" style={styles.submitBtn} onClick={handleSubmit}>
+                                    Add Faculty
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
@@ -239,13 +434,76 @@ const styles = {
     statusActive: { backgroundColor: '#16A34A', color: 'white', padding: '4px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: '600', display: 'inline-block' },
     statusOnLeave: { backgroundColor: '#F59E0B', color: 'black', padding: '4px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: '600', display: 'inline-block' },
     statusInactive: { backgroundColor: '#f1f5f9', color: '#475569', padding: '4px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: '600', display: 'inline-block' },
-    actionBtnsGroup: { display: 'flex', gap: '8px', alignItems: 'center' },
+    actionBtnsGroup: { position: 'relative', display: 'flex', gap: '8px', alignItems: 'center' },
     actionBtn: { background: 'none', border: 'none', cursor: 'pointer', padding: '4px', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center' },
+    actionMenu: { 
+        position: 'absolute', 
+        right: '0', 
+        top: '100%', 
+        marginTop: '4px',
+        backgroundColor: '#ffffff', 
+        border: '1px solid #e2e8f0', 
+        borderRadius: '8px', 
+        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+        zIndex: 10,
+        minWidth: '140px',
+        overflow: 'hidden'
+    },
+    menuItem: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: '8px',
+        width: '100%',
+        padding: '10px 16px',
+        border: 'none',
+        background: 'transparent',
+        cursor: 'pointer',
+        fontSize: '14px',
+        color: '#334155',
+        textAlign: 'left',
+        transition: 'background-color 0.15s'
+    },
+    menuItemDelete: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: '8px',
+        width: '100%',
+        padding: '10px 16px',
+        border: 'none',
+        background: 'transparent',
+        cursor: 'pointer',
+        fontSize: '14px',
+        color: '#ef4444',
+        textAlign: 'left',
+        transition: 'background-color 0.15s',
+        borderTop: '1px solid #f1f5f9'
+    },
     paginationWrapper: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px', borderTop: '1px solid #e2e8f0', backgroundColor: '#fafafa', flexWrap: 'wrap', gap: '12px' },
     showingText: { fontSize: '14px', color: '#64748b' },
     paginationControls: { display: 'flex', gap: '12px' },
     pageBtn: { backgroundColor: '#ffffff', border: '1px solid #e2e8f0', color: '#334155', padding: '8px 16px', borderRadius: '6px', fontSize: '14px', fontWeight: '500', cursor: 'pointer' },
-    pageBtnDisabled: { opacity: 0.5, cursor: 'not-allowed' }
+    pageBtnDisabled: { opacity: 0.5, cursor: 'not-allowed' },
+    
+    // Modal Styles
+    modalOverlay: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0, 0, 0, 0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '20px' },
+    modalContent: { backgroundColor: '#ffffff', borderRadius: '12px', width: '100%', maxWidth: '600px', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)' },
+    modalHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '24px', borderBottom: '1px solid #e2e8f0' },
+    modalTitle: { fontSize: '20px', fontWeight: '700', color: '#0f172a', margin: 0 },
+    closeBtn: { background: 'none', border: 'none', cursor: 'pointer', padding: '4px', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center' },
+    form: { padding: '24px' },
+    formGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px' },
+    formGroup: { display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '20px' },
+    label: { fontSize: '14px', fontWeight: '600', color: '#334155' },
+    input: { padding: '10px 16px', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '14px', color: '#1e293b', outline: 'none', transition: 'border-color 0.2s' },
+    selectModal: { appearance: 'none', backgroundColor: '#ffffff', border: '1px solid #e2e8f0', color: '#1e293b', padding: '10px 40px 10px 16px', borderRadius: '8px', fontSize: '14px', cursor: 'pointer', width: '100%', outline: 'none' },
+    uploadArea: { border: '2px dashed #e2e8f0', borderRadius: '8px', padding: '24px', textAlign: 'center', backgroundColor: '#f8fafc', transition: 'border-color 0.2s' },
+    fileInput: { display: 'none' },
+    uploadLabel: { display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer' },
+    uploadText: { fontSize: '14px', color: '#64748b', fontWeight: '500', marginBottom: '4px' },
+    uploadSubtext: { fontSize: '12px', color: '#94a3b8' },
+    modalFooter: { display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '24px', paddingTop: '24px', borderTop: '1px solid #e2e8f0' },
+    cancelBtn: { padding: '10px 20px', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '14px', fontWeight: '600', color: '#64748b', backgroundColor: '#ffffff', cursor: 'pointer' },
+    submitBtn: { padding: '10px 20px', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: '600', color: '#ffffff', backgroundColor: '#3b82f6', cursor: 'pointer' }
 };
 
 export default FacultyAccounts;
