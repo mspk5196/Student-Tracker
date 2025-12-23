@@ -267,8 +267,8 @@ const styles = {
   },
 
   logoutWrapper: {
-    padding: '16px',
-    borderTop: '1px solid #e5e7eb'
+    padding: '5px',
+    borderTop: '1px solid #e5e7eb',
   },
 
   /* ================= MAIN ================= */

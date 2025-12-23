@@ -8,6 +8,8 @@ import SideTab from "../components/TabRouter/SideTab";
 import Login from "../pages/LoginPage/Login";
 import EducationDashboard from "../pages/SuperAdmin/DashboardPanal/Dashboard";
 import FacultyAccounts from "../pages/SuperAdmin/Faculty&Accounts/Faculty&Accounts";
+import Attendance from "../pages/SuperAdmin/AttendancePage/Attendance";
+import StudyRoadmap from "../pages/SuperAdmin/Task&Assignments/Study-Road-Map/RoadMap";
 
 const AppNavigator = () => {
   const user = useAuthStore((s) => s.user);
@@ -22,21 +24,21 @@ const AppNavigator = () => {
         {!user && <Route path="*" element={<Navigate to="/login" replace />} />}
 
         {/* ADMIN (role === 1) */}
-        {user?.role ==="admin" && (
+        {user?.role === "admin" && (
           <Route path="/" element={<SideTab />}>
             <Route index element={<EducationDashboard />} />
             <Route path="faculty" element={<FacultyAccounts />} />
             <Route path="classes" element={<div>Classes</div>} />
             <Route path="students" element={<div>Students</div>} />
-            <Route path="attendance" element={<div>Attendance</div>} />
-            <Route path="tasks" element={<div>Tasks</div>} />
+            <Route path="attendance" element={<Attendance />} />
+            <Route path="tasks" element={<StudyRoadmap />} />
             <Route path="reports" element={<div>Reports</div>} />
             <Route path="settings" element={<div>Settings</div>} />
           </Route>
         )}
 
         {/* FACULTY (role === 2) */}
-        {user?.role ==="faculty" && (
+        {user?.role === "faculty" && (
           <Route path="/" element={<SideTab />}>
             <Route index element={<div>Faculty Dashboard</div>} />
             <Route path="classes" element={<div>My Classes</div>} />
@@ -46,7 +48,7 @@ const AppNavigator = () => {
         )}
 
         {/* STUDENT (role === 3) */}
-        {user?.role ==="student" && (
+        {user?.role === "student" && (
           <Route path="/" element={<SideTab />}>
             <Route index element={<div>Student Dashboard</div>} />
             <Route path="classes" element={<div>My Classes</div>} />
