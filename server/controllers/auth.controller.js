@@ -8,7 +8,7 @@ const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 export const googleAuth = async (req, res) => {
   try {
     const { credential } = req.body;
-    console.log("🔹 RECEIVED CREDENTIAL:", credential);
+    // console.log("🔹 RECEIVED CREDENTIAL:", credential);
     if (!credential) return res.status(400).json({ message: 'No token' });
 
     const ticket = await client.verifyIdToken({
@@ -16,7 +16,7 @@ export const googleAuth = async (req, res) => {
       audience: process.env.GOOGLE_CLIENT_ID,
     });
 
-    const { email, name } = ticket.getPayload();
+    const { email } = ticket.getPayload();
 
     const [rows] = await db.query(
       `SELECT u.user_id, u.name, u.email, r.role

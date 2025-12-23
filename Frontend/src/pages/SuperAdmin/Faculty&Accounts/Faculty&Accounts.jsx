@@ -10,21 +10,21 @@ import {
 
 // --- Mock Data ---
 const FACULTY_DATA = [
-    { id: 1, name: 'Dr. Sarah Wilson', role: 'Professor', dept: 'Computer Science', email: 's.wilson@uni.edu', status: 'Active', joinDate: '2020-03-15' },
-    { id: 2, name: 'Prof. James Chen', role: 'Assistant Professor', dept: 'Engineering', email: 'j.chen@uni.edu', status: 'On Leave', joinDate: '2019-08-01' },
-    { id: 3, name: 'Dr. Emily Parker', role: 'Lecturer', dept: 'Mathematics', email: 'e.parker@uni.edu', status: 'Inactive', joinDate: '2021-01-10' },
-    { id: 4, name: 'Mr. Robert Fox', role: 'Lab Instructor', dept: 'Physics', email: 'r.fox@uni.edu', status: 'Active', joinDate: '2022-05-20' },
-    { id: 5, name: 'Dr. Linda Wong', role: 'Professor', dept: 'Chemistry', email: 'l.wong@uni.edu', status: 'Active', joinDate: '2018-11-12' },
-    { id: 6, name: 'Prof. Michael Brown', role: 'Associate Professor', dept: 'Biology', email: 'm.brown@uni.edu', status: 'Active', joinDate: '2019-03-22' },
-    { id: 7, name: 'Dr. Jennifer Lee', role: 'Lecturer', dept: 'English', email: 'j.lee@uni.edu', status: 'On Leave', joinDate: '2020-07-15' },
-    { id: 8, name: 'Mr. David Martinez', role: 'Lab Instructor', dept: 'Chemistry', email: 'd.martinez@uni.edu', status: 'Active', joinDate: '2021-09-01' },
-    { id: 9, name: 'Dr. Susan Taylor', role: 'Professor', dept: 'History', email: 's.taylor@uni.edu', status: 'Active', joinDate: '2017-02-10' },
-    { id: 10, name: 'Prof. Richard White', role: 'Assistant Professor', dept: 'Economics', email: 'r.white@uni.edu', status: 'Inactive', joinDate: '2022-01-05' },
-    { id: 11, name: 'Dr. Patricia Garcia', role: 'Lecturer', dept: 'Psychology', email: 'p.garcia@uni.edu', status: 'Active', joinDate: '2020-11-20' },
-    { id: 12, name: 'Mr. Thomas Anderson', role: 'Lab Instructor', dept: 'Physics', email: 't.anderson@uni.edu', status: 'Active', joinDate: '2021-04-12' },
-    { id: 13, name: 'Dr. Barbara Moore', role: 'Professor', dept: 'Sociology', email: 'b.moore@uni.edu', status: 'On Leave', joinDate: '2016-08-30' },
-    { id: 14, name: 'Prof. Christopher Hill', role: 'Associate Professor', dept: 'Political Science', email: 'c.hill@uni.edu', status: 'Active', joinDate: '2019-05-18' },
-    { id: 15, name: 'Dr. Nancy Scott', role: 'Lecturer', dept: 'Art', email: 'n.scott@uni.edu', status: 'Active', joinDate: '2022-02-28' },
+    { id: 1, name: 'Dr. Sarah Wilson', role: 'Professor', dept: 'CSE', email: 's.wilson@uni.edu', status: 'Active', joinDate: '2020-03-15' },
+    { id: 2, name: 'Prof. James Chen', role: 'Assistant Professor', dept: 'IT', email: 'j.chen@uni.edu', status: 'On Leave', joinDate: '2019-08-01' },
+    { id: 3, name: 'Dr. Emily Parker', role: 'Lecturer', dept: 'AIDS', email: 'e.parker@uni.edu', status: 'Inactive', joinDate: '2021-01-10' },
+    { id: 4, name: 'Mr. Robert Fox', role: 'Lab Instructor', dept: 'AIML', email: 'r.fox@uni.edu', status: 'Active', joinDate: '2022-05-20' },
+    { id: 5, name: 'Dr. Linda Wong', role: 'Professor', dept: 'CSBS', email: 'l.wong@uni.edu', status: 'Active', joinDate: '2018-11-12' },
+    { id: 6, name: 'Prof. Michael Brown', role: 'Associate Professor', dept: 'IT', email: 'm.brown@uni.edu', status: 'Active', joinDate: '2019-03-22' },
+    { id: 7, name: 'Dr. Jennifer Lee', role: 'Lecturer', dept: 'AIML', email: 'j.lee@uni.edu', status: 'On Leave', joinDate: '2020-07-15' },
+    { id: 8, name: 'Mr. David Martinez', role: 'Lab Instructor', dept: 'CSBS', email: 'd.martinez@uni.edu', status: 'Active', joinDate: '2021-09-01' },
+    { id: 9, name: 'Dr. Susan Taylor', role: 'Professor', dept: 'CSE', email: 's.taylor@uni.edu', status: 'Active', joinDate: '2017-02-10' },
+    { id: 10, name: 'Prof. Richard White', role: 'Assistant Professor', dept: 'BioTech', email: 'r.white@uni.edu', status: 'Inactive', joinDate: '2022-01-05' },
+    { id: 11, name: 'Dr. Patricia Garcia', role: 'Lecturer', dept: 'E&I', email: 'p.garcia@uni.edu', status: 'Active', joinDate: '2020-11-20' },
+    { id: 12, name: 'Mr. Thomas Anderson', role: 'Lab Instructor', dept: 'Mechatronics', email: 't.anderson@uni.edu', status: 'Active', joinDate: '2021-04-12' },
+    { id: 13, name: 'Dr. Barbara Moore', role: 'Professor', dept: 'Mechanical', email: 'b.moore@uni.edu', status: 'On Leave', joinDate: '2016-08-30' },
+    { id: 14, name: 'Prof. Christopher Hill', role: 'Associate Professor', dept: 'Electronics', email: 'c.hill@uni.edu', status: 'Active', joinDate: '2019-05-18' },
+    { id: 15, name: 'Dr. Nancy Scott', role: 'Lecturer', dept: 'Electrical', email: 'n.scott@uni.edu', status: 'Active', joinDate: '2022-02-28' },
 ];
 
 const FacultyAccounts = () => {

@@ -8,7 +8,7 @@ import SideTab from "../components/TabRouter/SideTab";
 import Login from "../pages/LoginPage/Login";
 import EducationDashboard from "../pages/SuperAdmin/DashboardPanal/Dashboard";
 import FacultyAccounts from "../pages/SuperAdmin/Faculty&Accounts/Faculty&Accounts";
-
+import Attendance from "../pages/SuperAdmin/AttendancePage/Attendance";
 const AppNavigator = () => {
   const user = useAuthStore((s) => s.user);
 
@@ -28,7 +28,7 @@ const AppNavigator = () => {
             <Route path="faculty" element={<FacultyAccounts />} />
             <Route path="classes" element={<div>Classes</div>} />
             <Route path="students" element={<div>Students</div>} />
-            <Route path="attendance" element={<div>Attendance</div>} />
+            <Route path="attendance" element={<Attendance />} />
             <Route path="tasks" element={<div>Tasks</div>} />
             <Route path="reports" element={<div>Reports</div>} />
             <Route path="settings" element={<div>Settings</div>} />
