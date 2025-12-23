@@ -1,9 +1,22 @@
-import React from 'react';
-import SuperAdminTab from './components/TabRouter/SuperAdminTab/SuperAdminTab';
 
+
+import { BrowserRouter } from "react-router-dom";
+import { useEffect } from "react";
+import AppNavigator from "./Navigation/AppNavigator";
+import useAuthStore from "./store/useAuthStore";
 
 function App() {
-  return <SuperAdminTab />;
+  const restore = useAuthStore((s) => s.restore);
+
+  useEffect(() => {
+    restore();
+  }, [restore]);
+
+  return (
+    <BrowserRouter>
+      <AppNavigator />
+    </BrowserRouter>
+  );
 }
 
 export default App;

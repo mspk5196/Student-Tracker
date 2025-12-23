@@ -1,0 +1,312 @@
+// import React, { useEffect } from 'react';
+// import { useNavigate } from 'react-router-dom';
+// import { useAuth } from '../hooks/useAuth';
+// import GoogleSignInButton from '../../components/GoogleSignInButton';
+// import logo from '../assets/logo.png';
+// import useUserStore from '../../store/useUserStore';
+
+// const Login = () => {
+//   const { login, isAuthenticated } = useAuth();
+//   const navigate = useNavigate();
+//   const setUser = useUserStore((state) => state.setUser);
+
+//   useEffect(() => {
+//     if (isAuthenticated) {
+//       navigate('/dashboard');
+//     }
+//   }, [isAuthenticated, navigate]);
+
+//   const handleGoogleSuccess = async (userData) => {
+//     try {
+//       const user = await login(userData);
+//       setUser(user);
+
+//       switch (user.role) {
+//         case 'STUDENT':
+//           navigate('/student-dashboard');
+//           break;
+//         case 'FACULTY':
+//           navigate('/faculty-dashboard');
+//           break;
+//         case 'ADMIN':
+//           navigate('/admin-dashboard');
+//           break;
+//         default:
+//           navigate('/dashboard');
+//       }
+//     } catch (error) {
+//       console.error('Login failed:', error);
+//     }
+//   };
+
+//   const handleGoogleFailure = (error) => {
+//     console.error('Google login failed:', error);
+//   };
+
+//   // 🔹 Dummy login handler
+//   const handleDummyLogin = (role) => {
+//     const dummyUser = {
+//       name: 'Test User',
+//       email: 'test@bitsathy.ac.in',
+//       role,
+//     };
+
+//     setUser(dummyUser);
+
+//     if (role === 'STUDENT') navigate('/student-dashboard');
+//     else if (role === 'FACULTY') navigate('/faculty-dashboard');
+//     else if (role === 'ADMIN') navigate('/admin-dashboard');
+//     // else → stay on login page
+//   };
+
+//   return (
+//     <div style={styles.page}>
+//       <div style={styles.card}>
+//         <h2 style={styles.heading}>Welcome Back!</h2>
+
+//         <img src={logo} alt="BIT" style={styles.logo} />
+
+//         <h3 style={styles.portalTitle}>STUDENT INFORMATION PORTAL</h3>
+
+//         <div style={styles.divider}></div>
+
+//         <GoogleSignInButton
+//           onSuccess={handleGoogleSuccess}
+//           onFailure={handleGoogleFailure}
+//         />
+
+//         <p style={styles.footerText}>
+//           Sign in with your BIT Google account
+//         </p>
+
+//         {/* Dummy Login Buttons */}
+//         <div style={styles.dummyContainer}>
+//           <p style={styles.dummyTitle}>Dummy Login (Testing)</p>
+
+//           <button style={styles.button} onClick={() => handleDummyLogin('STUDENT')}>
+//             Login as Student
+//           </button>
+
+//           <button style={styles.button} onClick={() => handleDummyLogin('FACULTY')}>
+//             Login as Faculty
+//           </button>
+
+//           <button style={styles.button} onClick={() => handleDummyLogin('ADMIN')}>
+//             Login as Admin
+//           </button>
+
+//           <button style={styles.disabledButton}>
+//             Unknown Role (Stay Here)
+//           </button>
+//         </div>
+//       </div>
+//     </div>
+//   );
+// };
+
+// export default Login;
+import React, { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import GoogleSignInButton from "../../components/GoogleSignInButton";
+import useAuthStore from "../../store/useAuthStore";
+import logo from "../../assets/logo.png";
+
+const Login = () => {
+  const navigate = useNavigate();
+  const login = useAuthStore((s) => s.login);
+  const user = useAuthStore((s) => s.user);
+
+  useEffect(() => {
+    if (user) {
+      if (user.role === "STUDENT") navigate("/student-dashboard");
+      else if (user.role === "FACULTY") navigate("/faculty-dashboard");
+      else if (user.role === "ADMIN") navigate("/admin-dashboard");
+    }
+  }, [user, navigate]);
+
+  const handleGoogleSuccess = async (response) => {
+    try {
+      const res = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/auth/google`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ credential: response.credential }),
+        }
+      );
+
+      if (!res.ok) {
+        alert("User not authorized");
+        return;
+      }
+
+      const data = await res.json();
+      login(data.user, data.token);
+
+      if (data.user.role === "STUDENT") navigate("/student-dashboard");
+      else if (data.user.role === "FACULTY") navigate("/faculty-dashboard");
+      else if (data.user.role === "ADMIN") navigate("/admin-dashboard");
+    } catch (err) {
+      console.error("Login failed:", err);
+    }
+  };
+
+  return (
+    <div style={styles.page}>
+      <div style={styles.card}>
+        <h2 style={styles.heading}>Welcome Back!</h2>
+
+        {/* ✅ LOGO RESTORED */}
+        <img src={logo} alt="BIT Logo" style={styles.logo} />
+
+        <h3 style={styles.portalTitle}>STUDENT INFORMATION PORTAL</h3>
+        <div style={styles.divider}></div>
+
+        {/* ✅ GOOGLE SIGN-IN */}
+        <GoogleSignInButton onSuccess={handleGoogleSuccess} />
+
+        <p style={styles.footerText}>
+          Sign in with your institutional Google account
+        </p>
+
+        {/* ✅ OPTIONAL: Dummy Login (Testing Only) */}
+        <div style={styles.dummyContainer}>
+          <p style={styles.dummyTitle}>Dummy Login (Testing)</p>
+
+          <button
+            style={styles.button}
+            onClick={() =>
+              login(
+                { name: "Student", email: "student@test.com", role: "STUDENT" },
+                "dummy"
+              ) || navigate("/student-dashboard")
+            }
+          >
+            Login as Student
+          </button>
+
+          <button
+            style={styles.button}
+            onClick={() =>
+              login(
+                { name: "Faculty", email: "faculty@test.com", role: "FACULTY" },
+                "dummy"
+              ) || navigate("/faculty-dashboard")
+            }
+          >
+            Login as Faculty
+          </button>
+
+          <button
+            style={styles.button}
+            onClick={() =>
+              login(
+                { name: "Admin", email: "admin@test.com", role: "ADMIN" },
+                "dummy"
+              ) || navigate("/admin-dashboard")
+            }
+          >
+            Login as Admin
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default Login;
+
+const styles = {
+  page: {
+    height: "100vh",               // 🔹 instead of minHeight
+    overflow: "hidden",            // 🔹 removes scroll
+    background: "linear-gradient(135deg, #e3f2fd 0%, #ffffff 60%)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: "16px",
+    fontFamily: "Arial, sans-serif",
+  },
+
+  card: {
+    backgroundColor: "#ffffff",
+    width: "100%",
+    maxWidth: "500px",              // 🔹 slightly smaller
+    padding: "32px",                // 🔹 reduced height
+    borderRadius: "14px",
+    boxShadow: "0 16px 32px rgba(0,0,0,0.12)",
+    textAlign: "center",
+  },
+
+  heading: {
+    color: "#455a64",
+    fontSize: "24px",               // 🔹 slightly smaller
+    fontWeight: "600",
+    marginBottom: "18px",
+  },
+
+  logo: {
+    width: "240px",                 // 🔹 reduced a bit
+    marginBottom: "22px",
+  },
+
+  portalTitle: {
+    color: "#37474f",
+    fontSize: "18px",
+    fontWeight: "500",
+    marginBottom: "12px",
+  },
+
+  divider: {
+    width: "52px",
+    height: "4px",
+    backgroundColor: "#4285f4",
+    margin: "0 auto 22px",
+    borderRadius: "4px",
+  },
+
+  footerText: {
+    fontSize: "13px",
+    color: "#777",
+    marginTop: "10px",
+  },
+
+  dummyContainer: {
+    marginTop: "22px",
+    padding: "14px",                // 🔹 reduced
+    border: "1px solid #e0e0e0",
+    borderRadius: "10px",
+    backgroundColor: "#fafafa",
+  },
+
+  dummyTitle: {
+    fontSize: "13px",
+    marginBottom: "12px",
+    fontWeight: "600",
+    color: "#555",
+  },
+
+  button: {
+    width: "100%",
+    padding: "10px",                // 🔹 reduced
+    marginBottom: "8px",
+    backgroundColor: "#4285f4",
+    color: "#fff",
+    border: "none",
+    borderRadius: "8px",
+    cursor: "pointer",
+    fontSize: "14px",
+    fontWeight: "500",
+  },
+
+  disabledButton: {
+    width: "100%",
+    padding: "10px",
+    backgroundColor: "#ccc",
+    color: "#666",
+    border: "none",
+    borderRadius: "8px",
+    cursor: "not-allowed",
+  },
+};
+
