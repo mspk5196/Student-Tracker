@@ -20,7 +20,7 @@ const Login = () => {
   const handleGoogleSuccess = async (response) => {
     try {
       const res = await fetch(
-        `${import.meta.env.VITE_API_URL}/api/auth/google`,
+        `${import.meta.env.VITE_API_URL}/auth/google`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
