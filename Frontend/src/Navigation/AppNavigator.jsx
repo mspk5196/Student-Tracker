@@ -10,6 +10,7 @@ import EducationDashboard from "../pages/SuperAdmin/DashboardPanal/Dashboard";
 import FacultyAccounts from "../pages/SuperAdmin/Faculty&Accounts/Faculty&Accounts";
 import Attendance from "../pages/SuperAdmin/AttendancePage/Attendance";
 import GroupsClasses from "../pages/SuperAdmin/Classes&Groups/Classes&Groups"
+import StudentsPage from "../pages/SuperAdmin/studentsPage/studentsPage";
 const AppNavigator = () => {
   const user = useAuthStore((s) => s.user);
 
@@ -28,7 +29,7 @@ const AppNavigator = () => {
             <Route index element={<EducationDashboard />} />
             <Route path="faculty" element={<FacultyAccounts />} />
             <Route path="classes" element={<GroupsClasses/>} />
-            <Route path="students" element={<div>Students</div>} />
+            <Route path="students" element={<StudentsPage/>} />
             <Route path="attendance" element={<Attendance />} />
             <Route path="tasks" element={<div>Tasks</div>} />
             <Route path="reports" element={<div>Reports</div>} />
