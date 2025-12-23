@@ -1,3 +1,4 @@
+
 import AppNavigator from "./Navigation/AppNavigator";
 
 function App() {
