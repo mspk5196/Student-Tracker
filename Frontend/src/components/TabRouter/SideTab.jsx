@@ -1,134 +1,330 @@
-import React from "react";
-import { NavLink, useNavigate } from "react-router-dom";
-import useAuthStore from "../../store/useAuthStore";
+import React, { useState, useEffect } from 'react';
+import { Outlet, useNavigate, useLocation } from 'react-router-dom';
+import useAuthStore from '../../store/useAuthStore';
 
-import DashboardIcon from "@mui/icons-material/Dashboard";
-import SchoolIcon from "@mui/icons-material/School";
-import AssignmentIcon from "@mui/icons-material/Assignment";
-import EventAvailableIcon from "@mui/icons-material/EventAvailable";
-import EmojiEventsIcon from "@mui/icons-material/EmojiEvents";
-import SettingsIcon from "@mui/icons-material/Settings";
-import LogoutIcon from "@mui/icons-material/Logout";
-import MenuBookIcon from "@mui/icons-material/MenuBook";
-
-const MENU_BY_ROLE = {
-  ADMIN: [
-    { label: "Dashboard", icon: DashboardIcon, path: "/" },
-    { label: "Faculty", icon: SchoolIcon, path: "/faculty" },
-    { label: "Students", icon: EmojiEventsIcon, path: "/students" },
-    { label: "Settings", icon: SettingsIcon, path: "/settings" },
-  ],
-
-  FACULTY: [
-    { label: "Dashboard", icon: DashboardIcon, path: "/" },
-    { label: "Classes", icon: SchoolIcon, path: "/classes" },
-    { label: "Tasks", icon: AssignmentIcon, path: "/tasks" },
-    { label: "Attendance", icon: EventAvailableIcon, path: "/attendance" },
-  ],
-
-  STUDENT: [
-    { label: "Dashboard", icon: DashboardIcon, path: "/" },
-    { label: "My Classes", icon: SchoolIcon, path: "/classes" },
-    { label: "Assignments", icon: AssignmentIcon, path: "/assignments" },
-    { label: "Attendance", icon: EventAvailableIcon, path: "/attendance" },
-  ],
-};
+import {
+  LayoutDashboard,
+  Users,
+  User,
+  GraduationCap,
+  CheckCircle,
+  BarChart3,
+  Settings,
+  Bell,
+  Layers,
+  Clock,
+  LogOut
+} from 'lucide-react';
 
 const SideTab = () => {
-  const { user, logout } = useAuthStore();
   const navigate = useNavigate();
+  const location = useLocation();
+  const { user, logout } = useAuthStore();
 
-  const menu = MENU_BY_ROLE[user.role] || [];
+  const [activeTab, setActiveTab] = useState('dashboard');
+
+  useEffect(() => {
+    const path = location.pathname.split('/').pop();
+    if (!path || path === '') {
+      setActiveTab('dashboard');
+    } else {
+      setActiveTab(path);
+    }
+  }, [location]);
+
+  /* ================= ROLE BASED MENU ================= */
+  const menuByRole = {
+    "admin": [ // ADMIN
+      { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, section: 'main' },
+      { id: 'faculty', label: 'Faculty & Accounts', icon: Users, section: 'main' },
+      { id: 'classes', label: 'Classes & Groups', icon: Layers, section: 'main' },
+      { id: 'students', label: 'Students', icon: User, section: 'main' },
+      { id: 'attendance', label: 'Attendance', icon: CheckCircle, section: 'academic' },
+      { id: 'tasks', label: 'Tasks & Assignments', icon: Clock, section: 'academic' },
+      { id: 'reports', label: 'Reports & Analytics', icon: BarChart3, section: 'academic' },
+      { id: 'settings', label: 'Settings', icon: Settings, section: 'system' },
+    ],
+
+    "faculty": [ // FACULTY
+      { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, section: 'main' },
+      { id: 'classes', label: 'My Classes', icon: Layers, section: 'main' },
+      { id: 'attendance', label: 'Attendance', icon: CheckCircle, section: 'academic' },
+      { id: 'tasks', label: 'Assignments', icon: Clock, section: 'academic' },
+    ],
+
+    "student": [ // STUDENT
+      { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, section: 'main' },
+      { id: 'classes', label: 'My Classes', icon: Layers, section: 'main' },
+      { id: 'attendance', label: 'My Attendance', icon: CheckCircle, section: 'academic' },
+      { id: 'tasks', label: 'My Tasks', icon: Clock, section: 'academic' },
+    ],
+  };
+
+  const menuItems = menuByRole[user?.role] || [];
+
+  const tabContent = {
+    dashboard: { title: 'Dashboard' },
+    faculty: { title: 'Faculty & Accounts' },
+    classes: { title: 'Classes & Groups' },
+    students: { title: 'Students' },
+    attendance: { title: 'Attendance' },
+    tasks: { title: 'Tasks & Assignments' },
+    reports: { title: 'Reports & Analytics' },
+    settings: { title: 'Settings' },
+  };
+
+  const handleNavigation = (id) => {
+    setActiveTab(id);
+    navigate(id === 'dashboard' ? '/' : id);
+  };
 
   const handleLogout = () => {
     logout();
-    navigate("/");
+    navigate('/login');
+  };
+
+  const renderNavItem = (item) => {
+    const Icon = item.icon;
+    const isActive = activeTab === item.id;
+
+    return (
+      <div
+        key={item.id}
+        style={{
+          ...styles.navItem,
+          ...(isActive ? styles.navItemActive : {})
+        }}
+        onClick={() => handleNavigation(item.id)}
+      >
+        <Icon size={20} />
+        <span>{item.label}</span>
+      </div>
+    );
   };
 
   return (
-    <aside style={styles.sidebar}>
-      {/* Logo */}
-      <div style={styles.header}>
-        <MenuBookIcon sx={{ fontSize: 32, color: "#1976d2" }} />
-        <h3>{user.role} Panel</h3>
-      </div>
+    <div style={styles.container}>
+      {/* ================= SIDEBAR ================= */}
+      <aside style={styles.sidebar}>
+        <div style={styles.logo}>
+          <div style={styles.logoContent}>
+            <div style={styles.logoIcon}>
+              <GraduationCap size={24} color="#ffffff" />
+            </div>
+            <span style={styles.logoText}>Academia</span>
+          </div>
+        </div>
 
-      {/* Menu */}
-      <nav style={styles.nav}>
-        {menu.map((item) => {
-          const Icon = item.icon;
-          return (
-            <NavLink
-              key={item.label}
-              to={item.path}
-              style={({ isActive }) => ({
-                ...styles.link,
-                background: isActive ? "#e3f2fd" : "transparent",
-              })}
-            >
-              <Icon />
-              {item.label}
-            </NavLink>
-          );
-        })}
-      </nav>
+        <nav style={styles.nav}>
+          {menuItems.filter(i => i.section === 'main').map(renderNavItem)}
 
-      {/* Logout */}
-      <button style={styles.logout} onClick={handleLogout}>
-        <LogoutIcon />
-        Logout
-      </button>
-    </aside>
+          {menuItems.some(i => i.section === 'academic') && (
+            <div style={styles.navSection}>
+              <div style={styles.navSectionTitle}>ACADEMIC</div>
+              {menuItems.filter(i => i.section === 'academic').map(renderNavItem)}
+            </div>
+          )}
+
+          {menuItems.some(i => i.section === 'system') && (
+            <div style={styles.navSection}>
+              <div style={styles.navSectionTitle}>SYSTEM</div>
+              {menuItems.filter(i => i.section === 'system').map(renderNavItem)}
+            </div>
+          )}
+
+          {/* LOGOUT */}
+          <div
+            style={{ ...styles.navItem, color: '#ef4444', marginTop: '12px' }}
+            onClick={handleLogout}
+          >
+            <LogOut size={20} />
+            <span>Logout</span>
+          </div>
+        </nav>
+      </aside>
+
+      {/* ================= MAIN ================= */}
+      <main style={styles.mainContent}>
+        <header style={styles.header}>
+          <div style={styles.headerContent}>
+            <h1 style={styles.headerTitle}>
+              {tabContent[activeTab]?.title || 'Dashboard'}
+            </h1>
+
+            <div style={styles.headerRight}>
+              <button style={styles.bellButton}>
+                <Bell size={24} />
+              </button>
+
+              <div style={styles.userInfo}>
+                <div style={styles.userText}>
+                  <div style={styles.userName}>{user?.name || 'User'}</div>
+                  <div style={styles.userRole}>
+                    {user?.role === 1 && 'Super Admin'}
+                    {user?.role === 2 && 'Faculty'}
+                    {user?.role === 3 && 'Student'}
+                  </div>
+                </div>
+                <div style={styles.userAvatar} />
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <div style={styles.content}>
+          <Outlet />
+        </div>
+      </main>
+    </div>
   );
 };
 
 export default SideTab;
 
-/* ---------------- STYLES ---------------- */
-
 const styles = {
-  sidebar: {
-    width: 260,
-    height: "100vh",
-    background: "#fff",
-    display: "flex",
-    flexDirection: "column",
-    borderRight: "1px solid #ddd",
-  },
-  header: {
-    padding: 20,
-    display: "flex",
-    alignItems: "center",
-    gap: 10,
-    borderBottom: "1px solid #ddd",
-  },
-  nav: {
-    flex: 1,
-    padding: 10,
-    display: "flex",
-    flexDirection: "column",
-    gap: 6,
-  },
-  link: {
-    padding: "10px 12px",
-    display: "flex",
-    gap: 12,
-    alignItems: "center",
-    textDecoration: "none",
-    color: "#333",
-    borderRadius: 6,
-    fontWeight: 500,
-  },
-  logout: {
-    padding: 12,
-    border: "none",
-    background: "#fff",
-    borderTop: "1px solid #ddd",
-    cursor: "pointer",
-    display: "flex",
-    gap: 10,
-    alignItems: "center",
-    color: "#d32f2f",
-    fontWeight: 500,
-  },
-};
+    container: {
+      display: 'flex',
+      height: '100vh',
+      backgroundColor: '#f9fafb',
+      fontFamily:
+        '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
+    },
+
+    /* ================= SIDEBAR ================= */
+    sidebar: {
+      width: '300px',
+      minWidth: '300px',
+      backgroundColor: '#ffffff',
+      borderRight: '1px solid #e5e7eb',
+      display: 'flex',
+      flexDirection: 'column'
+    },
+    logo: {
+      padding: '24px',
+      borderBottom: '1px solid #e5e7eb'
+    },
+    logoContent: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: '12px'
+    },
+    logoIcon: {
+      width: '40px',
+      height: '40px',
+      backgroundColor: '#2563eb',
+      borderRadius: '8px',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center'
+    },
+    logoText: {
+      fontSize: '20px',
+      fontWeight: '600',
+      color: '#111827'
+    },
+
+    nav: {
+      flex: 1,
+      padding: '16px'
+    },
+    navSection: {
+      marginBottom: '24px'
+    },
+    navSectionTitle: {
+      fontSize: '11px',
+      fontWeight: '600',
+      color: '#9ca3af',
+      padding: '0 16px',
+      marginBottom: '12px',
+      letterSpacing: '0.05em'
+    },
+    navItem: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: '12px',
+      padding: '12px 16px',
+      borderRadius: '8px',
+      cursor: 'pointer',
+      marginBottom: '8px',
+      transition: 'all 0.2s',
+      color: '#6b7280',
+      fontWeight: '500'
+    },
+    navItemActive: {
+      backgroundColor: '#eff6ff',
+      color: '#2563eb'
+    },
+
+    /* ================= MAIN ================= */
+    mainContent: {
+      flex: 1,
+      display: 'flex',
+      flexDirection: 'column',
+      overflow: 'hidden'
+    },
+
+    /* ================= HEADER ================= */
+    header: {
+      position: 'sticky',
+      top: 0,
+      zIndex: 10,
+      width: '100%',
+      backgroundColor: '#ffffff',
+      borderBottom: '1px solid #e5e7eb',
+      padding: '22px 32px',
+      boxSizing: 'border-box'
+    },
+    headerContent: {
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between'
+    },
+    headerTitle: {
+      fontSize: '24px',
+      fontWeight: '600',
+      color: '#111827'
+    },
+    headerRight: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: '16px'
+    },
+    bellButton: {
+      padding: '8px',
+      color: '#9ca3af',
+      cursor: 'pointer',
+      border: 'none',
+      backgroundColor: 'transparent'
+    },
+
+    userInfo: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: '12px'
+    },
+    userText: {
+      textAlign: 'right'
+    },
+    userName: {
+      fontSize: '14px',
+      fontWeight: '600',
+      color: '#111827'
+    },
+    userRole: {
+      fontSize: '12px',
+      color: '#6b7280'
+    },
+    userAvatar: {
+      width: '40px',
+      height: '40px',
+      background: 'linear-gradient(135deg, #fb923c 0%, #ec4899 100%)',
+      borderRadius: '50%'
+    },
+
+    /* ================= CONTENT ================= */
+    content: {
+      flex: 1,
+      overflow: 'auto',
+      padding: '32px'
+    }
+  };

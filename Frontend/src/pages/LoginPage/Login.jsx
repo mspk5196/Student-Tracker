@@ -1,110 +1,3 @@
-// import React, { useEffect } from 'react';
-// import { useNavigate } from 'react-router-dom';
-// import { useAuth } from '../hooks/useAuth';
-// import GoogleSignInButton from '../../components/GoogleSignInButton';
-// import logo from '../assets/logo.png';
-// import useUserStore from '../../store/useUserStore';
-
-// const Login = () => {
-//   const { login, isAuthenticated } = useAuth();
-//   const navigate = useNavigate();
-//   const setUser = useUserStore((state) => state.setUser);
-
-//   useEffect(() => {
-//     if (isAuthenticated) {
-//       navigate('/dashboard');
-//     }
-//   }, [isAuthenticated, navigate]);
-
-//   const handleGoogleSuccess = async (userData) => {
-//     try {
-//       const user = await login(userData);
-//       setUser(user);
-
-//       switch (user.role) {
-//         case 'STUDENT':
-//           navigate('/student-dashboard');
-//           break;
-//         case 'FACULTY':
-//           navigate('/faculty-dashboard');
-//           break;
-//         case 'ADMIN':
-//           navigate('/admin-dashboard');
-//           break;
-//         default:
-//           navigate('/dashboard');
-//       }
-//     } catch (error) {
-//       console.error('Login failed:', error);
-//     }
-//   };
-
-//   const handleGoogleFailure = (error) => {
-//     console.error('Google login failed:', error);
-//   };
-
-//   // 🔹 Dummy login handler
-//   const handleDummyLogin = (role) => {
-//     const dummyUser = {
-//       name: 'Test User',
-//       email: 'test@bitsathy.ac.in',
-//       role,
-//     };
-
-//     setUser(dummyUser);
-
-//     if (role === 'STUDENT') navigate('/student-dashboard');
-//     else if (role === 'FACULTY') navigate('/faculty-dashboard');
-//     else if (role === 'ADMIN') navigate('/admin-dashboard');
-//     // else → stay on login page
-//   };
-
-//   return (
-//     <div style={styles.page}>
-//       <div style={styles.card}>
-//         <h2 style={styles.heading}>Welcome Back!</h2>
-
-//         <img src={logo} alt="BIT" style={styles.logo} />
-
-//         <h3 style={styles.portalTitle}>STUDENT INFORMATION PORTAL</h3>
-
-//         <div style={styles.divider}></div>
-
-//         <GoogleSignInButton
-//           onSuccess={handleGoogleSuccess}
-//           onFailure={handleGoogleFailure}
-//         />
-
-//         <p style={styles.footerText}>
-//           Sign in with your BIT Google account
-//         </p>
-
-//         {/* Dummy Login Buttons */}
-//         <div style={styles.dummyContainer}>
-//           <p style={styles.dummyTitle}>Dummy Login (Testing)</p>
-
-//           <button style={styles.button} onClick={() => handleDummyLogin('STUDENT')}>
-//             Login as Student
-//           </button>
-
-//           <button style={styles.button} onClick={() => handleDummyLogin('FACULTY')}>
-//             Login as Faculty
-//           </button>
-
-//           <button style={styles.button} onClick={() => handleDummyLogin('ADMIN')}>
-//             Login as Admin
-//           </button>
-
-//           <button style={styles.disabledButton}>
-//             Unknown Role (Stay Here)
-//           </button>
-//         </div>
-//       </div>
-//     </div>
-//   );
-// };
-
-// export default Login;
 import React, { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import GoogleSignInButton from "../../components/GoogleSignInButton";
@@ -116,14 +9,14 @@ const Login = () => {
   const login = useAuthStore((s) => s.login);
   const user = useAuthStore((s) => s.user);
 
+  /* ================= AUTO REDIRECT IF ALREADY LOGGED IN ================= */
   useEffect(() => {
     if (user) {
-      if (user.role === "STUDENT") navigate("/student-dashboard");
-      else if (user.role === "FACULTY") navigate("/faculty-dashboard");
-      else if (user.role === "ADMIN") navigate("/admin-dashboard");
+      navigate("/"); // AppNavigator decides layout based on role
     }
   }, [user, navigate]);
 
+  /* ================= GOOGLE LOGIN ================= */
   const handleGoogleSuccess = async (response) => {
     try {
       const res = await fetch(
@@ -141,11 +34,11 @@ const Login = () => {
       }
 
       const data = await res.json();
+
+      // data.user.role must be 1 | 2 | 3
       login(data.user, data.token);
 
-      if (data.user.role === "STUDENT") navigate("/student-dashboard");
-      else if (data.user.role === "FACULTY") navigate("/faculty-dashboard");
-      else if (data.user.role === "ADMIN") navigate("/admin-dashboard");
+      navigate("/"); // single entry point
     } catch (err) {
       console.error("Login failed:", err);
     }
@@ -156,55 +49,56 @@ const Login = () => {
       <div style={styles.card}>
         <h2 style={styles.heading}>Welcome Back!</h2>
 
-        {/* ✅ LOGO RESTORED */}
         <img src={logo} alt="BIT Logo" style={styles.logo} />
 
         <h3 style={styles.portalTitle}>STUDENT INFORMATION PORTAL</h3>
         <div style={styles.divider}></div>
 
-        {/* ✅ GOOGLE SIGN-IN */}
         <GoogleSignInButton onSuccess={handleGoogleSuccess} />
 
         <p style={styles.footerText}>
           Sign in with your institutional Google account
         </p>
 
-        {/* ✅ OPTIONAL: Dummy Login (Testing Only) */}
+        {/* ================= DUMMY LOGIN ================= */}
         <div style={styles.dummyContainer}>
           <p style={styles.dummyTitle}>Dummy Login (Testing)</p>
 
           <button
             style={styles.button}
-            onClick={() =>
+            onClick={() => {
               login(
-                { name: "Student", email: "student@test.com", role: "STUDENT" },
+                { name: "Student", email: "student@test.com", role: 3 },
                 "dummy"
-              ) || navigate("/student-dashboard")
-            }
+              );
+              navigate("/");
+            }}
           >
             Login as Student
           </button>
 
           <button
             style={styles.button}
-            onClick={() =>
+            onClick={() => {
               login(
-                { name: "Faculty", email: "faculty@test.com", role: "FACULTY" },
+                { name: "Faculty", email: "faculty@test.com", role: 2 },
                 "dummy"
-              ) || navigate("/faculty-dashboard")
-            }
+              );
+              navigate("/");
+            }}
           >
             Login as Faculty
           </button>
 
           <button
             style={styles.button}
-            onClick={() =>
+            onClick={() => {
               login(
-                { name: "Admin", email: "admin@test.com", role: "ADMIN" },
+                { name: "Admin", email: "admin@test.com", role: 1 },
                 "dummy"
-              ) || navigate("/admin-dashboard")
-            }
+              );
+              navigate("/");
+            }}
           >
             Login as Admin
           </button>
@@ -215,6 +109,7 @@ const Login = () => {
 };
 
 export default Login;
+
 
 const styles = {
   page: {

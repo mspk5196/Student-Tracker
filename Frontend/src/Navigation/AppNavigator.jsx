@@ -1,87 +1,62 @@
-import { Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import useAuthStore from "../store/useAuthStore";
 
+// Layout
+import SideTab from "../components/TabRouter/SideTab";
+
+// Pages
 import Login from "../pages/LoginPage/Login";
-import AdminDashboard from "../pages/AdminPage/Dashboard";
-import FacultyDashboard from "../pages/FacultyPage/FacultyDashboard";
-import StudentDashboard from "../pages/StudentPage/Dashboard";
-import Attendance from "../pages/AdminPage/Attendance";
+import EducationDashboard from "../pages/SuperAdmin/DashboardPanal/Dashboard";
+import FacultyAccounts from "../pages/SuperAdmin/Faculty&Accounts/Faculty&Accounts";
+
 const AppNavigator = () => {
   const user = useAuthStore((s) => s.user);
 
-  // 🚨 NOT LOGGED IN → ONLY LOGIN
-  if (!user) {
-    return (
-      <Routes>
-        <Route path="*" element={<Login />} />
-      </Routes>
-    );
-  }
-
-  // ✅ LOGGED IN → ROLE DASHBOARD
   return (
-    <Routes>
-      <Route
-        path="/"
-        element={
-          user.role === "ADMIN" ? (
-            <AdminDashboard />
-          ) : user.role === "FACULTY" ? (
-            <FacultyDashboard />
-          ) : (
-            <StudentDashboard />
-          )
-        }
-      />
-   
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+    <BrowserRouter>
+      <Routes>
+        {/* COMMON */}
+        <Route path="/login" element={<Login />} />
+
+        {/* Not logged in → only login */}
+        {!user && <Route path="*" element={<Navigate to="/login" replace />} />}
+
+        {/* ADMIN (role === 1) */}
+        {user?.role ==="admin" && (
+          <Route path="/" element={<SideTab />}>
+            <Route index element={<EducationDashboard />} />
+            <Route path="faculty" element={<FacultyAccounts />} />
+            <Route path="classes" element={<div>Classes</div>} />
+            <Route path="students" element={<div>Students</div>} />
+            <Route path="attendance" element={<div>Attendance</div>} />
+            <Route path="tasks" element={<div>Tasks</div>} />
+            <Route path="reports" element={<div>Reports</div>} />
+            <Route path="settings" element={<div>Settings</div>} />
+          </Route>
+        )}
+
+        {/* FACULTY (role === 2) */}
+        {user?.role ==="faculty" && (
+          <Route path="/" element={<SideTab />}>
+            <Route index element={<div>Faculty Dashboard</div>} />
+            <Route path="classes" element={<div>My Classes</div>} />
+            <Route path="attendance" element={<div>Attendance</div>} />
+            <Route path="tasks" element={<div>Assignments</div>} />
+          </Route>
+        )}
+
+        {/* STUDENT (role === 3) */}
+        {user?.role ==="student" && (
+          <Route path="/" element={<SideTab />}>
+            <Route index element={<div>Student Dashboard</div>} />
+            <Route path="classes" element={<div>My Classes</div>} />
+            <Route path="attendance" element={<div>My Attendance</div>} />
+            <Route path="tasks" element={<div>My Tasks</div>} />
+          </Route>
+        )}
+      </Routes>
+    </BrowserRouter>
   );
 };
 
 export default AppNavigator;
-
-
-
-// import { Routes, Route } from 'react-router-dom';
-// import Login from '../pages/LoginPage/Login';
-// import ProtectedRoute from '../components/ProtectedRoute';
-
-// import StudentDashboard from '../pages/AdminPage/Dashboard';
-// import FacultyDashboard from '../pages/AdminPage/Attendance';
-// import AdminDashboard from '../pages/AdminPage/Dashboard';
-
-// const AppNavigator = () => (
-//   <Routes>
-//     <Route path="/" element={<Login />} />
-
-//     <Route
-//       path="/student-dashboard"
-//       element={
-//         <ProtectedRoute roles={['STUDENT']}>
-//           <StudentDashboard />
-//         </ProtectedRoute>
-//       }
-//     />
-
-//     <Route
-//       path="/faculty-dashboard"
-//       element={
-//         <ProtectedRoute roles={['FACULTY']}>
-//           <FacultyDashboard />
-//         </ProtectedRoute>
-//       }
-//     />
-
-//     <Route
-//       path="/admin-dashboard"
-//       element={
-//         <ProtectedRoute roles={['ADMIN']}>
-//           <AdminDashboard />
-//         </ProtectedRoute>
-//       }
-//     />
-//   </Routes>
-// );
-
-// export default AppNavigator;
