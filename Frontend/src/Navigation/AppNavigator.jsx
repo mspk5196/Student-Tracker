@@ -10,7 +10,7 @@ import EducationDashboard from "../pages/SuperAdmin/DashboardPanal/Dashboard";
 import FacultyAccounts from "../pages/SuperAdmin/Faculty&Accounts/Faculty&Accounts";
 import Attendance from "../pages/SuperAdmin/AttendancePage/Attendance";
 import GroupsClasses from "../pages/SuperAdmin/Classes&Groups/Classes&Groups"
-import StudentsPage from "../pages/SuperAdmin/studentsPage/studentsPage";
+import AttendanceDashboard from "../pages/SuperAdmin/studentsPage/Profileview";
 import StudyRoadmap from "../pages/SuperAdmin/Task&Assignments/Study-Road-Map/RoadMap";
 import ReportsAnalytics from "../pages/SuperAdmin/Reports&Analytics/Reporst&analytics";
 const AppNavigator = () => {
@@ -31,7 +31,7 @@ const AppNavigator = () => {
             <Route index element={<EducationDashboard />} />
             <Route path="faculty" element={<FacultyAccounts />} />
             <Route path="classes" element={<GroupsClasses />} />
-            <Route path="students" element={<StudentsPage />} />
+            <Route path="students" element={<AttendanceDashboard />} />
             <Route path="attendance" element={<Attendance />} />
             <Route path="tasks" element={<StudyRoadmap />} />
             <Route path="reports" element={<ReportsAnalytics />} />
