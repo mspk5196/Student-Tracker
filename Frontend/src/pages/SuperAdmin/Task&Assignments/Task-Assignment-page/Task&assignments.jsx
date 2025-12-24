@@ -8,15 +8,16 @@ import {
   CloudUpload,
   Send,
   Calendar,
-  ChevronDown
+  ChevronDown,
+  Link as LinkIcon
 } from 'lucide-react';
 
 /* ---------------- STATIC MASTER DATA ---------------- */
 
 const INITIAL_ASSIGNMENTS = [
-  { id: 1, title: 'Sorting Algorithms Impl.', score: 50, group: 'CS-201', dueDate: '2024-10-30', status: 'Active' },
-  { id: 2, title: 'Database Design Schema', score: 100, group: 'CS-305', dueDate: '2024-11-05', status: 'Active' },
-  { id: 3, title: 'Week 4: Reading Quiz', score: 20, group: 'ENG-101', dueDate: '2024-10-12', status: 'Closed' },
+  { id: 1, title: 'Sorting Algorithms Impl.', score: 50, group: 'CS-201', day: 1, dueDate: '2024-10-30', status: 'Active' },
+  { id: 2, title: 'Database Design Schema', score: 100, group: 'CS-305', day: 2, dueDate: '2024-11-05', status: 'Active' },
+  { id: 3, title: 'Week 4: Reading Quiz', score: 20, group: 'ENG-101', day: 4, dueDate: '2024-10-12', status: 'Inactive' },
 ];
 
 const CLASSES = ['CS-201', 'CS-305', 'ENG-101', 'PHY-102', 'CS-400'];
@@ -31,7 +32,10 @@ const AssignmentDashboard = () => {
   const [group, setGroup] = useState('');
   const [dueDate, setDueDate] = useState('');
   const [score, setScore] = useState(100);
+  const [day, setDay] = useState(1);
   const [description, setDescription] = useState('');
+  const [materialType, setMaterialType] = useState('link'); // 'link' or 'file'
+  const [externalUrl, setExternalUrl] = useState('');
   const [files, setFiles] = useState([]);
   const [openMenuId, setOpenMenuId] = useState(null);
 
@@ -50,7 +54,10 @@ const AssignmentDashboard = () => {
     setGroup('');
     setDueDate('');
     setScore(100);
+    setDay(1);
     setDescription('');
+    setMaterialType('link');
+    setExternalUrl('');
     setFiles([]);
   };
 
@@ -64,10 +71,13 @@ const AssignmentDashboard = () => {
       id: Date.now(),
       title,
       group,
+      day: parseInt(day),
       score,
       dueDate,
       status: 'Active',
-      resources: files
+      materialType: materialType,
+      resources: materialType === 'file' ? files : [],
+      url: materialType === 'link' ? externalUrl : ''
     };
 
     setAssignments(prev => [newAssignment, ...prev]);
@@ -76,9 +86,9 @@ const AssignmentDashboard = () => {
   };
 
   /* -------- STATUS ACTION -------- */
-  const closeAssignment = (id) => {
+  const toggleTaskStatus = (id, currentStatus) => {
     setAssignments(prev =>
-      prev.map(a => a.id === id ? { ...a, status: 'Closed' } : a)
+      prev.map(a => a.id === id ? { ...a, status: currentStatus === 'Active' ? 'Inactive' : 'Active' } : a)
     );
     setOpenMenuId(null);
   };
@@ -100,14 +110,20 @@ const AssignmentDashboard = () => {
               <input style={styles.textInput} value={title} onChange={e => setTitle(e.target.value)} />
             </div>
 
-            <div style={styles.fieldGroup}>
-              <label style={styles.fieldLabel}>Target Class / Group *</label>
-              <div style={styles.relativeWrapper}>
-                <select style={styles.selectInput} value={group} onChange={e => setGroup(e.target.value)}>
-                  <option value="" hidden>Select a class...</option>
-                  {CLASSES.map(cls => <option key={cls}>{cls}</option>)}
-                </select>
-                <ChevronDown size={16} style={styles.dropdownIcon} />
+            <div style={styles.splitRow}>
+              <div style={{ flex: 1 }}>
+                <label style={styles.fieldLabel}>Target Class / Group *</label>
+                <div style={styles.relativeWrapper}>
+                  <select style={styles.selectInput} value={group} onChange={e => setGroup(e.target.value)}>
+                    <option value="" hidden>Select a class...</option>
+                    {CLASSES.map(cls => <option key={cls}>{cls}</option>)}
+                  </select>
+                  <ChevronDown size={16} style={styles.dropdownIcon} />
+                </div>
+              </div>
+              <div style={{ flex: 1 }}>
+                <label style={styles.fieldLabel}>Select Day *</label>
+                <input type="number" style={styles.textInput} value={day} onChange={e => setDay(e.target.value)} min="1" />
               </div>
             </div>
 
@@ -135,26 +151,53 @@ const AssignmentDashboard = () => {
               <textarea style={styles.textareaInput} value={description} onChange={e => setDescription(e.target.value)} />
             </div>
 
-            {/* STUDY MATERIAL */}
+            {/* STUDY MATERIAL - Either/Or Format */}
             <div style={styles.fieldGroup}>
               <label style={styles.fieldLabel}>Study Material</label>
-              <div style={styles.uploadBox} onClick={() => document.getElementById('fileUpload').click()}>
-                <CloudUpload size={28} style={styles.cloudIcon} />
-                <input
-                  id="fileUpload"
-                  type="file"
-                  multiple
-                  accept=".pdf,.svg,.png,.jpg,.jpeg,.mp4,.webm,.zip"
-                  hidden
-                  onChange={(e) => setFiles([...e.target.files])}
-                />
-                <div style={styles.uploadText}>
-                  <span style={styles.blueLink}>Click to upload</span> files
-                </div>
-                {files.map((f, i) => (
-                  <div key={i} style={styles.uploadSubtext}>{f.name}</div>
-                ))}
+              <div style={styles.tabToggleGroup}>
+                <button
+                  style={materialType === 'link' ? styles.toggleBtnActive : styles.toggleBtn}
+                  onClick={() => setMaterialType('link')}
+                >
+                  External Link
+                </button>
+                <button
+                  style={materialType === 'file' ? styles.toggleBtnActive : styles.toggleBtn}
+                  onClick={() => setMaterialType('file')}
+                >
+                  Upload File
+                </button>
               </div>
+
+              {materialType === 'link' ? (
+                <div style={styles.relativeWrapper}>
+                  <input
+                    style={styles.textInput}
+                    placeholder="e.g. https://resource.link"
+                    value={externalUrl}
+                    onChange={e => setExternalUrl(e.target.value)}
+                  />
+                  <LinkIcon size={16} style={styles.dateIcon} />
+                </div>
+              ) : (
+                <div style={styles.uploadBox} onClick={() => document.getElementById('fileUpload').click()}>
+                  <CloudUpload size={28} style={styles.cloudIcon} />
+                  <input
+                    id="fileUpload"
+                    type="file"
+                    multiple
+                    accept=".pdf,.svg,.png,.jpg,.jpeg,.mp4,.webm,.zip"
+                    hidden
+                    onChange={(e) => setFiles([...e.target.files])}
+                  />
+                  <div style={styles.uploadText}>
+                    <span style={styles.blueLink}>Click to upload</span> images or PDFs
+                  </div>
+                  {files.map((f, i) => (
+                    <div key={i} style={styles.uploadSubtext}>{f.name}</div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
@@ -184,7 +227,7 @@ const AssignmentDashboard = () => {
             <div style={{ ...styles.relativeWrapper, width: '130px' }}>
               <select style={styles.filterSelect} value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
                 <option>Active</option>
-                <option>Closed</option>
+                <option>Inactive</option>
                 <option>All</option>
               </select>
               <ChevronDown size={16} style={styles.dropdownIcon} />
@@ -204,7 +247,7 @@ const AssignmentDashboard = () => {
               <div key={row.id} style={styles.tableRow}>
                 <div style={{ flex: 2.5 }}>
                   <div style={styles.boldText}>{row.title}</div>
-                  <div style={styles.subtitleText}>Max Score: {row.score}</div>
+                  <div style={styles.subtitleText}>Day {row.day} | Max Score: {row.score}</div>
                 </div>
                 <div style={{ flex: 1 }}>{row.group}</div>
                 <div style={{ flex: 1 }}>{row.dueDate || '--'}</div>
@@ -219,9 +262,9 @@ const AssignmentDashboard = () => {
                     onClick={() => setOpenMenuId(openMenuId === row.id ? null : row.id)}
                   />
                   {openMenuId === row.id && (
-                    <div style={{ position: 'absolute', right: 0, top: '22px', background: '#fff', border: '1px solid #E5E7EB', borderRadius: '6px' }}>
-                      <div style={{ padding: '8px 12px', cursor: 'pointer' }} onClick={() => closeAssignment(row.id)}>
-                        Close Task
+                    <div style={{ position: 'absolute', right: 0, top: '22px', background: '#fff', border: '1px solid #E5E7EB', borderRadius: '6px', zIndex: 10, minWidth: '120px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
+                      <div style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '13px' }} onClick={() => toggleTaskStatus(row.id, row.status)}>
+                        {row.status === 'Active' ? 'Set as Inactive' : 'Set as Active'}
                       </div>
                     </div>
                   )}
@@ -291,6 +334,36 @@ const styles = {
   },
   fieldGroup: { display: 'flex', flexDirection: 'column', gap: '8px' },
   fieldLabel: { fontSize: '12px', fontWeight: '700', color: '#4B5563' },
+  tabToggleGroup: {
+    display: 'flex',
+    backgroundColor: '#F3F4F6',
+    padding: '4px',
+    borderRadius: '8px',
+    marginBottom: '10px'
+  },
+  toggleBtn: {
+    flex: 1,
+    padding: '8px',
+    border: 'none',
+    backgroundColor: 'transparent',
+    fontSize: '12px',
+    fontWeight: '600',
+    color: '#6B7280',
+    cursor: 'pointer',
+    borderRadius: '6px'
+  },
+  toggleBtnActive: {
+    flex: 1,
+    padding: '8px',
+    border: 'none',
+    backgroundColor: '#FFFFFF',
+    fontSize: '12px',
+    fontWeight: '700',
+    color: '#2563EB',
+    cursor: 'pointer',
+    borderRadius: '6px',
+    boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+  },
   required: { color: '#DC2626' },
   textInput: {
     padding: '12px 14px',

@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import useAuthStore from '../../../store/useAuthStore'; // Adjust path as needed
+import useAuthStore from '../../../../store/useAuthStore'; // Adjust path as needed
 
 const StudentsPage = () => {
   const { token } = useAuthStore();
@@ -25,7 +25,7 @@ const StudentsPage = () => {
       });
 
       const data = await response.json();
-      
+
       if (data.success) {
         setStudents(data.data);
       } else {
@@ -50,15 +50,15 @@ const StudentsPage = () => {
 
   const filteredStudents = useMemo(() => {
     return students.filter(student => {
-      const matchesSearch = search === '' || 
-        student. name.toLowerCase().includes(search.toLowerCase()) ||
+      const matchesSearch = search === '' ||
+        student.name.toLowerCase().includes(search.toLowerCase()) ||
         student.email.toLowerCase().includes(search.toLowerCase()) ||
         student.id.toLowerCase().includes(search.toLowerCase());
-      
-      const matchesDepartment = departmentFilter === 'All Departments' || 
+
+      const matchesDepartment = departmentFilter === 'All Departments' ||
         student.department === departmentFilter;
-      
-      const matchesYear = yearFilter === 'All Years' || 
+
+      const matchesYear = yearFilter === 'All Years' ||
         student.year === yearFilter;
 
       return matchesSearch && matchesDepartment && matchesYear;
@@ -89,16 +89,16 @@ const StudentsPage = () => {
         <div style={{
           backgroundColor: '#fee2e2',
           color: '#991b1b',
-          padding:  '12px 16px',
+          padding: '12px 16px',
           borderRadius: '8px',
           marginBottom: '20px',
           display: 'flex',
           justifyContent: 'space-between',
-          alignItems:  'center',
+          alignItems: 'center',
           fontSize: '14px'
         }}>
           <span>{error}</span>
-          <button 
+          <button
             onClick={() => setError('')}
             style={{
               background: 'none',
@@ -118,7 +118,7 @@ const StudentsPage = () => {
       <div style={{
         marginBottom: '32px',
         display: 'flex',
-        justifyContent:  'space-between',
+        justifyContent: 'space-between',
         alignItems: 'center'
       }}>
         <div style={{
@@ -226,7 +226,7 @@ const StudentsPage = () => {
       )}
 
       {/* Students Grid */}
-      {! loading && (
+      {!loading && (
         <div style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
@@ -241,19 +241,19 @@ const StudentsPage = () => {
               transition: 'all 0.2s',
               cursor: 'pointer'
             }}
-            onMouseEnter={(e) => {
-              e.currentTarget. style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
-              e.currentTarget.style.transform = 'translateY(-2px)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
-              e.currentTarget.style.transform = 'translateY(0)';
-            }}>
+              onMouseEnter={(e) => {
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
+                e.currentTarget.style.transform = 'translateY(-2px)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
+                e.currentTarget.style.transform = 'translateY(0)';
+              }}>
               {/* Student Header */}
               <div style={{ display: 'flex', alignItems: 'center', marginBottom: '20px' }}>
                 {student.image ? (
-                  <img 
-                    src={student.image} 
+                  <img
+                    src={student.image}
                     alt={student.name}
                     style={{
                       width: '48px',
@@ -273,9 +273,9 @@ const StudentsPage = () => {
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    fontSize:  '20px',
-                    fontWeight:  '600',
-                    marginRight:  '12px'
+                    fontSize: '20px',
+                    fontWeight: '600',
+                    marginRight: '12px'
                   }}>
                     {getInitials(student.name)}
                   </div>
@@ -283,9 +283,9 @@ const StudentsPage = () => {
                 <div style={{ flex: 1 }}>
                   <div style={{
                     fontSize: '15px',
-                    fontWeight:  '600',
+                    fontWeight: '600',
                     color: '#111827',
-                    marginBottom:  '3px'
+                    marginBottom: '3px'
                   }}>
                     {student.name}
                   </div>
@@ -305,7 +305,7 @@ const StudentsPage = () => {
                   justifyContent: 'space-between',
                   marginBottom: '12px'
                 }}>
-                  <span style={{ fontSize: '14px', color:  '#6B7280' }}>Department</span>
+                  <span style={{ fontSize: '14px', color: '#6B7280' }}>Department</span>
                   <span style={{ fontSize: '14px', color: '#111827', fontWeight: '500' }}>
                     {student.department}
                   </span>
@@ -348,7 +348,7 @@ const StudentsPage = () => {
                   </div>
                   <div style={{
                     fontSize: '22px',
-                    fontWeight:  '700',
+                    fontWeight: '700',
                     color: getAttendanceColor(student.attendance)
                   }}>
                     {student.attendance}%
@@ -360,7 +360,7 @@ const StudentsPage = () => {
                     color: '#6B7280',
                     textTransform: 'uppercase',
                     letterSpacing: '0.5px',
-                    marginBottom:  '6px',
+                    marginBottom: '6px',
                     fontWeight: '500'
                   }}>
                     TASKS
@@ -395,16 +395,16 @@ const StudentsPage = () => {
                   border: 'none',
                   color: '#3B82F6',
                   fontSize: '14px',
-                  fontWeight:  '500',
-                  cursor:  'pointer',
+                  fontWeight: '500',
+                  cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'flex-end',
                   gap: '4px',
                   transition: 'color 0.2s'
                 }}
-                onMouseEnter={(e) => e.target.style.color = '#2563EB'}
-                onMouseLeave={(e) => e.target.style.color = '#3B82F6'}>
+                  onMouseEnter={(e) => e.target.style.color = '#2563EB'}
+                  onMouseLeave={(e) => e.target.style.color = '#3B82F6'}>
                   View Profile →
                 </button>
               </div>
@@ -414,7 +414,7 @@ const StudentsPage = () => {
       )}
 
       {/* No Results */}
-      {! loading && filteredStudents.length === 0 && (
+      {!loading && filteredStudents.length === 0 && (
         <div style={{
           textAlign: 'center',
           padding: '60px 20px',
