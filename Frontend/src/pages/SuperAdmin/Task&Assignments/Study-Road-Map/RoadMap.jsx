@@ -52,7 +52,7 @@ const StudyRoadmap = () => {
     };
 
     const setupDraft = (id) => {
-        setRoadmap(prev => prev.map(item => 
+        setRoadmap(prev => prev.map(item =>
             item.id === id ? { ...item, status: 'published', description: 'Enter module description here...' } : item
         ));
         const item = roadmap.find(r => r.id === id);
@@ -86,14 +86,14 @@ const StudyRoadmap = () => {
             id: Date.now(),
             name: newResource.name,
             kind: newResource.kind,
-            type: newResource.kind === 'pdf' ? 'PDF Document' : 
-                  newResource.kind === 'video' ? 'Video Link' : 'Web Resource'
+            type: newResource.kind === 'pdf' ? 'PDF Document' :
+                newResource.kind === 'video' ? 'Video Link' : 'Web Resource'
         };
 
-        setRoadmap(prev => prev.map(item => 
-            item.id === currentModuleId 
-            ? { ...item, resources: [...item.resources, resourceObj] } 
-            : item
+        setRoadmap(prev => prev.map(item =>
+            item.id === currentModuleId
+                ? { ...item, resources: [...item.resources, resourceObj] }
+                : item
         ));
 
         // Reset
@@ -145,10 +145,10 @@ const StudyRoadmap = () => {
                                                 <div style={styles.headerInfo}>
                                                     <div style={styles.dayBadge}>DAY {module.day}</div>
                                                     {editingId === module.id ? (
-                                                        <input 
+                                                        <input
                                                             style={styles.titleInput}
-                                                            value={editData.title} 
-                                                            onChange={e => setEditData({...editData, title: e.target.value})} 
+                                                            value={editData.title}
+                                                            onChange={e => setEditData({ ...editData, title: e.target.value })}
                                                         />
                                                     ) : (
                                                         <h3 style={styles.cardTitle}>{module.title}</h3>
@@ -166,10 +166,10 @@ const StudyRoadmap = () => {
 
                                             <div style={styles.cardBody}>
                                                 {editingId === module.id ? (
-                                                    <textarea 
+                                                    <textarea
                                                         style={styles.textArea}
-                                                        value={editData.description} 
-                                                        onChange={e => setEditData({...editData, description: e.target.value})} 
+                                                        value={editData.description}
+                                                        onChange={e => setEditData({ ...editData, description: e.target.value })}
                                                     />
                                                 ) : (
                                                     <p style={styles.description}>{module.description}</p>
@@ -219,33 +219,33 @@ const StudyRoadmap = () => {
                 <div style={styles.modalOverlay}>
                     <div style={styles.modalContent}>
                         <div style={styles.modalHeader}>
-                            <h3 style={{margin:0}}>Add Resource</h3>
+                            <h3 style={{ margin: 0 }}>Add Resource</h3>
                             <X style={styles.cursor} onClick={() => setShowResourceModal(false)} />
                         </div>
-                        
+
                         <div style={styles.modalBody}>
                             <label style={styles.label}>Resource Title</label>
-                            <input 
-                                style={styles.input} 
-                                placeholder="e.g. Lecture Notes or Tutorial Video" 
+                            <input
+                                style={styles.input}
+                                placeholder="e.g. Lecture Notes or Tutorial Video"
                                 value={newResource.name}
-                                onChange={(e) => setNewResource({...newResource, name: e.target.value})}
+                                onChange={(e) => setNewResource({ ...newResource, name: e.target.value })}
                             />
 
                             <label style={styles.label}>Type</label>
                             <div style={styles.typeGrid}>
-                                <button 
-                                    onClick={() => setNewResource({...newResource, kind: 'pdf'})}
+                                <button
+                                    onClick={() => setNewResource({ ...newResource, kind: 'pdf' })}
                                     style={newResource.kind === 'pdf' ? styles.activeType : styles.typeBtn}>
                                     <FileText size={18} /> PDF
                                 </button>
-                                <button 
-                                    onClick={() => setNewResource({...newResource, kind: 'video'})}
+                                <button
+                                    onClick={() => setNewResource({ ...newResource, kind: 'video' })}
                                     style={newResource.kind === 'video' ? styles.activeType : styles.typeBtn}>
                                     <Youtube size={18} /> Video
                                 </button>
-                                <button 
-                                    onClick={() => setNewResource({...newResource, kind: 'link'})}
+                                <button
+                                    onClick={() => setNewResource({ ...newResource, kind: 'link' })}
                                     style={newResource.kind === 'link' ? styles.activeType : styles.typeBtn}>
                                     <LinkIcon size={18} /> Link
                                 </button>
@@ -258,11 +258,11 @@ const StudyRoadmap = () => {
                                     <span>Choose PDF File</span>
                                 </div>
                             ) : (
-                                <input 
-                                    style={styles.input} 
-                                    placeholder="Enter URL" 
+                                <input
+                                    style={styles.input}
+                                    placeholder="Enter URL"
                                     value={newResource.url}
-                                    onChange={(e) => setNewResource({...newResource, url: e.target.value})}
+                                    onChange={(e) => setNewResource({ ...newResource, url: e.target.value })}
                                 />
                             )}
                         </div>
@@ -315,7 +315,7 @@ const styles = {
     resMeta: { fontSize: '12px', color: '#9CA3AF' },
     cursor: { cursor: 'pointer' },
     addResourceBtn: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', width: '100%', padding: '14px', backgroundColor: 'transparent', border: '1px dashed #E5E7EB', borderRadius: '10px', color: '#6B7280', fontSize: '14px', fontWeight: '500', cursor: 'pointer' },
-    
+
     /* DRAFT */
     draftCard: { padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
     draftBadge: { backgroundColor: '#9CA3AF', color: '#FFFFFF', fontSize: '11px', fontWeight: '700', padding: '6px 10px', borderRadius: '6px' },
