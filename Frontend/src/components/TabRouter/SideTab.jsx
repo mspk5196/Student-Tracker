@@ -196,8 +196,8 @@ const styles = {
 
   /* ================= SIDEBAR ================= */
   sidebar: {
-    width: '300px',
-    minWidth: '300px',
+    width: '260px',
+    minWidth: '260px',
     height: '100vh',
     display: 'flex',
     flexDirection: 'column',
@@ -205,7 +205,7 @@ const styles = {
     borderRight: '1px solid #e5e7eb'
   },
   logo: {
-    padding: '24px',
+    padding: '14px 20px',
     borderBottom: '1px solid #e5e7eb'
   },
   logoContent: {
@@ -253,7 +253,7 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     gap: '12px',
-    padding: '12px 16px',
+    padding: '10px 16px',
     borderRadius: '8px',
     cursor: 'pointer',
     marginBottom: '8px',
@@ -287,7 +287,7 @@ const styles = {
     width: '100%',
     backgroundColor: '#ffffff',
     borderBottom: '1px solid #e5e7eb',
-    padding: '22px 32px',
+    padding: '12px 32px',
     boxSizing: 'border-box'
   },
   headerContent: {
@@ -341,6 +341,6 @@ const styles = {
   content: {
     flex: 1,
     overflow: 'auto',
-    padding: '32px'
+    padding: '24px'
   }
 };
