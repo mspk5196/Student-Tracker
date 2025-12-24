@@ -1,264 +1,216 @@
-
 import React, { useState } from 'react';
+// Correct Professional Icons from Material UI
+import EditIcon from '@mui/icons-material/EditOutlined';
+import DownloadIcon from '@mui/icons-material/DownloadOutlined';
+import AssignmentIndIcon from '@mui/icons-material/AssignmentIndOutlined'; // ID
+import BookIcon from '@mui/icons-material/MenuBookOutlined'; // Computer Science
+import LayersIcon from '@mui/icons-material/LayersOutlined'; // Year
+import PeopleIcon from '@mui/icons-material/PeopleOutlined'; // Group
+
+import Overview from './Overview/Overview';
+import AttendanceDashboard from './Attendance/Attendance';
 
 /**
- * Student Data JSON
+ * 1:1 Matching Data
  */
-const STUDENT_DATA = {
-  name: "Alexander Pierce",
-  id: "ST-2024-8842",
-  department: "Faculty of Applied Sciences",
-  major: "Quantum Computing & Physics",
-  year: "3rd Year",
-  semester: "Semester 6",
-  batch: "2021-2025",
-  group: "Alpha-1",
-  avatar: "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&q=80&w=200&h=200",
-  email: "a.pierce@university.edu",
-  academicStatus: "Dean's List",
-  credits: 112,
-  gpa: "3.92"
+const DATA = {
+  name: "Emma Watson",
+  id: "20230045",
+  major: "Computer Science",
+  year: "3rd Year (Sem 5)",
+  group: "Group CS-A",
+  avatar: "https://i.pravatar.cc/150?u=emma" // Matching the profile look
 };
 
-/**
- * React Inline Styles (JSON format)
- */
 const styles = {
-  appContainer: {
-    display: 'flex',
-    flexDirection: 'column',
-    height: '100vh',
-    width: '100%',
+  container: {
+    padding: '30px',
+    backgroundColor: '#fff',
     fontFamily: "'Inter', sans-serif",
-    backgroundColor: '#F9FAFB',
-    color: '#1e293b',
-    overflow: 'hidden',
   },
-  fixedHeader: {
-    flexShrink: 0,
+  // Main White Profile Box
+  profileCard: {
+    display: 'flex',
+    alignItems: 'center',
     background: '#ffffff',
-    borderBottom: '1px solid #e2e8f0',
-    zIndex: 1000,
-    boxShadow: '0 2px 10px rgba(0,0,0,0.03)',
+    border: '1px solid #eef2f6',
+    borderRadius: '12px',
+    padding: '32px',
+    position: 'relative',
+    boxShadow: '0 2px 4px rgba(0,0,0,0.02)',
+    marginBottom: '20px',
   },
-  headerInner: {
-    maxWidth: '1200px',
-    margin: '0 auto',
-    padding: '20px 24px 0 24px',
+  avatarContainer: {
+    marginRight: '28px',
   },
-  profileSection: {
+  avatar: {
+    width: '100px',
+    height: '100px',
+    borderRadius: '50%',
+    objectFit: 'cover',
+    // Perfect Circle Ring Style from Image
+    padding: '3px',
+    background: 'white',
+    border: '1.5px solid #d1e1fb',
+  },
+  infoArea: {
+    flexGrow: 1,
+  },
+  name: {
+    fontSize: '28px',
+    fontWeight: '700',
+    color: '#1e293b',
+    margin: '0 0 10px 0',
+    letterSpacing: '-0.02em',
+  },
+  metaRow: {
     display: 'flex',
     alignItems: 'center',
     gap: '24px',
-    marginBottom: '20px',
+    flexWrap: 'wrap',
   },
-  avatarBox: {
-    position: 'relative',
-    flexShrink: 0,
-  },
-  avatarImg: {
-    width: '80px',
-    height: '80px',
-    borderRadius: '14px',
-    objectFit: 'cover',
-    border: '3px solid #fff',
-    boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
-  },
-  statusBadge: {
-    position: 'absolute',
-    bottom: '-6px',
-    right: '-6px',
-    background: '#10b981',
-    color: 'white',
-    fontSize: '9px',
-    fontWeight: '800',
-    padding: '3px 7px',
-    borderRadius: '12px',
-    border: '2px solid white',
-    textTransform: 'uppercase',
-  },
-  profileInfo: {
-    flexGrow: 1,
-  },
-  profileHeaderRow: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: '10px',
-  },
-  studentName: {
-    fontSize: '22px',
-    fontWeight: '700',
-    color: '#0f172a',
-    margin: 0,
-    letterSpacing: '-0.01em',
-  },
-  studentMajor: {
-    color: '#2563eb',
-    fontWeight: '600',
-    fontSize: '13px',
-    marginTop: '2px',
-  },
-  actionButtons: {
-    display: 'flex',
-    gap: '8px',
-  },
-  btn: {
-    padding: '8px 16px',
-    borderRadius: '8px',
-    fontSize: '13px',
-    fontWeight: '600',
-    cursor: 'pointer',
-    border: 'none',
-    transition: 'background 0.2s',
-  },
-  btnPrimary: {
-    background: '#2563eb',
-    color: 'white',
-  },
-  btnSecondary: {
-    background: '#f1f5f9',
-    color: '#475569',
-    border: '1px solid #e2e8f0',
-  },
-  statsRow: {
-    display: 'flex',
-    gap: '32px',
-  },
-  statItem: {
-    display: 'flex',
-    flexDirection: 'column',
-  },
-  statLabel: {
-    fontSize: '10px',
-    fontWeight: '700',
-    color: '#94a3b8',
-    textTransform: 'uppercase',
-    letterSpacing: '0.04em',
-    marginBottom: '2px',
-  },
-  statValue: {
-    fontSize: '13px',
-    fontWeight: '600',
-    color: '#334155',
-  },
-  tabsNav: {
-    display: 'flex',
-    gap: '28px',
-    marginTop: '4px',
-  },
-  tabButton: {
-    padding: '14px 2px',
-    fontSize: '14px',
-    fontWeight: '600',
-    color: '#64748b',
-    background: 'transparent',
-    border: 'none',
-    borderBottom: '3px solid transparent',
-    cursor: 'pointer',
-    outline: 'none',
-    transition: 'all 0.2s',
-  },
-  activeTabButton: {
-    color: '#2563eb',
-    borderBottomColor: '#2563eb',
-  },
-  scrollContainer: {
-    flexGrow: 1,
-    overflowY: 'auto',
-    padding: '30px 24px',
-  },
-  contentWrapper: {
-    maxWidth: '1200px',
-    margin: '0 auto',
-    background: '#ffffff',
-    borderRadius: '12px',
-    border: '1px solid #e2e8f0',
-    minHeight: '80vh', // Ensure it's long enough to test scrolling
+  metaItem: {
     display: 'flex',
     alignItems: 'center',
-    justifyContent: 'center',
-    fontSize: '24px',
-    fontWeight: '600',
+    gap: '6px',
+    color: '#64748b',
+    fontSize: '14px',
+    fontWeight: '500',
+  },
+  metaIcon: {
+    fontSize: '16px',
     color: '#94a3b8',
+  },
+  // Button Group Aligned to Top Right of card
+  btnGroup: {
+    position: 'absolute',
+    top: '32px',
+    right: '32px',
+    display: 'flex',
+    gap: '12px',
+  },
+  btnOutline: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    padding: '10px 18px',
+    background: '#fff',
+    border: '1px solid #e2e8f0',
+    borderRadius: '8px',
+    fontSize: '14px',
+    fontWeight: '600',
+    color: '#334155',
+    cursor: 'pointer',
+  },
+  btnPrimary: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    padding: '10px 18px',
+    background: '#2563eb', // Pure profile blue
+    border: 'none',
+    borderRadius: '8px',
+    fontSize: '14px',
+    fontWeight: '600',
+    color: '#fff',
+    cursor: 'pointer',
+  },
+  // Tab Bar Style (Below the card)
+  navBar: {
+    display: 'flex',
+    gap: '35px',
+    borderBottom: '1.5px solid #f1f5f9',
+    marginTop: '10px',
+  },
+  tab: {
+    padding: '14px 2px',
+    fontSize: '15px',
+    fontWeight: '600',
+    background: 'none',
+    border: 'none',
+    cursor: 'pointer',
+    color: '#64748b',
+    borderBottom: '3px solid transparent',
+    transition: '0.2s ease',
+  },
+  tabActive: {
+    color: '#2563eb',
+    borderBottomColor: '#2563eb',
   }
 };
 
 const StudentHeader = () => {
   const [activeTab, setActiveTab] = useState('Overview');
-  const tabs = ['Overview', 'Attendance', 'Coursework', 'Exams', 'Finance'];
+  const tabs = ['Overview', 'Attendance', 'Tasks & Grades', 'History'];
 
   return (
-    <div style={styles.appContainer}>
-      {/* FIXED HEADER */}
-      <header style={styles.fixedHeader}>
-        <div style={styles.headerInner}>
-          <div style={styles.profileSection}>
-            <div style={styles.avatarBox}>
-              <img 
-                src={STUDENT_DATA.avatar} 
-                alt={STUDENT_DATA.name} 
-                style={styles.avatarImg} 
-              />
-              <div style={styles.statusBadge}>{STUDENT_DATA.academicStatus}</div>
-            </div>
+    <div style={styles.container}>
+      
+      {/* 1. Main Profile Card Wrapper */}
+      <div style={styles.profileCard}>
+        {/* Profile Circle Image */}
+        <div style={styles.avatarContainer}>
+          <img src={DATA.avatar} alt={DATA.name} style={styles.avatar} />
+        </div>
 
-            <div style={styles.profileInfo}>
-              <div style={styles.profileHeaderRow}>
-                <div>
-                  <h1 style={styles.studentName}>{STUDENT_DATA.name}</h1>
-                  <div style={styles.studentMajor}>{STUDENT_DATA.major}</div>
-                </div>
-                <div style={styles.actionButtons}>
-                  <button style={{ ...styles.btn, ...styles.btnSecondary }}>Report</button>
-                  <button style={{ ...styles.btn, ...styles.btnPrimary }}>Edit Profile</button>
-                </div>
-              </div>
-
-              <div style={styles.statsRow}>
-                <div style={styles.statItem}>
-                  <span style={styles.statLabel}>ID No.</span>
-                  <span style={styles.statValue}>{STUDENT_DATA.id}</span>
-                </div>
-                <div style={styles.statItem}>
-                  <span style={styles.statLabel}>Academic Year</span>
-                  <span style={styles.statValue}>{STUDENT_DATA.year}</span>
-                </div>
-                <div style={styles.statItem}>
-                  <span style={styles.statLabel}>GPA</span>
-                  <span style={{ ...styles.statValue, color: '#10b981' }}>{STUDENT_DATA.gpa}</span>
-                </div>
-                <div style={styles.statItem}>
-                  <span style={styles.statLabel}>Section</span>
-                  <span style={styles.statValue}>{STUDENT_DATA.group}</span>
-                </div>
-              </div>
-            </div>
+        {/* Text Details Area */}
+        <div style={styles.infoArea}>
+          <h1 style={styles.name}>{DATA.name}</h1>
+          
+          <div style={styles.metaRow}>
+            <span style={styles.metaItem}>
+              <AssignmentIndIcon style={styles.metaIcon} /> ID: {DATA.id}
+            </span>
+            <span style={styles.metaItem}>
+              <BookIcon style={styles.metaIcon} /> {DATA.major}
+            </span>
+            <span style={styles.metaItem}>
+              <LayersIcon style={styles.metaIcon} /> {DATA.year}
+            </span>
+            <span style={styles.metaItem}>
+              <PeopleIcon style={styles.metaIcon} /> {DATA.group}
+            </span>
           </div>
-
-          <nav style={styles.tabsNav}>
-            {tabs.map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                style={{
-                  ...styles.tabButton,
-                  ...(activeTab === tab ? styles.activeTabButton : {})
-                }}
-              >
-                {tab}
-              </button>
-            ))}
-          </nav>
         </div>
-      </header>
 
-      {/* SCROLLABLE CONTENT */}
-      <main style={styles.scrollContainer}>
-        <div style={styles.contentWrapper}>
-          {activeTab} Component Area
+        {/* Buttons inside top-right card */}
+        <div style={styles.btnGroup}>
+          <button style={styles.btnOutline}>
+            <DownloadIcon sx={{ fontSize: 18 }} /> Download Report
+          </button>
+          <button style={styles.btnPrimary}>
+            <EditIcon sx={{ fontSize: 18 }} /> Edit Profile
+          </button>
         </div>
-      </main>
+      </div>
+
+      {/* 2. Navigation Tabs (Correct List from Image) */}
+      <nav style={styles.navBar}>
+        {tabs.map((tab) => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            style={{
+              ...styles.tab,
+              ...(activeTab === tab ? styles.tabActive : {})
+            }}
+          >
+            {tab}
+          </button>
+        ))}
+      </nav>
+
+      {/* 3. Component Content Area */}
+      <div style={{ marginTop: '20px' }}>
+        {activeTab === 'Overview' && <Overview />}
+        {activeTab === 'Attendance' && <AttendanceDashboard />}
+        {!['Overview', 'Attendance'].includes(activeTab) && (
+            <div style={{ padding: '40px', color: '#94a3b8', fontSize: '18px' }}>
+                Placeholder for {activeTab} Content
+            </div>
+        )}
+      </div>
+
     </div>
   );
 };
