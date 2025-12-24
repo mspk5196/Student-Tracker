@@ -31,9 +31,9 @@ export const googleAuth = async (req, res) => {
     }
 
     const user = rows[0];
-    console.log("🔹 USER FROM DB:", user);
-    console.log("🔹 ROLE TYPE:", typeof user.role);
-    console.log("🔹 ROLE VALUE:", user.role);
+    // console.log("🔹 USER FROM DB:", user);
+    // console.log("🔹 ROLE TYPE:", typeof user.role);
+    // console.log("🔹 ROLE VALUE:", user.role);
     const token = jwt.sign(
       {
         user_id: user.user_id,
