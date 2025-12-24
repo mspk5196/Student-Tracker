@@ -10,9 +10,10 @@ import EducationDashboard from "../pages/SuperAdmin/DashboardPanal/Dashboard";
 import FacultyAccounts from "../pages/SuperAdmin/Faculty&Accounts/Faculty&Accounts";
 import Attendance from "../pages/SuperAdmin/AttendancePage/Attendance";
 import GroupsClasses from "../pages/SuperAdmin/Classes&Groups/Classes&Groups"
-import StudentsPage from "../pages/SuperAdmin/studentsPage/studentsPage";
+
 import StudyRoadmap from "../pages/SuperAdmin/Task&Assignments/Study-Road-Map/RoadMap";
 import ReportsAnalytics from "../pages/SuperAdmin/Reports&Analytics/Reporst&analytics";
+import StudentHeader from "../pages/SuperAdmin/studentsPage/studentHeader/StudentHeader";
 const AppNavigator = () => {
   const user = useAuthStore((s) => s.user);
 
@@ -31,7 +32,7 @@ const AppNavigator = () => {
             <Route index element={<EducationDashboard />} />
             <Route path="faculty" element={<FacultyAccounts />} />
             <Route path="classes" element={<GroupsClasses />} />
-            <Route path="students" element={<StudentsPage />} />
+            <Route path="students" element={<StudentHeader />} />
             <Route path="attendance" element={<Attendance />} />
             <Route path="tasks" element={<StudyRoadmap />} />
             <Route path="reports" element={<ReportsAnalytics />} />
