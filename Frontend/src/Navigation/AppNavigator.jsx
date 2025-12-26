@@ -93,6 +93,13 @@ import ClassHeader from "../pages/Faculty/Class&Group/ClassHeader/ClassHeader"
 import MyClasses from "../pages/Faculty/Class&Group/MyClasses/MyClasses"
 import AllClasses from "../pages/Faculty/Class&Group/AllClasses/AllClasses"
 
+// Faculty Pages
+import FacultyDashboard from "../pages/Faculty/DashboardPanal/Dashboard";
+//Faculty -> Classes & Groups
+import ClassHeader from "../pages/Faculty/Class&Group/ClassHeader/ClassHeader";
+import MyClasses from "../pages/Faculty/Class&Group/MyClasses/MyClasses";
+import AllClasses from "../pages/Faculty/Class&Group/AllClasses/AllClasses";
+
 const AppNavigator = () => {
   const user = useAuthStore((s) => s.user);
 
