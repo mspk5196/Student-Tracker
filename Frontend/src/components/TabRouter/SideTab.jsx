@@ -5,15 +5,14 @@ import useAuthStore from '../../store/useAuthStore';
 import {
   LayoutDashboard,
   Users,
-  User,
   GraduationCap,
-  CheckCircle,
   BarChart3,
   Settings,
   Bell,
   Layers,
-  Clock,
-  LogOut
+  LogOut,
+  CalendarCheck,
+  ClipboardCheck
 } from 'lucide-react';
 
 const SideTab = () => {
@@ -24,12 +23,9 @@ const SideTab = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
 
   useEffect(() => {
-    const path = location.pathname.split('/').pop();
-    if (!path || path === '') {
-      setActiveTab('dashboard');
-    } else {
-      setActiveTab(path);
-    }
+    const segments = location.pathname.split('/').filter(Boolean);
+    const topPath = segments[0] || 'dashboard';
+    setActiveTab(topPath);
   }, [location]);
 
   /* ================= ROLE BASED MENU ================= */
@@ -38,23 +34,26 @@ const SideTab = () => {
       { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, section: 'main' },
       { id: 'faculty', label: 'Faculty & Accounts', icon: Users, section: 'main' },
       { id: 'classes', label: 'Classes & Groups', icon: Layers, section: 'main' },
-      { id: 'students', label: 'Students', icon: User, section: 'main' },
-      { id: 'attendance', label: 'Attendance', icon: CheckCircle, section: 'academic' },
-      { id: 'tasks', label: 'Tasks & Assignments', icon: Clock, section: 'academic' },
-      { id: 'reports', label: 'Reports & Analytics', icon: BarChart3, section: 'academic' },
+      { id: 'students', label: 'Students', icon: Users, section: 'main' },
+      { id: 'attendance', label: 'Attendance', icon: CalendarCheck, section: 'academic' },
+      { id: 'tasks', label: 'Tasks', icon: ClipboardCheck, section: 'academic' },
+      { id: 'reports', label: 'Reports', icon: BarChart3, section: 'academic' },
       { id: 'settings', label: 'Settings', icon: Settings, section: 'system' },
     ],
     "faculty": [
       { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, section: 'main' },
-      { id: 'classes', label: 'My Classes', icon: Layers, section: 'main' },
-      { id: 'attendance', label: 'Attendance', icon: CheckCircle, section: 'academic' },
-      { id: 'tasks', label: 'Assignments', icon: Clock, section: 'academic' },
+      { id: 'classes', label: 'My Classes / Groups', icon: Layers, section: 'main' },
+      { id: 'students', label: 'Students', icon: Users, section: 'main' },
+      { id: 'attendance', label: 'Attendance', icon: CalendarCheck, section: 'academic' },
+      { id: 'tasks', label: 'Task & Assignment', icon: ClipboardCheck, section: 'academic' },
+      { id: 'reports', label: 'Reports', icon: BarChart3, section: 'academic' },
+      { id: 'settings', label: 'Settings', icon: Settings, section: 'system' },
     ],
     "student": [
       { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, section: 'main' },
       { id: 'classes', label: 'My Classes', icon: Layers, section: 'main' },
-      { id: 'attendance', label: 'My Attendance', icon: CheckCircle, section: 'academic' },
-      { id: 'tasks', label: 'My Tasks', icon: Clock, section: 'academic' },
+      { id: 'attendance', label: 'My Attendance', icon: CalendarCheck, section: 'main' },
+      { id: 'tasks', label: 'My Tasks', icon: ClipboardCheck, section: 'main' },
     ],
   };
 
@@ -63,11 +62,11 @@ const SideTab = () => {
   const tabContent = {
     dashboard: { title: 'Dashboard' },
     faculty: { title: 'Faculty & Accounts' },
-    classes: { title: 'Classes & Groups' },
+    classes: { title: 'My Classes / Groups' },
     students: { title: 'Students' },
     attendance: { title: 'Attendance' },
-    tasks: { title: 'Tasks & Assignments' },
-    reports: { title: 'Reports & Analytics' },
+    tasks: { title: 'Task & Assignment' },
+    reports: { title: 'Reports' },
     settings: { title: 'Settings' },
   };
 
@@ -152,7 +151,7 @@ const SideTab = () => {
         <header style={styles.header}>
           <div style={styles.headerContent}>
             <h1 style={styles.headerTitle}>
-              {tabContent[activeTab]?.title || 'Dashboard'}
+              {menuItems.find(i => i.id === activeTab)?.label || tabContent[activeTab]?.title || 'Dashboard'}
             </h1>
 
             <div style={styles.headerRight}>

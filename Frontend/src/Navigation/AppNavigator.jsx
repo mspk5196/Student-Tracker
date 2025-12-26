@@ -77,7 +77,9 @@ import SideTab from "../components/TabRouter/SideTab";
 
 // Pages
 import Login from "../pages/LoginPage/Login";
-import EducationDashboard from "../pages/SuperAdmin/DashboardPanal/Dashboard";
+
+// Super Admin Pages
+import AdminDashboard from "../pages/SuperAdmin/DashboardPanal/Dashboard";
 import FacultyAccounts from "../pages/SuperAdmin/Faculty&Accounts/Faculty&Accounts";
 import Attendance from "../pages/SuperAdmin/AttendancePage/Attendance";
 import GroupsClasses from "../pages/SuperAdmin/Classes&Groups/Classes&Groups";
@@ -101,7 +103,7 @@ const AppNavigator = () => {
         {/* ADMIN (role === 1) */}
         {user?.role === "admin" && (
           <Route path="/" element={<SideTab />}>
-            <Route index element={<EducationDashboard />} />
+            <Route index element={<AdminDashboard />} />
             <Route path="faculty" element={<FacultyAccounts />} />
             <Route path="classes" element={<GroupsClasses />} />
             <Route path="students" element={<StudentPage />} />
@@ -116,10 +118,16 @@ const AppNavigator = () => {
         {/* FACULTY (role === 2) */}
         {user?.role === "faculty" && (
           <Route path="/" element={<SideTab />}>
-            <Route index element={<div>Faculty Dashboard</div>} />
-            <Route path="classes" element={<div>My Classes</div>} />
+            <Route index element={<FacultyDashboard />} />
+            <Route path="classes" element={<ClassHeader />}>
+              <Route index element={<MyClasses />} />
+              <Route path="all" element={<AllClasses />} />
+            </Route>
             <Route path="attendance" element={<div>Attendance</div>} />
-            <Route path="tasks" element={<div>Assignments</div>} />
+            <Route path="tasks" element={<div>Tasks</div>} />
+            <Route path="students" element={<div>Students</div>} />
+            <Route path="reports" element={<div>Reports</div>} />
+            <Route path="settings" element={<div>Settings</div>} />
           </Route>
         )}
 

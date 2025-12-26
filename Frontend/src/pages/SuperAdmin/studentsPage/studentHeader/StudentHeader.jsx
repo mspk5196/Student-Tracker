@@ -295,9 +295,7 @@ const styles = {
     border: '2px solid #d1e1fb',
     boxShadow: '0 2px 8px rgba(37, 99, 235, 0.1)',
   },
-  infoArea: {
-    flexGrow: 1,
-  },
+  infoArea: { flexGrow: 1 },
   name: {
     fontSize: '28px',
     fontWeight: '700',
@@ -379,6 +377,7 @@ const styles = {
     color: '#64748b',
     borderBottom: '3px solid transparent',
     transition: '0.2s ease',
+    marginBottom: '-1px', // Aligns with the borderBottom of navBar
   },
   tabActive: {
     color: '#2563eb',
