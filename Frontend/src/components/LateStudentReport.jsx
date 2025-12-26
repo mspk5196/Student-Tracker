@@ -4,7 +4,7 @@ import useAuthStore from '../store/authStore';
 
 const LateStudentsReport = ({ facultyId = null }) => {
   const { token } = useAuthStore();
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+  const API_URL = import.meta.env.VITE_API_URL;
 
   const [lateStudents, setLateStudents] = useState([]);
   const [loading, setLoading] = useState(false);
