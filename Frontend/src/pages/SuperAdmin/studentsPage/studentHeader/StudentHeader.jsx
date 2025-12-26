@@ -7,8 +7,12 @@ import BookIcon from '@mui/icons-material/MenuBookOutlined'; // Computer Science
 import LayersIcon from '@mui/icons-material/LayersOutlined'; // Year
 import PeopleIcon from '@mui/icons-material/PeopleOutlined'; // Group
 
+
+// Tabs component
 import Overview from './Overview/Overview';
 import AttendanceDashboard from './Attendance/Attendance';
+import TaskGrade from './Task&Grades/TaskGrade';
+import Ranking from './Ranking/Ranking';
 
 /**
  * 1:1 Matching Data
@@ -19,7 +23,7 @@ const DATA = {
   major: "Computer Science",
   year: "3rd Year (Sem 5)",
   group: "Group CS-A",
-  avatar: "https://i.pravatar.cc/150?u=emma" // Matching the profile look
+  avatar: "https://i.pravatar.cc/150?u=s1" // Matching the profile look
 };
 
 const styles = {
@@ -119,7 +123,6 @@ const styles = {
   navBar: {
     display: 'flex',
     gap: '35px',
-    borderBottom: '1.5px solid #f1f5f9',
     marginTop: '10px',
   },
   tab: {
@@ -141,7 +144,7 @@ const styles = {
 
 const StudentHeader = () => {
   const [activeTab, setActiveTab] = useState('Overview');
-  const tabs = ['Overview', 'Attendance', 'Tasks & Grades', 'History'];
+  const tabs = ['Overview', 'Attendance', 'Tasks & Grades', 'Ranking'];
 
   return (
     <div style={styles.container}>
@@ -192,7 +195,7 @@ const StudentHeader = () => {
             onClick={() => setActiveTab(tab)}
             style={{
               ...styles.tab,
-              ...(activeTab === tab ? styles.tabActive : {})
+              ...(activeTab === tab ? styles.tabActive : {borderBottom:'0px'})
             }}
           >
             {tab}
@@ -202,13 +205,9 @@ const StudentHeader = () => {
 
       {/* 3. Component Content Area */}
       <div style={{ marginTop: '20px' }}>
-        {activeTab === 'Overview' && <Overview />}
-        {activeTab === 'Attendance' && <AttendanceDashboard />}
-        {!['Overview', 'Attendance'].includes(activeTab) && (
-            <div style={{ padding: '40px', color: '#94a3b8', fontSize: '18px' }}>
-                Placeholder for {activeTab} Content
-            </div>
-        )}
+        {activeTab === 'Overview' ? <Overview /> :
+        activeTab === 'Attendance' ? <AttendanceDashboard />:
+        activeTab === 'Tasks & Grades'? <TaskGrade/> : <Ranking/>}
       </div>
 
     </div>

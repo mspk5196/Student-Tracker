@@ -42,7 +42,7 @@ const AttendanceDashboard = () => {
         .dashboard-container {
           background-color: #f8faff;
           font-family: 'Inter', sans-serif;
-          padding: 3    px;
+          padding: 20px;
           min-height: 100vh;
           color: #1e293b;
         }
