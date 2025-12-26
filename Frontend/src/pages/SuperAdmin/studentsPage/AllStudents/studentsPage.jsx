@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import useAuthStore from '../../../../store/useAuthStore'; // Adjust path as needed
+import useAuthStore from '../../../../store/useAuthStore';
+import { Link } from 'react-router-dom';
 
 const StudentsPage = () => {
   const { token } = useAuthStore();
@@ -27,7 +28,7 @@ const StudentsPage = () => {
       const data = await response.json();
 
       if (data.success) {
-        setStudents(data.data);
+        setStudents(data. data);
       } else {
         setError(data.message || 'Failed to fetch students');
       }
@@ -81,20 +82,20 @@ const StudentsPage = () => {
     <div style={{
       minHeight: '100vh',
       backgroundColor: '#F9FAFB',
-      padding: '32px',
+      padding:  '32px',
       fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
     }}>
       {/* Error Message */}
       {error && (
         <div style={{
           backgroundColor: '#fee2e2',
-          color: '#991b1b',
+          color:  '#991b1b',
           padding: '12px 16px',
           borderRadius: '8px',
           marginBottom: '20px',
           display: 'flex',
           justifyContent: 'space-between',
-          alignItems: 'center',
+          alignItems:  'center',
           fontSize: '14px'
         }}>
           <span>{error}</span>
@@ -105,7 +106,7 @@ const StudentsPage = () => {
               border: 'none',
               fontSize: '24px',
               color: '#991b1b',
-              cursor: 'pointer',
+              cursor:  'pointer',
               padding: '0 8px'
             }}
           >
@@ -130,6 +131,8 @@ const StudentsPage = () => {
           {/* Search */}
           <div style={{ position: 'relative', flex: 1 }}>
             <input
+              id="student-search"
+              name="search"
               type="text"
               placeholder="Search by name or student ID..."
               value={search}
@@ -162,6 +165,8 @@ const StudentsPage = () => {
 
           {/* Department Filter */}
           <select
+            id="department-filter"
+            name="departmentFilter"
             value={departmentFilter}
             onChange={(e) => setDepartmentFilter(e.target.value)}
             style={{
@@ -187,10 +192,12 @@ const StudentsPage = () => {
 
           {/* Year Filter */}
           <select
+            id="year-filter"
+            name="yearFilter"
             value={yearFilter}
             onChange={(e) => setYearFilter(e.target.value)}
             style={{
-              padding: '10px 32px 10px 16px',
+              padding:  '10px 32px 10px 16px',
               border: '1px solid #E5E7EB',
               borderRadius: '8px',
               fontSize: '14px',
@@ -251,7 +258,7 @@ const StudentsPage = () => {
               }}>
               {/* Student Header */}
               <div style={{ display: 'flex', alignItems: 'center', marginBottom: '20px' }}>
-                {student.image ? (
+                {student.image ?  (
                   <img
                     src={student.image}
                     alt={student.name}
@@ -273,7 +280,7 @@ const StudentsPage = () => {
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    fontSize: '20px',
+                    fontSize:  '20px',
                     fontWeight: '600',
                     marginRight: '12px'
                   }}>
@@ -283,9 +290,9 @@ const StudentsPage = () => {
                 <div style={{ flex: 1 }}>
                   <div style={{
                     fontSize: '15px',
-                    fontWeight: '600',
-                    color: '#111827',
-                    marginBottom: '3px'
+                    fontWeight:  '600',
+                    color:  '#111827',
+                    marginBottom:  '3px'
                   }}>
                     {student.name}
                   </div>
@@ -318,10 +325,10 @@ const StudentsPage = () => {
                   <span style={{
                     fontSize: '14px',
                     color: '#111827',
-                    fontWeight: '500',
+                    fontWeight:  '500',
                     backgroundColor: '#F3F4F6',
                     padding: '2px 8px',
-                    borderRadius: '4px'
+                    borderRadius:  '4px'
                   }}>
                     {student.year} · {student.section}
                   </span>
@@ -348,7 +355,7 @@ const StudentsPage = () => {
                   </div>
                   <div style={{
                     fontSize: '22px',
-                    fontWeight: '700',
+                    fontWeight:  '700',
                     color: getAttendanceColor(student.attendance)
                   }}>
                     {student.attendance}%
@@ -360,7 +367,7 @@ const StudentsPage = () => {
                     color: '#6B7280',
                     textTransform: 'uppercase',
                     letterSpacing: '0.5px',
-                    marginBottom: '6px',
+                    marginBottom:  '6px',
                     fontWeight: '500'
                   }}>
                     TASKS
@@ -370,29 +377,31 @@ const StudentsPage = () => {
                     fontWeight: '700',
                     color: '#3B82F6'
                   }}>
-                    {student.tasks}
+                    {student. tasks}
                   </div>
                 </div>
               </div>
 
               {/* View Profile Link */}
-              <div style={{
-                marginTop: '20px',
-                paddingTop: '16px',
-                borderTop: '1px solid #F3F4F6',
-                backgroundColor: '#EFF6FF',
-                marginLeft: '-24px',
-                marginRight: '-24px',
-                marginBottom: '-24px',
-                padding: '16px 24px',
-                borderBottomLeftRadius: '12px',
-                borderBottomRightRadius: '12px'
-              }}>
-                <button style={{
+              <Link 
+                to={`/students/${student.student_id}`}
+                style={{
+                  marginTop: '20px',
+                  paddingTop: '16px',
+                  borderTop: '1px solid #F3F4F6',
+                  backgroundColor: '#EFF6FF',
+                  marginLeft: '-24px',
+                  marginRight: '-24px',
+                  marginBottom: '-24px',
+                  padding: '16px 24px',
+                  borderBottomLeftRadius: '12px',
+                  borderBottomRightRadius: '12px',
+                  display: 'block',
+                  textDecoration:  'none'
+                }}
+              >
+                <div style={{
                   width: '100%',
-                  padding: '0',
-                  backgroundColor: 'transparent',
-                  border: 'none',
                   color: '#3B82F6',
                   fontSize: '14px',
                   fontWeight: '500',
@@ -403,18 +412,19 @@ const StudentsPage = () => {
                   gap: '4px',
                   transition: 'color 0.2s'
                 }}
-                  onMouseEnter={(e) => e.target.style.color = '#2563EB'}
-                  onMouseLeave={(e) => e.target.style.color = '#3B82F6'}>
+                  onMouseEnter={(e) => e.currentTarget.style.color = '#2563EB'}
+                  onMouseLeave={(e) => e.currentTarget.style.color = '#3B82F6'}
+                >
                   View Profile →
-                </button>
-              </div>
+                </div>
+              </Link>
             </div>
           ))}
         </div>
       )}
 
       {/* No Results */}
-      {!loading && filteredStudents.length === 0 && (
+      {! loading && filteredStudents.length === 0 && (
         <div style={{
           textAlign: 'center',
           padding: '60px 20px',
@@ -433,4 +443,4 @@ const StudentsPage = () => {
   );
 };
 
-export default StudentsPage
+export default StudentsPage;
