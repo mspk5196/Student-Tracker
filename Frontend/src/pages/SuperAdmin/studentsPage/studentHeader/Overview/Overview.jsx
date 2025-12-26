@@ -1,6 +1,6 @@
-  import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 
-  const studentData = {
+const studentData = {
   name: "Emma Watson",
   email: "emma.watson@uni.edu",
   phone: "+1 (555) 123-4567",
@@ -26,6 +26,10 @@
     { name: "Web Development", rating: 84 },
     { name: "Research Methodology", rating: 82 },
     { name: "Team Leadership", rating: 84 },
+    { name: "Cloud Computing", rating: 78 },
+    { name: "Machine Learning", rating: 92 },
+    { name: "Cyber Security", rating: 85 },
+       { name: "Team Leadership", rating: 84 },
     { name: "Cloud Computing", rating: 78 },
     { name: "Machine Learning", rating: 92 },
     { name: "Cyber Security", rating: 85 }
@@ -60,15 +64,17 @@
 
   credits: { earned: 18, total: 20 },
   semesterGPA: 3.92,
-  };
+};
 
-  const Overview = () => {
+const Overview = () => {
   const [skillsExpanded, setSkillsExpanded] = useState(false);
+  const [showSkillToggle, setShowSkillToggle] = useState(false);
   const [animated, setAnimated] = useState(false);
   const [hoveredPerf, setHoveredPerf] = useState(null);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
-
   const [countTotal, setCountTotal] = useState(0);
+
+  const skillContainerRef = useRef(null);
 
   useEffect(() => {
     setAnimated(true);
@@ -90,6 +96,17 @@
     return () => clearInterval(timer);
   }, []);
 
+  // Logic to detect if skills exceed 2 rows
+  useEffect(() => {
+    if (skillContainerRef.current) {
+      const { scrollHeight } = skillContainerRef.current;
+      // 92px is roughly the height of 2 rows of tablets (38px height + 10px gap * 2)
+      if (scrollHeight > 92) {
+        setShowSkillToggle(true);
+      }
+    }
+  }, [studentData.skills]);
+
   const handleMouseMove = (e) => {
     setMousePos({ x: e.clientX, y: e.clientY });
   };
@@ -101,14 +118,10 @@
 
   const getLevel = (rating) => Math.ceil(rating / 20);
 
-  // Pie Chart Calculation Logic
-  const circ = 377; // 2 * PI * 60
+  const circ = 377; 
   const completedPct = (studentData.taskStatus.completed / studentData.taskStatus.total) * circ;
   const progressPct = (studentData.taskStatus.inProgress / studentData.taskStatus.total) * circ;
 
-  const visibleSkills = skillsExpanded ? studentData.skills : studentData.skills.slice(0, 6);
-
-  // Line Chart Path Calculation (Based on attached image style)
   const linePath = useMemo(() => {
     return studentData.weeklyActivity.map((d, i) => {
       const x = (i * 100) / (studentData.weeklyActivity.length - 1);
@@ -121,7 +134,6 @@
     <div style={styles.container} onMouseMove={handleMouseMove}>
       <style>{keyframes}</style>
       
-      {/* Floating Mouse Tooltip */}
       {hoveredPerf && (
         <div style={{...styles.mouseTooltip, left: mousePos.x + 15, top: mousePos.y - 40}}>
             <div style={{fontWeight: '800', marginBottom: '4px'}}>{hoveredPerf.subject}</div>
@@ -133,7 +145,6 @@
       <div style={styles.layoutWrapper}>
         <div style={styles.mainColumn}>
           
-          {/* Stats Section */}
           <div style={styles.statsRow}>
             <div style={styles.statCard}>
               <p style={styles.statLabel}>OVERALL ATTENDANCE</p>
@@ -152,27 +163,36 @@
             </div>
           </div>
 
-          {/* Skills Section */}
+          {/* Skills Section with 2-Row Detection Logic */}
           <div style={styles.card}>
             <h3 style={styles.cardTitle}>Skills Acquired</h3>
-            <div style={styles.skillsGrid}>
-              {visibleSkills.map((skill, index) => (
+            <div 
+              ref={skillContainerRef}
+              style={{
+                ...styles.skillsGrid, 
+                maxHeight: skillsExpanded ? 'none' : '92px',
+                overflow: 'hidden',
+                transition: 'max-height 0.4s ease'
+              }}
+            >
+              {studentData.skills.map((skill, index) => (
                 <div key={index} style={styles.skillTablet}>
                   <span style={styles.skillName}>{skill.name}</span>
                   <span style={styles.skillLevelBadge}>Lvl {getLevel(skill.rating)}</span>
                 </div>
               ))}
             </div>
-            <div style={styles.expandRow}>
-                <button style={styles.expandBtn} onClick={() => setSkillsExpanded(!skillsExpanded)}>
-                  {skillsExpanded ? 'Show Less' : 'View All Skills'}
-                </button>
-            </div>
+            {showSkillToggle && (
+              <div style={styles.expandRow}>
+                  <button style={styles.expandBtn} onClick={() => setSkillsExpanded(!skillsExpanded)}>
+                    {skillsExpanded ? 'Show Less' : 'View All Skills'}
+                  </button>
+              </div>
+            )}
           </div>
 
-          {/* Charts Row */}
           <div style={styles.chartsRow}>
-            {/* Line Chart Activity Trend */}
+            {/* Activity Trend - Line Graph Blue Theme */}
             <div style={{...styles.card, flex: 2}}>
               <h3 style={styles.cardTitle}>Daily Activity Trends</h3>
               <div style={styles.chartSpace}>
@@ -180,7 +200,7 @@
                   <path
                     d={linePath}
                     fill="none"
-                    stroke="#1e293b"
+                    stroke="#2563eb" // Blue Theme stroke
                     strokeWidth="2.5"
                     strokeLinecap="round"
                     strokeLinejoin="round"
@@ -192,7 +212,7 @@
                       cx={`${(i * 100) / (studentData.weeklyActivity.length - 1)}%`}
                       cy={160 - (d.value * 1.5)}
                       r="4.5"
-                      fill="#000"
+                      fill="#2563eb" // Blue Theme circles
                     />
                   ))}
                 </svg>
@@ -202,19 +222,16 @@
               </div>
             </div>
 
-            {/* Pie Chart Task Status */}
             <div style={{...styles.card, flex: 1, textAlign: 'center'}}>
               <h3 style={{...styles.cardTitle, textAlign: 'left'}}>Task Status</h3>
               <div style={styles.donutWrapper}>
                 <svg width="140" height="140" viewBox="0 0 150 150">
                   <circle cx="75" cy="75" r="60" fill="none" stroke="#f1f5f9" strokeWidth="16" />
-                  {/* Completed Segment */}
                   <circle cx="75" cy="75" r="60" fill="none" stroke="#2563eb" strokeWidth="16"
                     strokeDasharray={`${completedPct} ${circ}`} 
                     transform="rotate(-90 75 75)" 
                     style={{ transition: 'stroke-dasharray 1.5s ease-out' }}
                   />
-                  {/* In Progress Segment */}
                   <circle cx="75" cy="75" r="60" fill="none" stroke="#93c5fd" strokeWidth="16"
                     strokeDasharray={`${progressPct} ${circ}`} 
                     strokeDashoffset={`-${completedPct}`}
@@ -232,7 +249,6 @@
             </div>
           </div>
 
-          {/* Performance Scroller */}
           <div style={{...styles.card, ...(animated ? styles.animRise : {})}}>
             <h3 style={styles.cardTitle}>Performance Analysis</h3>
             <div className="custom-scroll" style={styles.perfScrollContainer}>
@@ -257,7 +273,6 @@
             </div>
           </div>
 
-          {/* Centered Pod Footer */}
           <div style={styles.footerContainer}>
             <div style={styles.footerPod}>
               <p style={styles.fLabel}>SEMESTER</p>
@@ -276,10 +291,10 @@
       </div>
     </div>
   );
-  };
+};
 
-  const styles = {
-  container: { backgroundColor: '#F8FAFF', minHeight: '100vh', padding: '20px' },
+const styles = {
+  container: { backgroundColor: '#fcfdfe', minHeight: '100vh', padding: '40px 5%' },
   layoutWrapper: { maxWidth: '1400px', margin: '0 auto', display: 'flex' },
   mainColumn: { flex: 1, minWidth: 0 },
 
@@ -311,7 +326,7 @@
   skillName: { fontSize: '12px', fontWeight: '700', color: '#334155' },
   skillLevelBadge: { fontSize: '9px', fontWeight: '900', color: '#2563eb', backgroundColor: '#eff6ff', padding: '2px 8px', borderRadius: '20px' },
   expandRow: { display: 'flex', justifyContent: 'center', marginTop: '20px' },
-  expandBtn: { background: 'none', border: 'none', color: '#2563eb', fontWeight: '800', cursor: 'pointer', fontSize: '12px', textDecoration: 'underline' },
+  expandBtn: { background: 'none', border: 'none', color: '#2563eb', fontWeight: '600', cursor: 'pointer', fontSize: '15px', },
 
   chartsRow: { display: 'flex', gap: '24px', marginBottom: '30px' },
   chartSpace: { marginTop: '25px' },
@@ -320,7 +335,7 @@
 
   donutWrapper: { margin: '20px auto', width: 'fit-content' },
   legend: { display: 'flex', justifyContent: 'center', gap: '20px', marginTop: '10px' },
-  legendItem: { display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: '700', color: '#64748b' },
+  legendItem: { display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', fontWeight: '700', color: '#64748b' },
   dot: { width: '10px', height: '10px', borderRadius: '50%' },
 
   perfScrollContainer: { display: 'flex', gap: '30px', overflowX: 'auto', padding: '25px 0 10px 0', scrollbarWidth: 'none' },
@@ -337,14 +352,14 @@
   fValue: { fontSize: '20px', fontWeight: '900', color: '#1e293b' },
 
   animRise: { animation: 'fadeSlideUp 1s ease-out forwards' }
-  };
+};
 
-  const keyframes = `
+const keyframes = `
   @keyframes fadeSlideUp {
     from { transform: translateY(30px); opacity: 0; }
     to { transform: translateY(0); opacity: 1; }
   }
   .custom-scroll::-webkit-scrollbar { display: none; }
-  `;
+`;
 
-  export default Overview;
+export default Overview;
