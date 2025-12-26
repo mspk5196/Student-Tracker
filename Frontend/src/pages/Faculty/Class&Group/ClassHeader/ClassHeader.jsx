@@ -3,23 +3,23 @@ import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { Search, Filter, Calendar } from 'lucide-react';
 
 const ClassHeader = () => {
-    const navigate = useNavigate();
-    const location = useLocation();
-    const [searchQuery, setSearchQuery] = useState('');
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [searchQuery, setSearchQuery] = useState('');
 
-    const activeTab = location.pathname.endsWith('/all') ? 'All Classes' : 'My Classes';
+  const activeTab = location.pathname.endsWith('/all') ? 'All Classes' : 'My Classes';
 
-    const handleTabChange = (tab) => {
-        if (tab === 'My Classes') {
-            navigate('/classes');
-        } else {
-            navigate('/classes/all');
-        }
-    };
+  const handleTabChange = (tab) => {
+    if (tab === 'My Classes') {
+      navigate('/classes');
+    } else {
+      navigate('/classes/all');
+    }
+  };
 
-    return (
-        <div className="class-header-container">
-            <style>{`
+  return (
+    <div className="class-header-container">
+      <style>{`
         .class-header-container {
           margin: -24px -24px 0 -24px;
           background-color: #f8fafc;
@@ -44,7 +44,7 @@ const ClassHeader = () => {
         }
 
         .content-area {
-          padding: 20px 40px 40px 40px;
+          padding: 20px 40px 0 40px;
         }
 
         .tab-group {
@@ -116,42 +116,42 @@ const ClassHeader = () => {
         }
       `}</style>
 
-            <div className="header-actions">
-                <div className="tab-group">
-                    <button
-                        className={`tab-btn ${activeTab === 'My Classes' ? 'active' : ''}`}
-                        onClick={() => handleTabChange('My Classes')}
-                    >
-                        My Classes
-                    </button>
-                    <button
-                        className={`tab-btn ${activeTab === 'All Classes' ? 'active' : ''}`}
-                        onClick={() => handleTabChange('All Classes')}
-                    >
-                        All Classes
-                    </button>
-                </div>
-
-                <div className="filters">
-                    <div className="search-wrapper">
-                        <Search className="search-icon" size={18} />
-                        <input
-                            type="text"
-                            placeholder="Search by class, subject, or faculty"
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                        />
-                    </div>
-                    <button className="filter-btn"><Filter size={16} /> Filter</button>
-                    <button className="filter-btn"><Calendar size={16} /> Semester</button>
-                </div>
-            </div>
-
-            <div className="content-area">
-                <Outlet context={{ searchQuery }} />
-            </div>
+      <div className="header-actions">
+        <div className="tab-group">
+          <button
+            className={`tab-btn ${activeTab === 'My Classes' ? 'active' : ''}`}
+            onClick={() => handleTabChange('My Classes')}
+          >
+            My Classes
+          </button>
+          <button
+            className={`tab-btn ${activeTab === 'All Classes' ? 'active' : ''}`}
+            onClick={() => handleTabChange('All Classes')}
+          >
+            All Classes
+          </button>
         </div>
-    );
+
+        <div className="filters">
+          <div className="search-wrapper">
+            <Search className="search-icon" size={18} />
+            <input
+              type="text"
+              placeholder="Search by class, subject, or faculty"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+          <button className="filter-btn"><Filter size={16} /> Filter</button>
+          <button className="filter-btn"><Calendar size={16} /> Semester</button>
+        </div>
+      </div>
+
+      <div className="content-area">
+        <Outlet context={{ searchQuery }} />
+      </div>
+    </div>
+  );
 };
 
 export default ClassHeader;

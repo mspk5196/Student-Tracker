@@ -88,6 +88,13 @@ import ReportsAnalytics from "../pages/SuperAdmin/Reports&Analytics/Reporst&anal
 import StudentHeader from "../pages/SuperAdmin/studentsPage/studentHeader/StudentHeader";
 import StudentPage from "../pages/SuperAdmin/studentsPage/AllStudents/studentsPage";
 
+// Faculty Pages
+import FacultyDashboard from "../pages/Faculty/DashboardPanal/Dashboard";
+//Faculty -> Classes & Groups
+import ClassHeader from "../pages/Faculty/Class&Group/ClassHeader/ClassHeader";
+import MyClasses from "../pages/Faculty/Class&Group/MyClasses/MyClasses";
+import AllClasses from "../pages/Faculty/Class&Group/AllClasses/AllClasses";
+
 const AppNavigator = () => {
   const user = useAuthStore((s) => s.user);
 
