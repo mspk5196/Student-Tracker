@@ -36,7 +36,7 @@ const SideTab = () => {
       { id: 'classes', label: 'Classes & Groups', icon: Layers, section: 'main' },
       { id: 'students', label: 'Students', icon: Users, section: 'main' },
       { id: 'attendance', label: 'Attendance', icon: CalendarCheck, section: 'academic' },
-      { id: 'tasks', label: 'Tasks', icon: ClipboardCheck, section: 'academic' },
+      { id: 'tasks', label: 'Task & Assignment', icon: ClipboardCheck, section: 'academic' },
       { id: 'reports', label: 'Reports', icon: BarChart3, section: 'academic' },
       { id: 'settings', label: 'Settings', icon: Settings, section: 'system' },
     ],
