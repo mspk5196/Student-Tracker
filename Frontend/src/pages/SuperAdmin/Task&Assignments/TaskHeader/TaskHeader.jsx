@@ -1,9 +1,29 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import AssignmentDashboard from './Task-Assignment-page/Task&assignments';
 import StudyRoadmap from './Study-Road-Map/RoadMap';
 
 const TaskHeader = () => {
-  const [activeTab, setActiveTab] = useState('roadmap');
+  const [activeTab, setActiveTab] = useState('assignments');
+  const [selectedSkill, setSelectedSkill] = useState('');
+  const [skills, setSkills] = useState([]);
+  const [addDayTrigger, setAddDayTrigger] = useState(0);
+
+  // --- SKILLS/COURSES DATA ---
+  const skillsData = [
+    { id: 1, name: 'React Mastery Workshop', code: 'REACT-101' },
+    { id: 2, name: 'HTML & CSS Fundamentals', code: 'WEB-201' },
+    { id: 3, name: 'JavaScript Deep Dive', code: 'JS-301' },
+    { id: 4, name: 'Node.js Backend Development', code: 'NODE-401' },
+    { id: 5, name: 'UI/UX Design Principles', code: 'DESIGN-501' }
+  ];
+
+  useEffect(() => {
+    // Initialize with first skill
+    if (skillsData.length > 0 && !selectedSkill) {
+      setSelectedSkill(skillsData[0].code);
+    }
+    setSkills(skillsData);
+  }, []);
 
   // --- SVG Icons ---
   const EyeIcon = () => (
@@ -19,6 +39,22 @@ const TaskHeader = () => {
       <line x1="5" y1="12" x2="19" y2="12"></line>
     </svg>
   );
+
+  // Function to handle Add Day/Module button click
+  const handleAddModule = () => {
+    // First switch to roadmap tab
+    setActiveTab('roadmap');
+    
+    // Then trigger the add day action after a small delay to ensure component is rendered
+    setTimeout(() => {
+      setAddDayTrigger(prev => prev + 1);
+    }, 100);
+  };
+
+  // Handle skill change
+  const handleSkillChange = (e) => {
+    setSelectedSkill(e.target.value);
+  };
 
   return (
     <div style={styles.pageWrapper}>
@@ -49,8 +85,18 @@ const TaskHeader = () => {
             </div>
 
             <div style={styles.dropdownContainer}>
-              <span style={styles.dropdownText}>CS-201: Data Structures</span>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <select
+                value={selectedSkill}
+                onChange={handleSkillChange}
+                style={styles.dropdownSelect}
+              >
+                {skills.map(skill => (
+                  <option key={skill.id} value={skill.code}>
+                    {skill.code}: {skill.name}
+                  </option>
+                ))}
+              </select>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ position: 'absolute', right: '12px', pointerEvents: 'none' }}>
                 <polyline points="6 9 12 15 18 9"></polyline>
               </svg>
             </div>
@@ -62,22 +108,22 @@ const TaskHeader = () => {
               <EyeIcon />
               Student View
             </button>
-            <button style={styles.primaryBtn}>
-              <PlusIcon />
-              Add Day / Module
-            </button>
           </div>
         </div>
       </div>
 
       {/* SCROLLING CONTENT AREA */}
       <div style={styles.contentArea}>
-        {/* Placeholder for long content to demonstrate scrolling */}
         <div style={styles.contentPlaceholder}>
           {activeTab === 'assignments' ? (
-            <AssignmentDashboard/>
+            <AssignmentDashboard selectedSkill={selectedSkill} />
           ) : (
-            <StudyRoadmap/>
+            <StudyRoadmap 
+              selectedSkill={selectedSkill} 
+              isActiveTab={activeTab === 'roadmap'}
+              addDayTrigger={addDayTrigger}
+              key={`${selectedSkill}-${addDayTrigger}`} // Force re-render when skill or trigger changes
+            />
           )}
         </div>
       </div>
@@ -94,8 +140,8 @@ const styles = {
   },
   stickyHeader: {
     position: 'sticky',
-    top: 0,             // Stick to the very top
-    zIndex: 1000,       // Ensure it is above the scrolling content
+    top: 0,
+    zIndex: 1000,
     backgroundColor: '#ffffff',
     borderBottom: '1px solid #e2e8f0',
     padding: '12px 20px',
@@ -138,19 +184,23 @@ const styles = {
     color: '#64748b',
   },
   dropdownContainer: {
+    position: 'relative',
     display: 'flex',
     alignItems: 'center',
-    gap: '40px',
+    minWidth: '220px',
+  },
+  dropdownSelect: {
+    width: '100%',
     padding: '10px 16px',
     border: '1px solid #e2e8f0',
     borderRadius: '8px',
-    cursor: 'pointer',
-    backgroundColor: '#ffffff',
-  },
-  dropdownText: {
     fontSize: '14px',
     color: '#1e293b',
     fontWeight: '400',
+    backgroundColor: '#ffffff',
+    cursor: 'pointer',
+    appearance: 'none',
+    outline: 'none',
   },
   rightSection: {
     display: 'flex',
@@ -188,19 +238,6 @@ const styles = {
   },
   contentPlaceholder: {
     marginTop: '10px',
-  },
-  viewBox: {
-    padding: '40px',
-    backgroundColor: '#ffffff',
-    border: '1px solid #e2e8f0',
-    borderRadius: '12px',
-    color: '#1e293b',
-  },
-  spacer: {
-    height: '1500px', // Just to force a scrollbar
-    paddingTop: '20px',
-    color: '#94a3b8',
-    fontStyle: 'italic',
   }
 };
 
