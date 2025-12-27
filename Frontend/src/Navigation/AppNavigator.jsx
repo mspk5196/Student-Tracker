@@ -7,16 +7,25 @@ import SideTab from "../components/TabRouter/SideTab";
 // Pages
 import Login from "../pages/LoginPage/Login";
 
+
 // Super Admin Pages
+//Super Admin -> Dashboard
 import AdminDashboard from "../pages/SuperAdmin/DashboardPanal/Dashboard";
+//Super Admin -> Faculty & Accounts
 import FacultyAccounts from "../pages/SuperAdmin/Faculty&Accounts/Faculty&Accounts";
+//Super Admin -> Attendance
 import Attendance from "../pages/SuperAdmin/AttendancePage/Attendance";
+//Super Admin -> Classes & Groups
 import GroupsClasses from "../pages/SuperAdmin/Classes&Groups/Classes&Groups";
+//Super Admin -> Reports & Analytics
 import ReportsAnalytics from "../pages/SuperAdmin/Reports&Analytics/Reporst&analytics";
+//Super Admin -> Students
 import StudentHeader from "../pages/SuperAdmin/studentsPage/studentHeader/StudentHeader";
 import StudentPage from "../pages/SuperAdmin/studentsPage/AllStudents/studentsPage";
-import TaskHeader from "../pages/SuperAdmin/Task&Assignments/TaskHeader/TaskHeader";
+//Super Admin -> Task & Assignments
+import AdminTaskHeader from "../pages/SuperAdmin/Task&Assignments/TaskHeader/TaskHeader";
 
+//Faculty Page
 // Faculty -> Dashboard
 import FacultyDashboard from '../pages/Faculty/DashboardPanal/Dashboard'
 //Faculty -> Classes & Groups
@@ -24,10 +33,24 @@ import ClassHeader from "../pages/Faculty/Class&Group/ClassHeader/ClassHeader";
 import MyClasses from "../pages/Faculty/Class&Group/MyClasses/MyClasses";
 import AllClasses from "../pages/Faculty/Class&Group/AllClasses/AllClasses";
 import StudentsPage from "../pages/SuperAdmin/studentsPage/AllStudents/studentsPage";
-//Faculty -> Reports & Analytics
-import Reports from "../pages/Faculty/Reports&Analytics/Reporst&analytics";
 //Faculty  -> Attendance
 import FacultyAttendance from "../pages/Faculty/AttendancePage/Attendance";
+//Faculty -> Task & Assignments
+import FacultyTaskHeader from "../pages/Faculty/Task&Assignments/TaskHeader/TaskHeader";
+//Faculty -> Reports & Analytics
+import Reports from "../pages/Faculty/Reports&Analytics/Reporst&analytics";
+
+//Student Page
+// Student -> Dashboard
+import StudentDashboard from "../pages/Student/Dashboard/StudentDashboard";
+//Student -> RoadMap & Material
+import StudentRoadmap from "../pages/Student/RoadMap&Material/RoadMap&Material";
+//Student -> Tasks & Assignments
+import TasksAssignments from "../pages/Student/Tasks&Assignments/Tasks&Assignment";
+//Student -> Attendance
+import StudentAttendance from "../pages/Student/StudentAttendance/Attendance";
+//Student -> My Classroom
+import MyClassRoom from "../pages/Student/MyClassRoom/MyClassRoom";
 
 
 const AppNavigator = () => {
@@ -53,7 +76,7 @@ const AppNavigator = () => {
               <Route path=":studentId" element={<StudentHeader />} />
             </Route>
             <Route path="attendance" element={<Attendance />} />
-            <Route path="tasks" element={<TaskHeader/>} />
+            <Route path="tasks" element={<AdminTaskHeader />} />
             <Route path="reports" element={<ReportsAnalytics />} />
             <Route path="settings" element={<div>Settings</div>} />
           </Route>
@@ -68,7 +91,7 @@ const AppNavigator = () => {
               <Route path="all" element={<AllClasses />} />
             </Route>
             <Route path="attendance" element={<FacultyAttendance />} />
-            <Route path="tasks" element={<div>Tasks</div>} />
+            <Route path="tasks" element={<FacultyTaskHeader />} />
             <Route path="students" element={<div>Students</div>} />
             <Route path="reports" element={<Reports />} />
             <Route path="settings" element={<div>Settings</div>} />
@@ -78,10 +101,12 @@ const AppNavigator = () => {
         {/* STUDENT (role === 3) */}
         {user?.role === "student" && (
           <Route path="/" element={<SideTab />}>
-            <Route index element={<div>Student Dashboard</div>} />
-            <Route path="classes" element={<div>My Classes</div>} />
-            <Route path="attendance" element={<div>My Attendance</div>} />
-            <Route path="tasks" element={<div>My Tasks</div>} />
+            <Route index element={<StudentDashboard />} />
+            <Route path="classroom" element={<MyClassRoom />} />
+            <Route path="roadmap" element={<StudentRoadmap />} />
+            <Route path="tasks" element={<TasksAssignments />} />
+            <Route path="attendance" element={<StudentAttendance />} />
+            <Route path="performance" element={<div>Performance</div>} />
           </Route>
         )}
 
