@@ -163,7 +163,6 @@
 
 // export default StudentHeader;
 
-
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import useAuthStore from '../../../../store/useAuthStore';
@@ -205,10 +204,25 @@ const styles = {
     gap: '6px',
     transition: 'all 0.2s',
   },
-  profileCard: {
+  backButton: {
+    marginBottom: '24px',
+    padding: '10px 18px',
+    backgroundColor: 'white',
+    border: '1px solid #E5E7EB',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    fontSize: '14px',
+    fontWeight: '600',
+    color: '#374151',
     display: 'flex',
     alignItems: 'center',
-    background: '#ffffff',
+    gap: '8px',
+    transition: 'all 0.2s',
+  },
+  profileCard:  {
+    display: 'flex',
+    alignItems: 'center',
+    background:  '#ffffff',
     border: '1px solid #eef2f6',
     borderRadius: '12px',
     padding: '32px',
@@ -248,7 +262,7 @@ const styles = {
     fontSize: '28px',
     fontWeight: '700',
     color: '#1e293b',
-    margin: '0 0 10px 0',
+    margin: '0 0 12px 0',
     letterSpacing: '-0.02em',
   },
   metaRow: {

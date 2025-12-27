@@ -579,7 +579,7 @@ const StudentsPage = () => {
     <div style={{
       minHeight: '100vh',
       backgroundColor: '#F9FAFB',
-      padding: '32px',
+      padding:  '32px',
       fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
     }}>
       {error && (
@@ -602,7 +602,7 @@ const StudentsPage = () => {
               border: 'none',
               fontSize: '24px',
               color: '#991b1b',
-              cursor: 'pointer',
+              cursor:  'pointer',
               padding: '0 8px'
             }}
           >
@@ -693,7 +693,7 @@ const StudentsPage = () => {
             value={yearFilter}
             onChange={(e) => handleYearChange(e.target.value)}
             style={{
-              padding: '10px 32px 10px 16px',
+              padding:  '10px 32px 10px 16px',
               border: '1px solid #E5E7EB',
               borderRadius: '8px',
               fontSize: '14px',

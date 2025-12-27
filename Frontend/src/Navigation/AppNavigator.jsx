@@ -11,18 +11,27 @@ import Login from "../pages/LoginPage/Login";
 import AdminDashboard from "../pages/SuperAdmin/DashboardPanal/Dashboard";
 import FacultyAccounts from "../pages/SuperAdmin/Faculty&Accounts/Faculty&Accounts";
 import Attendance from "../pages/SuperAdmin/AttendancePage/Attendance";
-import GroupsClasses from "../pages/SuperAdmin/Classes&Groups/Classes&Groups"
-import StudyRoadmap from "../pages/SuperAdmin/Task&Assignments/Study-Road-Map/RoadMap";
+import GroupsClasses from "../pages/SuperAdmin/Classes&Groups/Classes&Groups";
 import ReportsAnalytics from "../pages/SuperAdmin/Reports&Analytics/Reporst&analytics";
 import StudentHeader from "../pages/SuperAdmin/studentsPage/studentHeader/StudentHeader";
+import StudentPage from "../pages/SuperAdmin/studentsPage/AllStudents/studentsPage";
+import TaskHeader from "../pages/SuperAdmin/Task&Assignments/TaskHeader/TaskHeader";
+
+import FacultyDashboard from '../pages/Faculty/DashboardPanal/Dashboard'
+import ClassHeader from "../pages/Faculty/Class&Group/ClassHeader/ClassHeader"
+import MyClasses from "../pages/Faculty/Class&Group/MyClasses/MyClasses"
+import AllClasses from "../pages/Faculty/Class&Group/AllClasses/AllClasses"
 
 // Faculty Pages
 import FacultyDashboard from "../pages/Faculty/DashboardPanal/Dashboard";
-// Faculty -> Class & Group
+//Faculty -> Classes & Groups
 import ClassHeader from "../pages/Faculty/Class&Group/ClassHeader/ClassHeader";
 import MyClasses from "../pages/Faculty/Class&Group/MyClasses/MyClasses";
 import AllClasses from "../pages/Faculty/Class&Group/AllClasses/AllClasses";
 import StudentsPage from "../pages/SuperAdmin/studentsPage/AllStudents/studentsPage";
+//Faculty -> Reports & Analytics
+import Reports from "../pages/Faculty/Reports&Analytics/Reporst&analytics";
+
 
 const AppNavigator = () => {
   const user = useAuthStore((s) => s.user);
@@ -47,7 +56,7 @@ const AppNavigator = () => {
               <Route path=":studentId" element={<StudentHeader />} />
             </Route>
             <Route path="attendance" element={<Attendance />} />
-            <Route path="tasks" element={<StudyRoadmap />} />
+            <Route path="tasks" element={<TaskHeader/>} />
             <Route path="reports" element={<ReportsAnalytics />} />
             <Route path="settings" element={<div>Settings</div>} />
           </Route>
@@ -64,7 +73,7 @@ const AppNavigator = () => {
             <Route path="attendance" element={<div>Attendance</div>} />
             <Route path="tasks" element={<div>Tasks</div>} />
             <Route path="students" element={<div>Students</div>} />
-            <Route path="reports" element={<div>Reports</div>} />
+            <Route path="reports" element={<Reports />} />
             <Route path="settings" element={<div>Settings</div>} />
           </Route>
         )}
@@ -78,6 +87,9 @@ const AppNavigator = () => {
             <Route path="tasks" element={<div>My Tasks</div>} />
           </Route>
         )}
+
+        {/* Catch all - redirect to home */}
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
   );

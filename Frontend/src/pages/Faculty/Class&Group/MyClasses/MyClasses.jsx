@@ -1,11 +1,15 @@
 import React, { useState } from 'react';
-import { useOutletContext } from 'react-router-dom';
-import { MoreVertical, Clock, Users, Plus } from 'lucide-react';
+import { useOutletContext, useNavigate } from 'react-router-dom';
+import {
+  MoreVertical, Clock, Users, Plus,
+  Calendar, BarChart3, FileText,
+  ChevronRight, CheckCircle, XCircle, Edit2,
+  Download, Eye, MessageSquare, Settings, TrendingUp
+} from 'lucide-react';
 
-const ClassesGrid = () => {
-  const { searchQuery } = useOutletContext();
-
-  const [classes] = useState([
+// Static data (can be moved to a separate file or API)
+const STATIC_DATA = {
+  classes: [
     {
       id: 1,
       code: 'CS-201',
@@ -16,7 +20,13 @@ const ClassesGrid = () => {
       schedule: 'Mon 10:00 AM • Wed 10:00 AM',
       students: 45,
       total: 60,
-      attendance: 92
+      attendance: 92,
+      status: 'active',
+      tasks: 2,
+      pendingTasks: 3,
+      room: 'Lab 3',
+      teacher: 'Dr. Smith',
+      nextSession: 'Today, 10:00 AM'
     },
     {
       id: 2,
@@ -28,7 +38,13 @@ const ClassesGrid = () => {
       schedule: 'Tue 11:15 AM • Thu 11:15 AM',
       students: 52,
       total: 60,
-      attendance: 86
+      attendance: 86,
+      status: 'active',
+      tasks: 1,
+      pendingTasks: 5,
+      room: 'Room 204',
+      teacher: 'Prof. Johnson',
+      nextSession: 'Tomorrow, 11:15 AM'
     },
     {
       id: 3,
@@ -40,34 +56,226 @@ const ClassesGrid = () => {
       schedule: 'Fri 02:00 PM',
       students: 38,
       total: 40,
-      attendance: 78
+      attendance: 78,
+      status: 'warning',
+      tasks: 3,
+      pendingTasks: 8,
+      room: 'Seminar Hall',
+      teacher: 'Dr. Lee',
+      nextSession: 'Friday, 02:00 PM'
     },
     {
       id: 4,
       code: 'SE-402',
-      title: 'Software Eng',
+      title: 'Software Engineering',
       section: 'SE-C',
       dept: 'Computer Science',
       sem: 'Sem 6',
       schedule: 'Mon 02:00 PM • Thu 10:00 AM',
       students: 41,
       total: 50,
-      attendance: 95
+      attendance: 95,
+      status: 'excellent',
+      tasks: 4,
+      pendingTasks: 2,
+      room: 'Room 301',
+      teacher: 'Prof. Garcia',
+      nextSession: 'Monday, 02:00 PM'
+    },
+    {
+      id: 5,
+      code: 'CS-301',
+      title: 'Algorithms',
+      section: 'CS-C',
+      dept: 'Computer Science',
+      sem: 'Sem 4',
+      schedule: 'Tue 09:00 AM • Thu 09:00 AM',
+      students: 48,
+      total: 55,
+      attendance: 88,
+      status: 'active',
+      tasks: 2,
+      pendingTasks: 4,
+      room: 'Lab 2',
+      teacher: 'Dr. Wilson',
+      nextSession: 'Thursday, 09:00 AM'
+    },
+    {
+      id: 6,
+      code: 'AI-415',
+      title: 'Machine Learning',
+      section: 'AI-B',
+      dept: 'Artificial Intelligence',
+      sem: 'Sem 6',
+      schedule: 'Mon 01:00 PM • Wed 01:00 PM',
+      students: 35,
+      total: 40,
+      attendance: 82,
+      status: 'active',
+      tasks: 3,
+      pendingTasks: 6,
+      room: 'Lab 5',
+      teacher: 'Prof. Chen',
+      nextSession: 'Wednesday, 01:00 PM'
     }
-  ]);
+  ],
 
-  // --- FILTER LOGIC ---
-  const filteredData = classes.filter(c =>
-    c.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    c.code.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  attendanceThresholds: {
+    excellent: 90,
+    good: 80,
+    warning: 70,
+    critical: 60
+  }
+};
+
+const ClassesGrid = () => {
+  const { searchQuery } = useOutletContext();
+  const navigate = useNavigate();
+
+  const [classes, setClasses] = useState(STATIC_DATA.classes);
+  const [filteredClasses, setFilteredClasses] = useState(STATIC_DATA.classes);
+  const [activeMenu, setActiveMenu] = useState(null);
+
+  // Filter classes
+  React.useEffect(() => {
+    let result = classes.filter(c =>
+      c.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      c.code.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+
+    setFilteredClasses(result);
+  }, [searchQuery, classes]);
+
+  // Function to handle menu actions
+  const handleMenuAction = (classId, action) => {
+    setActiveMenu(null);
+
+    switch (action) {
+      case 'view':
+        navigate(`/classes/${classId}`);
+        break;
+      case 'edit':
+        alert('Editing functionality is currently restricted.');
+        break;
+      case 'attendance':
+        alert(`Opening attendance for class ${classId}`);
+        break;
+      case 'tasks':
+        alert(`Viewing tasks for class ${classId}`);
+        break;
+      case 'analytics':
+        alert(`Opening analytics for class ${classId}`);
+        break;
+      case 'export':
+        alert(`Exporting data for class ${classId}`);
+        break;
+      case 'delete':
+        if (window.confirm('Are you sure you want to delete this class?')) {
+          setClasses(prev => prev.filter(c => c.id !== classId));
+        }
+        break;
+    }
+  };
+
+
+
+  // Function to mark attendance
+  const handleMarkAttendance = (classId) => {
+    const updatedClasses = classes.map(c => {
+      if (c.id === classId) {
+        const newAttendance = Math.min(100, c.attendance + 5);
+        return {
+          ...c,
+          attendance: newAttendance,
+          status: newAttendance >= 90 ? 'excellent' :
+            newAttendance >= 80 ? 'active' :
+              newAttendance >= 70 ? 'warning' : 'critical'
+        };
+      }
+      return c;
+    });
+    setClasses(updatedClasses);
+    alert(`Attendance marked for ${classes.find(c => c.id === classId).code}`);
+  };
+
+  // Function to view details
+  const handleViewDetails = (classId) => {
+    navigate(`/classes/${classId}`);
+  };
+
+  // Function to get status color
+  const getStatusColor = (attendance, status) => {
+    if (status === 'excellent') return '#059669';
+    if (status === 'warning') return '#d97706';
+    if (status === 'critical') return '#dc2626';
+
+    if (attendance >= 90) return '#059669';
+    if (attendance >= 80) return '#16a34a';
+    if (attendance >= 70) return '#d97706';
+    return '#dc2626';
+  };
+
+  // Function to get status icon
+  const getStatusIcon = (attendance, status) => {
+    if (status === 'excellent' || attendance >= 90)
+      return <CheckCircle size={14} />;
+    if (status === 'warning' || attendance < 80)
+      return <XCircle size={14} />;
+    return <CheckCircle size={14} />;
+  };
 
   return (
     <div className="classes-grid-content">
+
       <style>{`
         .classes-grid-content {
-          padding-top: 20px;
-          padding-bottom: 40px;
+          padding: 20px 0 10px 0;
+        }
+
+
+        /* Stats Summary */
+        .stats-summary {
+          display: flex;
+          gap: 20px;
+          margin-bottom: 24px;
+        }
+
+        .stat-card {
+          flex: 1;
+          background: white;
+          padding: 20px;
+          border-radius: 12px;
+          border: 1px solid #f1f5f9;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+        }
+
+        .stat-label {
+          font-size: 12px;
+          color: #64748b;
+          font-weight: 600;
+          margin-bottom: 8px;
+        }
+
+        .stat-value {
+          font-size: 24px;
+          font-weight: 800;
+          color: #0f172a;
+        }
+
+        .stat-change {
+          font-size: 12px;
+          display: flex;
+          align-items: center;
+          gap: 4px;
+          margin-top: 4px;
+        }
+
+        .positive {
+          color: #16a34a;
+        }
+
+        .negative {
+          color: #dc2626;
         }
 
         /* Grid */
@@ -86,6 +294,14 @@ const ClassesGrid = () => {
           overflow: hidden;
           display: flex;
           flex-direction: column;
+          transition: all 0.3s ease;
+          position: relative;
+        }
+
+        .class-card:hover {
+          transform: translateY(-4px);
+          box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+          border-color: #e2e8f0;
         }
 
         .card-header {
@@ -99,6 +315,7 @@ const ClassesGrid = () => {
           font-size: 18px;
           font-weight: 700;
           color: #0f172a;
+          padding-right: 30px;
         }
 
         .more-icon {
@@ -107,6 +324,47 @@ const ClassesGrid = () => {
           top: 24px;
           color: #94a3b8;
           cursor: pointer;
+          padding: 4px;
+          border-radius: 4px;
+          transition: 0.2s;
+        }
+
+        .more-icon:hover {
+          background: #f1f5f9;
+          color: #475569;
+        }
+
+        .menu-dropdown {
+          position: absolute;
+          right: 20px;
+          top: 50px;
+          background: white;
+          border-radius: 8px;
+          border: 1px solid #e2e8f0;
+          box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+          min-width: 160px;
+          z-index: 100;
+        }
+
+        .menu-item {
+          padding: 10px 16px;
+          font-size: 13px;
+          color: #334155;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          transition: 0.2s;
+          border-bottom: 1px solid #f1f5f9;
+        }
+
+        .menu-item:last-child {
+          border-bottom: none;
+          color: #dc2626;
+        }
+
+        .menu-item:hover {
+          background: #f8fafc;
         }
 
         .card-tags {
@@ -171,12 +429,42 @@ const ClassesGrid = () => {
           font-weight: 500;
         }
 
+        .additional-stats {
+          display: flex;
+          gap: 16px;
+          margin-bottom: 20px;
+        }
+
+        .additional-stat {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          font-size: 12px;
+          color: #64748b;
+        }
+
+        .additional-stat-value {
+          font-weight: 700;
+          color: #334155;
+        }
+
+        .attendance-section {
+          margin-bottom: 20px;
+        }
+
         .attendance-label {
           display: flex;
           justify-content: space-between;
+          align-items: center;
           font-size: 12px;
           font-weight: 700;
           margin-bottom: 8px;
+        }
+
+        .attendance-status {
+          display: flex;
+          align-items: center;
+          gap: 4px;
         }
 
         .progress-bar {
@@ -207,6 +495,10 @@ const ClassesGrid = () => {
           font-weight: 700;
           cursor: pointer;
           transition: 0.2s;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 6px;
         }
 
         .btn-outline {
@@ -215,109 +507,205 @@ const ClassesGrid = () => {
           color: #475569;
         }
 
+        .btn-outline:hover {
+          background: #f8fafc;
+          border-color: #cbd5e1;
+        }
+
         .btn-primary {
           background: #2563eb;
           border: 1px solid #2563eb;
           color: white;
         }
 
-        .btn-primary:hover { background: #1d4ed8; }
-
-        /* Assign Card */
-        .assign-card {
-          border: 2px dashed #e2e8f0;
-          background: transparent;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          cursor: pointer;
-          min-height: 350px;
+        .btn-primary:hover { 
+          background: #1d4ed8;
+          transform: translateY(-1px);
         }
 
-        .plus-circle {
-          width: 48px;
-          height: 48px;
-          background: #eff6ff;
-          border-radius: 50%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          color: #2563eb;
+        /* Empty State */
+        .empty-state {
+          grid-column: 1 / -1;
+          text-align: center;
+          padding: 60px 20px;
+        }
+
+        .empty-state-icon {
+          font-size: 48px;
+          color: #cbd5e1;
           margin-bottom: 16px;
         }
 
-        .assign-text {
-          font-size: 18px;
-          font-weight: 600;
+        .empty-state-text {
           color: #64748b;
+          font-size: 16px;
+          margin-bottom: 8px;
+        }
+
+        .empty-state-subtext {
+          color: #94a3b8;
+          font-size: 14px;
         }
       `}</style>
 
-      {/* --- GRID --- */}
-      <div className="class-grid">
-        {filteredData.map((item) => {
-          // Dynamic Colors Logic
-          const isHigh = item.attendance >= 90;
-          const isMid = item.attendance >= 80 && item.attendance < 90;
-          const statusColor = isHigh ? '#059669' : isMid ? '#d97706' : '#b91c1c';
-
-          return (
-            <div className="class-card" key={item.id}>
-              <div className="card-header">
-                <h3>{item.code} {item.title}</h3>
-                <MoreVertical size={18} className="more-icon" />
-                <div className="card-tags">
-                  <span className="tag-blue">{item.section}</span>
-                  <span>•</span>
-                  <span>{item.dept}</span>
-                  <span>•</span>
-                  <span>{item.sem}</span>
-                </div>
-              </div>
-
-              <div className="card-body">
-                <div className="schedule-badge">
-                  <Clock size={16} /> {item.schedule}
-                </div>
-
-                <div className="stats-row">
-                  <div className="stats-label"><Users size={16} /> Total Students</div>
-                  <div className="stats-val">{item.students} <span>/ {item.total}</span></div>
-                </div>
-
-                <div className="attendance-section">
-                  <div className="attendance-label">
-                    <span style={{ color: '#94a3b8' }}>Avg. Attendance</span>
-                    <span style={{ color: statusColor }}>{item.attendance}%</span>
-                  </div>
-                  <div className="progress-bar">
-                    <div
-                      className="progress-fill"
-                      style={{
-                        width: `${item.attendance}%`,
-                        backgroundColor: statusColor
-                      }}
-                    ></div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="card-footer">
-                <button className="btn btn-outline">View Details</button>
-                <button className="btn btn-primary">Mark Attendance</button>
-              </div>
-            </div>
-          );
-        })}
-
-        {/* --- ASSIGN NEW CLASS CARD --- */}
-        <div className="class-card assign-card">
-          <div className="plus-circle">
-            <Plus size={24} />
+      {/* Stats Summary */}
+      <div className="stats-summary">
+        <div className="stat-card">
+          <div className="stat-label">Total Classes</div>
+          <div className="stat-value">{classes.length}</div>
+          <div className="stat-change positive">
+            <TrendingUp size={12} /> +2 from last month
           </div>
-          <span className="assign-text">Assign New Class</span>
         </div>
+
+        <div className="stat-card">
+          <div className="stat-label">Total Students</div>
+          <div className="stat-value">
+            {classes.reduce((sum, c) => sum + c.students, 0)}
+          </div>
+          <div className="stat-change positive">
+            <TrendingUp size={12} /> +45 this semester
+          </div>
+        </div>
+
+        <div className="stat-card">
+          <div className="stat-label">Avg Attendance</div>
+          <div className="stat-value">
+            {Math.round(classes.reduce((sum, c) => sum + c.attendance, 0) / classes.length)}%
+          </div>
+          <div className="stat-change positive">
+            <TrendingUp size={12} /> +3% from last week
+          </div>
+        </div>
+      </div>
+
+      {/* Classes Grid */}
+      <div className="class-grid">
+        {filteredClasses.length === 0 ? (
+          <div className="empty-state">
+            <div className="empty-state-icon">
+              <FileText size={48} />
+            </div>
+            <div className="empty-state-text">No classes found</div>
+            <div className="empty-state-subtext">
+              Try adjusting your filters or contact administrator
+            </div>
+          </div>
+        ) : (
+          filteredClasses.map((item) => {
+            const statusColor = getStatusColor(item.attendance, item.status);
+            const StatusIcon = getStatusIcon(item.attendance, item.status);
+
+            return (
+              <div className="class-card" key={item.id}>
+                <div className="card-header">
+                  <h3>{item.code} {item.title}</h3>
+                  <MoreVertical
+                    size={18}
+                    className="more-icon"
+                    onClick={() => setActiveMenu(activeMenu === item.id ? null : item.id)}
+                  />
+
+                  {activeMenu === item.id && (
+                    <div className="menu-dropdown">
+                      <div className="menu-item" onClick={() => handleMenuAction(item.id, 'view')}>
+                        <Eye size={14} /> View Details
+                      </div>
+                      <div className="menu-item" onClick={() => handleMenuAction(item.id, 'edit')}>
+                        <Edit2 size={14} /> Edit Class
+                      </div>
+                      <div className="menu-item" onClick={() => handleMenuAction(item.id, 'attendance')}>
+                        <Calendar size={14} /> Attendance Report
+                      </div>
+                      <div className="menu-item" onClick={() => handleMenuAction(item.id, 'tasks')}>
+                        <FileText size={14} /> View Tasks
+                      </div>
+                      <div className="menu-item" onClick={() => handleMenuAction(item.id, 'analytics')}>
+                        <BarChart3 size={14} /> Analytics
+                      </div>
+                      <div className="menu-item" onClick={() => handleMenuAction(item.id, 'export')}>
+                        <Download size={14} /> Export Data
+                      </div>
+                      <div className="menu-item" onClick={() => handleMenuAction(item.id, 'delete')}>
+                        <XCircle size={14} /> Delete Class
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="card-tags">
+                    <span className="tag-blue">{item.section}</span>
+                    <span>•</span>
+                    <span>{item.dept}</span>
+                    <span>•</span>
+                    <span>{item.sem}</span>
+                  </div>
+                </div>
+
+                <div className="card-body">
+                  <div className="schedule-badge">
+                    <Clock size={16} /> {item.schedule}
+                  </div>
+
+                  <div className="stats-row">
+                    <div className="stats-label">
+                      <Users size={16} /> Total Students
+                    </div>
+                    <div className="stats-val">
+                      {item.students} <span>/ {item.total}</span>
+                    </div>
+                  </div>
+
+                  <div className="additional-stats">
+                    <div className="additional-stat">
+                      <FileText size={14} />
+                      <span>Tasks:</span>
+                      <span className="additional-stat-value">{item.tasks} active</span>
+                    </div>
+                    <div className="additional-stat">
+                      <MessageSquare size={14} />
+                      <span>Pending:</span>
+                      <span className="additional-stat-value">{item.pendingTasks}</span>
+                    </div>
+                  </div>
+
+                  <div className="attendance-section">
+                    <div className="attendance-label">
+                      <span style={{ color: '#94a3b8' }}>Avg. Attendance</span>
+                      <div className="attendance-status" style={{ color: statusColor }}>
+                        {StatusIcon}
+                        <span>{item.attendance}%</span>
+                      </div>
+                    </div>
+                    <div className="progress-bar">
+                      <div
+                        className="progress-fill"
+                        style={{
+                          width: `${item.attendance}%`,
+                          backgroundColor: statusColor
+                        }}
+                      ></div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="card-footer">
+                  <button
+                    className="btn btn-outline"
+                    onClick={() => handleViewDetails(item.id)}
+                  >
+                    <Eye size={14} /> View Details
+                  </button>
+                  <button
+                    className="btn btn-primary"
+                    onClick={() => handleMarkAttendance(item.id)}
+                  >
+                    <Calendar size={14} /> Mark Attendance
+                  </button>
+                </div>
+              </div>
+            );
+          })
+        )}
       </div>
     </div>
   );
