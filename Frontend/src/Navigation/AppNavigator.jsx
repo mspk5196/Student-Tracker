@@ -17,9 +17,8 @@ import StudentHeader from "../pages/SuperAdmin/studentsPage/studentHeader/Studen
 import StudentPage from "../pages/SuperAdmin/studentsPage/AllStudents/studentsPage";
 import TaskHeader from "../pages/SuperAdmin/Task&Assignments/TaskHeader/TaskHeader";
 
-
-// Faculty Pages
-import FacultyDashboard from "../pages/Faculty/DashboardPanal/Dashboard";
+// Faculty -> Dashboard
+import FacultyDashboard from '../pages/Faculty/DashboardPanal/Dashboard'
 //Faculty -> Classes & Groups
 import ClassHeader from "../pages/Faculty/Class&Group/ClassHeader/ClassHeader";
 import MyClasses from "../pages/Faculty/Class&Group/MyClasses/MyClasses";
@@ -27,6 +26,8 @@ import AllClasses from "../pages/Faculty/Class&Group/AllClasses/AllClasses";
 import StudentsPage from "../pages/SuperAdmin/studentsPage/AllStudents/studentsPage";
 //Faculty -> Reports & Analytics
 import Reports from "../pages/Faculty/Reports&Analytics/Reporst&analytics";
+//Faculty  -> Attendance
+import FacultyAttendance from "../pages/Faculty/AttendancePage/Attendance";
 
 
 const AppNavigator = () => {
@@ -66,7 +67,7 @@ const AppNavigator = () => {
               <Route index element={<MyClasses />} />
               <Route path="all" element={<AllClasses />} />
             </Route>
-            <Route path="attendance" element={<div>Attendance</div>} />
+            <Route path="attendance" element={<FacultyAttendance />} />
             <Route path="tasks" element={<div>Tasks</div>} />
             <Route path="students" element={<div>Students</div>} />
             <Route path="reports" element={<Reports />} />
