@@ -1,12 +1,10 @@
 // import React, { useState } from 'react';
 // // Correct Professional Icons from Material UI
-// import EditIcon from '@mui/icons-material/EditOutlined';
 // import DownloadIcon from '@mui/icons-material/DownloadOutlined';
-// import AssignmentIndIcon from '@mui/icons-material/AssignmentIndOutlined'; // ID
-// import BookIcon from '@mui/icons-material/MenuBookOutlined'; // Computer Science
-// import LayersIcon from '@mui/icons-material/LayersOutlined'; // Year
-// import PeopleIcon from '@mui/icons-material/PeopleOutlined'; // Group
-
+// import AssignmentIndIcon from '@mui/icons-material/AssignmentIndOutlined'; 
+// import BookIcon from '@mui/icons-material/MenuBookOutlined'; 
+// import LayersIcon from '@mui/icons-material/LayersOutlined'; 
+// import PeopleIcon from '@mui/icons-material/PeopleOutlined'; 
 
 // // Tabs component
 // import Overview from './Overview/Overview';
@@ -14,16 +12,13 @@
 // import TaskGrade from './Task&Grades/TaskGrade';
 // import Ranking from './Ranking/Ranking';
 
-// /**
-//  * 1:1 Matching Data
-//  */
 // const DATA = {
 //   name: "Emma Watson",
 //   id: "20230045",
 //   major: "Computer Science",
 //   year: "3rd Year (Sem 5)",
 //   group: "Group CS-A",
-//   avatar: "https://i.pravatar.cc/150?u=s1" // Matching the profile look
+//   avatar: "https://i.pravatar.cc/150?u=s1"
 // };
 
 // const styles = {
@@ -31,8 +26,8 @@
 //     padding: '30px',
 //     backgroundColor: '#fff',
 //     fontFamily: "'Inter', sans-serif",
+//     minHeight: '100vh', // Ensure page is scrollable
 //   },
-//   // Main White Profile Box
 //   profileCard: {
 //     display: 'flex',
 //     alignItems: 'center',
@@ -44,22 +39,17 @@
 //     boxShadow: '0 2px 4px rgba(0,0,0,0.02)',
 //     marginBottom: '20px',
 //   },
-//   avatarContainer: {
-//     marginRight: '28px',
-//   },
+//   avatarContainer: { marginRight: '28px' },
 //   avatar: {
 //     width: '100px',
 //     height: '100px',
 //     borderRadius: '50%',
 //     objectFit: 'cover',
-//     // Perfect Circle Ring Style from Image
 //     padding: '3px',
 //     background: 'white',
 //     border: '1.5px solid #d1e1fb',
 //   },
-//   infoArea: {
-//     flexGrow: 1,
-//   },
+//   infoArea: { flexGrow: 1 },
 //   name: {
 //     fontSize: '28px',
 //     fontWeight: '700',
@@ -67,32 +57,10 @@
 //     margin: '0 0 10px 0',
 //     letterSpacing: '-0.02em',
 //   },
-//   metaRow: {
-//     display: 'flex',
-//     alignItems: 'center',
-//     gap: '24px',
-//     flexWrap: 'wrap',
-//   },
-//   metaItem: {
-//     display: 'flex',
-//     alignItems: 'center',
-//     gap: '6px',
-//     color: '#64748b',
-//     fontSize: '14px',
-//     fontWeight: '500',
-//   },
-//   metaIcon: {
-//     fontSize: '16px',
-//     color: '#94a3b8',
-//   },
-//   // Button Group Aligned to Top Right of card
-//   btnGroup: {
-//     position: 'absolute',
-//     top: '32px',
-//     right: '32px',
-//     display: 'flex',
-//     gap: '12px',
-//   },
+//   metaRow: { display: 'flex', alignItems: 'center', gap: '24px', flexWrap: 'wrap' },
+//   metaItem: { display: 'flex', alignItems: 'center', gap: '6px', color: '#64748b', fontSize: '14px', fontWeight: '500' },
+//   metaIcon: { fontSize: '16px', color: '#94a3b8' },
+//   btnGroup: { position: 'absolute', top: '32px', right: '32px', display: 'flex', gap: '12px' },
 //   btnOutline: {
 //     display: 'flex',
 //     alignItems: 'center',
@@ -106,24 +74,16 @@
 //     color: '#334155',
 //     cursor: 'pointer',
 //   },
-//   btnPrimary: {
-//     display: 'flex',
-//     alignItems: 'center',
-//     gap: '8px',
-//     padding: '10px 18px',
-//     background: '#2563eb', // Pure profile blue
-//     border: 'none',
-//     borderRadius: '8px',
-//     fontSize: '14px',
-//     fontWeight: '600',
-//     color: '#fff',
-//     cursor: 'pointer',
-//   },
-//   // Tab Bar Style (Below the card)
+//   // STICKY NAVBAR LOGIC
 //   navBar: {
 //     display: 'flex',
 //     gap: '35px',
-//     marginTop: '10px',
+//     position: 'sticky',     // Makes the element sticky
+//     top: -25,                 // Sticks to the very top of the viewport
+//     backgroundColor: '#fff', // Important: covers content scrolling underneath
+//     zIndex: 1000,           // Ensures it stays above the dashboard content
+//     borderBottom: '1px solid #f1f5f9', // Optional: adds definition when sticky
+//     paddingTop: '10px',
 //   },
 //   tab: {
 //     padding: '14px 2px',
@@ -135,6 +95,7 @@
 //     color: '#64748b',
 //     borderBottom: '3px solid transparent',
 //     transition: '0.2s ease',
+//     marginBottom: '-1px', // Aligns with the borderBottom of navBar
 //   },
 //   tabActive: {
 //     color: '#2563eb',
@@ -149,45 +110,30 @@
 //   return (
 //     <div style={styles.container}>
       
-//       {/* 1. Main Profile Card Wrapper */}
+//       {/* 1. Profile Card (Will scroll away) */}
 //       <div style={styles.profileCard}>
-//         {/* Profile Circle Image */}
 //         <div style={styles.avatarContainer}>
 //           <img src={DATA.avatar} alt={DATA.name} style={styles.avatar} />
 //         </div>
 
-//         {/* Text Details Area */}
 //         <div style={styles.infoArea}>
 //           <h1 style={styles.name}>{DATA.name}</h1>
-          
 //           <div style={styles.metaRow}>
-//             <span style={styles.metaItem}>
-//               <AssignmentIndIcon style={styles.metaIcon} /> ID: {DATA.id}
-//             </span>
-//             <span style={styles.metaItem}>
-//               <BookIcon style={styles.metaIcon} /> {DATA.major}
-//             </span>
-//             <span style={styles.metaItem}>
-//               <LayersIcon style={styles.metaIcon} /> {DATA.year}
-//             </span>
-//             <span style={styles.metaItem}>
-//               <PeopleIcon style={styles.metaIcon} /> {DATA.group}
-//             </span>
+//             <span style={styles.metaItem}><AssignmentIndIcon style={styles.metaIcon} /> ID: {DATA.id}</span>
+//             <span style={styles.metaItem}><BookIcon style={styles.metaIcon} /> {DATA.major}</span>
+//             <span style={styles.metaItem}><LayersIcon style={styles.metaIcon} /> {DATA.year}</span>
+//             <span style={styles.metaItem}><PeopleIcon style={styles.metaIcon} /> {DATA.group}</span>
 //           </div>
 //         </div>
 
-//         {/* Buttons inside top-right card */}
 //         <div style={styles.btnGroup}>
 //           <button style={styles.btnOutline}>
 //             <DownloadIcon sx={{ fontSize: 18 }} /> Download Report
 //           </button>
-//           <button style={styles.btnPrimary}>
-//             <EditIcon sx={{ fontSize: 18 }} /> Edit Profile
-//           </button>
 //         </div>
 //       </div>
 
-//       {/* 2. Navigation Tabs (Correct List from Image) */}
+//       {/* 2. Navigation Tabs (Will stick to top) */}
 //       <nav style={styles.navBar}>
 //         {tabs.map((tab) => (
 //           <button
@@ -205,9 +151,10 @@
 
 //       {/* 3. Component Content Area */}
 //       <div style={{ marginTop: '20px' }}>
-//         {activeTab === 'Overview' ? <Overview /> :
-//         activeTab === 'Attendance' ? <AttendanceDashboard />:
-//         activeTab === 'Tasks & Grades'? <TaskGrade/> : <Ranking/>}
+//         {activeTab === 'Overview' && <Overview />}
+//         {activeTab === 'Attendance' && <AttendanceDashboard />}
+//         {activeTab === 'Tasks & Grades' && <TaskGrade />}
+//         {activeTab === 'Ranking' && <Ranking />}
 //       </div>
 
 //     </div>
@@ -228,6 +175,7 @@ import BookIcon from '@mui/icons-material/MenuBookOutlined';
 import LayersIcon from '@mui/icons-material/LayersOutlined';
 import PeopleIcon from '@mui/icons-material/PeopleOutlined';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import CloseIcon from '@mui/icons-material/Close';
 
 // Tab Components
 import Overview from './Overview/Overview';
@@ -238,9 +186,23 @@ import Ranking from './Ranking/Ranking';
 const styles = {
   container: {
     padding: '30px',
-    backgroundColor: '#f9fafb',
-    fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-    minHeight:  '100vh',
+    backgroundColor: '#fff',
+    fontFamily: "'Inter', sans-serif",
+    minHeight: '100vh',
+  },
+  backButton: {
+    marginBottom: '20px',
+    padding: '8px 16px',
+    backgroundColor: 'transparent',
+    border: 'none',
+    cursor: 'pointer',
+    fontSize: '14px',
+    fontWeight: '500',
+    color: '#6B7280',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+    transition: 'all 0.2s',
   },
   backButton: {
     marginBottom: '24px',
@@ -265,37 +227,37 @@ const styles = {
     borderRadius: '12px',
     padding: '32px',
     position: 'relative',
-    boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
-    marginBottom: '8px',
+    boxShadow: '0 2px 4px rgba(0,0,0,0.02)',
+    marginBottom: '0px',
   },
   avatarContainer: {
     marginRight: '28px',
   },
-  avatar:  {
+  avatar: {
     width: '100px',
     height: '100px',
     borderRadius: '50%',
-    objectFit:  'cover',
-    padding:  '3px',
-    background:  'white',
-    border: '2px solid #d1e1fb',
-    boxShadow: '0 2px 8px rgba(37, 99, 235, 0.1)',
+    objectFit: 'cover',
+    padding: '3px',
+    background: 'white',
+    border: '1. 5px solid #d1e1fb',
   },
   avatarFallback: {
-    width:  '100px',
-    height:  '100px',
-    borderRadius: '50%',
-    backgroundColor: '#3B82F6',
+    width: '100px',
+    height: '100px',
+    borderRadius:  '50%',
+    backgroundColor:  '#3B82F6',
     color: 'white',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     fontSize: '36px',
     fontWeight: '700',
-    border: '2px solid #d1e1fb',
-    boxShadow: '0 2px 8px rgba(37, 99, 235, 0.1)',
+    border: '1.5px solid #d1e1fb',
   },
-  infoArea: { flexGrow: 1 },
+  infoArea: {
+    flexGrow: 1,
+  },
   name: {
     fontSize: '28px',
     fontWeight: '700',
@@ -304,21 +266,21 @@ const styles = {
     letterSpacing: '-0.02em',
   },
   metaRow: {
-    display:  'flex',
+    display: 'flex',
     alignItems: 'center',
     gap: '24px',
     flexWrap: 'wrap',
   },
-  metaItem:  {
-    display: 'flex',
+  metaItem: {
+    display:  'flex',
     alignItems: 'center',
     gap: '6px',
     color: '#64748b',
     fontSize: '14px',
-    fontWeight: '500',
+    fontWeight:  '500',
   },
   metaIcon: {
-    fontSize: '18px',
+    fontSize: '16px',
     color: '#94a3b8',
   },
   btnGroup: {
@@ -343,7 +305,7 @@ const styles = {
     transition: 'all 0.2s',
   },
   btnPrimary: {
-    display: 'flex',
+    display:  'flex',
     alignItems: 'center',
     gap: '8px',
     padding: '10px 18px',
@@ -355,37 +317,34 @@ const styles = {
     color: '#fff',
     cursor: 'pointer',
     transition: 'all 0.2s',
-    boxShadow: '0 2px 8px rgba(37, 99, 235, 0.2)',
   },
   navBar: {
     display: 'flex',
     gap: '35px',
-    marginTop: '10px',
-    backgroundColor: 'white',
-    borderRadius: '12px',
+    marginTop: '-12px',
+    backgroundColor: '#fff',
+    borderRadius: '0 0 12px 12px',
     padding: '0 32px',
-    border: '1px solid #eef2f6',
-    boxShadow: '0 2px 4px rgba(0,0,0,0.02)',
+    borderTop: 'none',
+    position: 'sticky',
+    top: '-25px',
+    zIndex: 1000,
+    borderBottom: '1px solid #f1f5f9',
+    paddingTop: '10px',
   },
-  tab: {
-    padding: '16px 2px',
+   tab: {
+    padding: '14px 2px',
     fontSize: '15px',
     fontWeight: '600',
     background: 'none',
     border: 'none',
     cursor: 'pointer',
-    color: '#64748b',
-    borderBottom: '3px solid transparent',
     transition: '0.2s ease',
-    marginBottom: '-1px', // Aligns with the borderBottom of navBar
-  },
-  tabActive: {
-    color: '#2563eb',
-    borderBottomColor: '#2563eb',
+    marginBottom: '-1px',
   },
   loadingContainer: {
-    display:  'flex',
-    justifyContent: 'center',
+    display: 'flex',
+    justifyContent:  'center',
     alignItems: 'center',
     minHeight: '400px',
     fontSize: '16px',
@@ -418,25 +377,107 @@ const styles = {
     transition: 'all 0.2s',
   },
   notFoundContainer: {
-    padding:  '60px 40px',
+    padding: '60px 40px',
     textAlign: 'center',
     backgroundColor: 'white',
     borderRadius:  '12px',
-    color:  '#6B7280',
+    color: '#6B7280',
     boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-  }
+  },
+  // Modal styles
+  modalOverlay: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor:  'rgba(0, 0, 0, 0.5)',
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 2000,
+  },
+  modal: {
+    backgroundColor: 'white',
+    borderRadius: '12px',
+    padding: '32px',
+    maxWidth: '500px',
+    width: '90%',
+    maxHeight: '90vh',
+    overflow: 'auto',
+    boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)',
+  },
+  modalHeader: {
+    display:  'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '24px',
+  },
+  modalTitle: {
+    fontSize: '20px',
+    fontWeight: '700',
+    color: '#1F2937',
+  },
+  formGroup: {
+    marginBottom:  '20px',
+  },
+  label: {
+    display: 'block',
+    fontSize: '14px',
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: '8px',
+  },
+  input: {
+    width: '100%',
+    padding: '10px 12px',
+    border: '1px solid #E5E7EB',
+    borderRadius: '8px',
+    fontSize: '14px',
+    outline: 'none',
+    transition: 'all 0.2s',
+  },
+  select: {
+    width: '100%',
+    padding: '10px 12px',
+    border: '1px solid #E5E7EB',
+    borderRadius: '8px',
+    fontSize: '14px',
+    outline: 'none',
+    backgroundColor: 'white',
+    cursor: 'pointer',
+  },
+  modalActions: {
+    display: 'flex',
+    gap: '12px',
+    justifyContent:  'flex-end',
+    marginTop: '24px',
+  },
 };
 
 const StudentHeader = () => {
   const { studentId } = useParams();
   const navigate = useNavigate();
   const { token } = useAuthStore();
-  const API_URL = import.meta.env.VITE_API_URL;
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
   const [student, setStudent] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState('Overview');
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [downloading, setDownloading] = useState(false);
+
+  // Edit form state
+  const [editForm, setEditForm] = useState({
+    name: '',
+    email: '',
+    department: '',
+    year: '',
+    semester: '',
+    assigned_faculty_id: '',
+    is_active: true,
+  });
 
   const tabs = ['Overview', 'Attendance', 'Tasks & Grades', 'Ranking'];
 
@@ -444,25 +485,47 @@ const StudentHeader = () => {
   const fetchStudentDetails = async () => {
     setLoading(true);
     setError('');
-    
+
+    console.log('=== Student Fetch Debug ===');
+    console.log('Student ID:', studentId);
+    console.log('API URL:', API_URL);
+    console.log('Token exists:', !!token);
+
     try {
-      const response = await fetch(`${API_URL}/students/${studentId}`, {
+      const url = `${API_URL}/students/${studentId}`;
+      console.log('Full URL:', url);
+
+      const response = await fetch(url, {
         headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
       });
 
+      console.log('Response status:', response. status);
+
       const data = await response.json();
-      
+      console.log('Response data:', data);
+
       if (data.success) {
+        console.log('✅ Student data loaded');
         setStudent(data.data);
+        setEditForm({
+          name: data. data.name,
+          email: data.data.email,
+          department: data.data.department,
+          year: data.data. year,
+          semester: data. data.semester,
+          assigned_faculty_id: data.data. assigned_faculty_id || '',
+          is_active: data.data.is_active,
+        });
       } else {
+        console.error('❌ API error:', data.message);
         setError(data.message || 'Failed to fetch student details');
       }
     } catch (err) {
-      console.error('Error fetching student:', err);
-      setError('Failed to fetch student details');
+      console.error('❌ Fetch error:', err);
+      setError(`Failed to fetch student details: ${err. message}`);
     } finally {
       setLoading(false);
     }
@@ -471,21 +534,89 @@ const StudentHeader = () => {
   useEffect(() => {
     if (token && studentId) {
       fetchStudentDetails();
+    } else {
+      if (! token) setError('Authentication required');
+      if (!studentId) setError('Student ID is missing');
+      setLoading(false);
     }
   }, [token, studentId]);
 
   const getInitials = (name) => {
-    return name.split(' ').map(n => n[0]).join('').toUpperCase();
+    return name
+      .split(' ')
+      .map((n) => n[0])
+      .join('')
+      .toUpperCase();
   };
 
-  const handleDownloadReport = () => {
-    console.log('Downloading report for student:', studentId);
-    alert('Download Report functionality - Coming Soon!');
+  // Download report
+  const handleDownloadReport = async () => {
+    setDownloading(true);
+    try {
+      const response = await fetch(
+        `${API_URL}/students/${studentId}/download-report`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to download report');
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `student_report_${student.studentId}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (err) {
+      console.error('Error downloading report:', err);
+      alert('Failed to download report. Please try again.');
+    } finally {
+      setDownloading(false);
+    }
   };
 
+  // Edit profile
   const handleEditProfile = () => {
-    console.log('Editing profile for student:', studentId);
-    alert('Edit Profile functionality - Coming Soon!');
+    setShowEditModal(true);
+  };
+
+  const handleEditFormChange = (e) => {
+    const { name, value } = e.target;
+    setEditForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleSaveEdit = async () => {
+    try {
+      const response = await fetch(`${API_URL}/students/${studentId}`, {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(editForm),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        alert('Student updated successfully!');
+        setShowEditModal(false);
+        fetchStudentDetails(); // Refresh data
+      } else {
+        alert(data.message || 'Failed to update student');
+      }
+    } catch (err) {
+      console.error('Error updating student:', err);
+      alert('Failed to update student. Please try again.');
+    }
   };
 
   // Loading State
@@ -494,14 +625,13 @@ const StudentHeader = () => {
       <div style={styles.container}>
         <div style={styles.loadingContainer}>
           <div style={{ textAlign: 'center' }}>
-            <div style={{ 
-              fontSize: '48px', 
-              marginBottom: '16px',
-              animation: 'pulse 1. 5s ease-in-out infinite'
-            }}>
-              📚
+            <div style={{ fontSize: '48px', marginBottom: '16px' }}>📚</div>
+            <div>Loading student details...</div>
+            <div
+              style={{ fontSize: '12px', color: '#9CA3AF', marginTop: '8px' }}
+            >
+              Student ID: {studentId}
             </div>
-            Loading student details...
           </div>
         </div>
       </div>
@@ -513,12 +643,21 @@ const StudentHeader = () => {
     return (
       <div style={styles. container}>
         <div style={styles.errorContainer}>
-          <span>⚠️ {error}</span>
-          <button 
+          <div>
+            <div>⚠️ {error}</div>
+            <div style={{ fontSize: '12px', marginTop: '8px', opacity: 0.8 }}>
+              Student ID: {studentId} | API: {API_URL}
+            </div>
+          </div>
+          <button
             onClick={() => navigate('/students')}
-            style={styles.errorButton}
-            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#B91C1C'}
-            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#DC2626'}
+            style={styles. errorButton}
+            onMouseEnter={(e) =>
+              (e.currentTarget.style.backgroundColor = '#B91C1C')
+            }
+            onMouseLeave={(e) =>
+              (e.currentTarget.style.backgroundColor = '#DC2626')
+            }
           >
             Back to Students
           </button>
@@ -533,22 +672,30 @@ const StudentHeader = () => {
       <div style={styles. container}>
         <div style={styles.notFoundContainer}>
           <div style={{ fontSize: '64px', marginBottom: '20px' }}>🔍</div>
-          <h2 style={{ fontSize: '24px', fontWeight: '600', marginBottom: '12px', color: '#374151' }}>
+          <h2
+            style={{
+              fontSize: '24px',
+              fontWeight:  '600',
+              marginBottom: '12px',
+              color: '#374151',
+            }}
+          >
             Student Not Found
           </h2>
           <p style={{ marginBottom: '24px', color:  '#6B7280' }}>
             The student you're looking for doesn't exist or has been removed.
           </p>
-          <button 
+          <button
             onClick={() => navigate('/students')}
-            style={{
-              ... styles.btnPrimary,
-              margin: '0 auto'
-            }}
-            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#1d4ed8'}
-            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#2563eb'}
+            style={styles.btnPrimary}
+            onMouseEnter={(e) =>
+              (e.currentTarget.style.backgroundColor = '#1d4ed8')
+            }
+            onMouseLeave={(e) =>
+              (e.currentTarget.style.backgroundColor = '#2563eb')
+            }
           >
-            <ArrowBackIcon sx={{ fontSize:  18 }} />
+            <ArrowBackIcon sx={{ fontSize: 18 }} />
             Back to Students
           </button>
         </div>
@@ -558,20 +705,14 @@ const StudentHeader = () => {
 
   return (
     <div style={styles.container}>
-      {/* Back Button */}
-      <button 
+      {/* Simple Back Button */}
+      <button
         onClick={() => navigate('/students')}
         style={styles.backButton}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.backgroundColor = '#f9fafb';
-          e. currentTarget.style.borderColor = '#d1d5db';
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget. style.backgroundColor = 'white';
-          e.currentTarget.style.borderColor = '#E5E7EB';
-        }}
+        onMouseEnter={(e) => (e.currentTarget.style. color = '#1F2937')}
+        onMouseLeave={(e) => (e.currentTarget.style.color = '#6B7280')}
       >
-        <ArrowBackIcon sx={{ fontSize:  18 }} />
+        <ArrowBackIcon sx={{ fontSize: 18 }} />
         Back to Students
       </button>
 
@@ -580,94 +721,245 @@ const StudentHeader = () => {
         {/* Avatar */}
         <div style={styles.avatarContainer}>
           {student.image ? (
-            <img 
-              src={student.image} 
-              alt={student.name} 
-              style={styles.avatar} 
-            />
+            <img src={student.image} alt={student.name} style={styles.avatar} />
           ) : (
-            <div style={styles.avatarFallback}>
-              {getInitials(student.name)}
-            </div>
+            <div style={styles.avatarFallback}>{getInitials(student.name)}</div>
           )}
         </div>
 
         {/* Student Info */}
         <div style={styles.infoArea}>
-          <h1 style={styles.name}>{student. name}</h1>
-          
+          <h1 style={styles.name}>{student.name}</h1>
+
           <div style={styles.metaRow}>
             <span style={styles.metaItem}>
-              <AssignmentIndIcon style={styles.metaIcon} /> 
-              ID: {student.studentId || student.id}
+              <AssignmentIndIcon style={styles.metaIcon} /> ID:{' '}
+              {student.studentId || student.id}
             </span>
             <span style={styles. metaItem}>
-              <BookIcon style={styles.metaIcon} /> 
-              {student.department}
+              <BookIcon style={styles.metaIcon} /> {student.department}
             </span>
             <span style={styles.metaItem}>
-              <LayersIcon style={styles.metaIcon} /> 
-              {student.year} Year (Sem {student.semester})
+              <LayersIcon style={styles.metaIcon} /> Year {student.year}, Sem{' '}
+              {student. semester}
             </span>
             <span style={styles.metaItem}>
-              <PeopleIcon style={styles.metaIcon} /> 
-              Faculty: {student.facultyName || 'Not Assigned'}
+              <PeopleIcon style={styles.metaIcon} /> Faculty:{' '}
+              {student. facultyName || 'Not Assigned'}
             </span>
           </div>
         </div>
 
         {/* Action Buttons */}
         <div style={styles.btnGroup}>
-          <button 
+          <button
             style={styles.btnOutline}
             onClick={handleDownloadReport}
+            disabled={downloading}
             onMouseEnter={(e) => {
               e.currentTarget.style.backgroundColor = '#f9fafb';
-              e.currentTarget.style.borderColor = '#cbd5e1';
+              e. currentTarget.style.borderColor = '#cbd5e1';
             }}
             onMouseLeave={(e) => {
               e.currentTarget.style.backgroundColor = '#fff';
-              e.currentTarget.style.borderColor = '#e2e8f0';
+              e.currentTarget. style.borderColor = '#e2e8f0';
             }}
           >
-            <DownloadIcon sx={{ fontSize: 18 }} /> 
-            Download Report
+            <DownloadIcon sx={{ fontSize: 18 }} />
+            {downloading ? 'Downloading...' : 'Download Report'}
           </button>
-          <button 
-            style={styles. btnPrimary}
+          <button
+            style={styles.btnPrimary}
             onClick={handleEditProfile}
-            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#1d4ed8'}
-            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#2563eb'}
+            onMouseEnter={(e) =>
+              (e.currentTarget. style.backgroundColor = '#1d4ed8')
+            }
+            onMouseLeave={(e) =>
+              (e.currentTarget. style.backgroundColor = '#2563eb')
+            }
           >
-            <EditIcon sx={{ fontSize: 18 }} /> 
-            Edit Profile
+            <EditIcon sx={{ fontSize: 18 }} /> Edit Profile
           </button>
         </div>
       </div>
 
       {/* Navigation Tabs */}
-      <nav style={styles.navBar}>
-        {tabs.map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            style={{
-              ...styles.tab,
-              ...(activeTab === tab ?  styles.tabActive : { borderBottom: '3px solid transparent' })
-            }}
-          >
-            {tab}
-          </button>
-        ))}
-      </nav>
+<nav style={styles.navBar}>
+  {tabs.map((tab) => {
+    const isActive = activeTab === tab;
+    return (
+      <button
+        key={tab}
+        onClick={() => setActiveTab(tab)}
+        style={{
+          padding: '14px 2px',
+          fontSize: '15px',
+          fontWeight: '600',
+          background: 'none',
+          border: 'none',
+          cursor: 'pointer',
+          transition: '0.2s ease',
+          marginBottom: '-1px',
+          color: isActive ? '#2563eb' : '#64748b',
+          borderBottom: isActive ? '3px solid #2563eb' :  '3px solid transparent'
+        }}
+      >
+        {tab}
+      </button>
+    );
+  })}
+</nav>
 
-      {/* Tab Content Area */}
+      {/* Tab Content */}
       <div style={{ marginTop: '20px' }}>
-        {activeTab === 'Overview' && <Overview student={student} studentId={studentId} />}
-        {activeTab === 'Attendance' && <AttendanceDashboard studentId={studentId} student={student} />}
-        {activeTab === 'Tasks & Grades' && <TaskGrade studentId={studentId} student={student} />}
-        {activeTab === 'Ranking' && <Ranking studentId={studentId} student={student} />}
+        {activeTab === 'Overview' && (
+          <Overview student={student} studentId={studentId} />
+        )}
+        {activeTab === 'Attendance' && (
+          <AttendanceDashboard studentId={studentId} student={student} />
+        )}
+        {activeTab === 'Tasks & Grades' && (
+          <TaskGrade studentId={studentId} student={student} />
+        )}
+        {activeTab === 'Ranking' && (
+          <Ranking studentId={studentId} student={student} />
+        )}
       </div>
+
+      {/* Edit Profile Modal */}
+      {showEditModal && (
+        <div style={styles.modalOverlay} onClick={() => setShowEditModal(false)}>
+          <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
+            <div style={styles.modalHeader}>
+              <h2 style={styles.modalTitle}>Edit Student Profile</h2>
+              <button
+                onClick={() => setShowEditModal(false)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  color: '#6B7280',
+                }}
+              >
+                <CloseIcon />
+              </button>
+            </div>
+
+            <form onSubmit={(e) => e.preventDefault()}>
+              <div style={styles.formGroup}>
+                <label style={styles.label}>Name</label>
+                <input
+                  type="text"
+                  name="name"
+                  value={editForm.name}
+                  onChange={handleEditFormChange}
+                  style={styles.input}
+                  required
+                />
+              </div>
+
+              <div style={styles.formGroup}>
+                <label style={styles.label}>Email</label>
+                <input
+                  type="email"
+                  name="email"
+                  value={editForm.email}
+                  onChange={handleEditFormChange}
+                  style={styles.input}
+                  required
+                />
+              </div>
+
+              <div style={styles.formGroup}>
+                <label style={styles.label}>Department</label>
+                <input
+                  type="text"
+                  name="department"
+                  value={editForm.department}
+                  onChange={handleEditFormChange}
+                  style={styles.input}
+                  required
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: '16px' }}>
+                <div style={{ ... styles.formGroup, flex: 1 }}>
+                  <label style={styles.label}>Year</label>
+                  <select
+                    name="year"
+                    value={editForm.year}
+                    onChange={handleEditFormChange}
+                    style={styles.select}
+                    required
+                  >
+                    <option value="">Select Year</option>
+                    <option value="1">1st Year</option>
+                    <option value="2">2nd Year</option>
+                    <option value="3">3rd Year</option>
+                    <option value="4">4th Year</option>
+                  </select>
+                </div>
+
+                <div style={{ ...styles.formGroup, flex: 1 }}>
+                  <label style={styles. label}>Semester</label>
+                  <select
+                    name="semester"
+                    value={editForm.semester}
+                    onChange={handleEditFormChange}
+                    style={styles.select}
+                    required
+                  >
+                    <option value="">Select Semester</option>
+                    <option value="1">Semester 1</option>
+                    <option value="2">Semester 2</option>
+                    <option value="3">Semester 3</option>
+                    <option value="4">Semester 4</option>
+                    <option value="5">Semester 5</option>
+                    <option value="6">Semester 6</option>
+                    <option value="7">Semester 7</option>
+                    <option value="8">Semester 8</option>
+                  </select>
+                </div>
+              </div>
+
+              <div style={styles.formGroup}>
+                <label style={styles.label}>Status</label>
+                <select
+                  name="is_active"
+                  value={editForm. is_active ?  '1' : '0'}
+                  onChange={(e) =>
+                    setEditForm((prev) => ({
+                      ...prev,
+                      is_active: e.target.value === '1',
+                    }))
+                  }
+                  style={styles.select}
+                >
+                  <option value="1">Active</option>
+                  <option value="0">Inactive</option>
+                </select>
+              </div>
+
+              <div style={styles.modalActions}>
+                <button
+                  type="button"
+                  onClick={() => setShowEditModal(false)}
+                  style={styles.btnOutline}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveEdit}
+                  style={styles.btnPrimary}
+                >
+                  Save Changes
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
