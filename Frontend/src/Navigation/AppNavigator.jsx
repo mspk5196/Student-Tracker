@@ -22,6 +22,7 @@ import FacultyDashboard from "../pages/Faculty/DashboardPanal/Dashboard";
 import ClassHeader from "../pages/Faculty/Class&Group/ClassHeader/ClassHeader";
 import MyClasses from "../pages/Faculty/Class&Group/MyClasses/MyClasses";
 import AllClasses from "../pages/Faculty/Class&Group/AllClasses/AllClasses";
+import StudentsPage from "../pages/SuperAdmin/studentsPage/AllStudents/studentsPage";
 
 const AppNavigator = () => {
   const user = useAuthStore((s) => s.user);
@@ -41,7 +42,10 @@ const AppNavigator = () => {
             <Route index element={<AdminDashboard />} />
             <Route path="faculty" element={<FacultyAccounts />} />
             <Route path="classes" element={<GroupsClasses />} />
-            <Route path="students" element={<StudentHeader />} />
+            <Route path="students">
+              <Route index element={<StudentsPage />} />
+              <Route path=":studentId" element={<StudentHeader />} />
+            </Route>
             <Route path="attendance" element={<Attendance />} />
             <Route path="tasks" element={<StudyRoadmap />} />
             <Route path="reports" element={<ReportsAnalytics />} />
