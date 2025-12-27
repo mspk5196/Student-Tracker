@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   PlusCircle,
   Search,
@@ -12,21 +12,43 @@ import {
   Link as LinkIcon
 } from 'lucide-react';
 
-/* ---------------- STATIC MASTER DATA ---------------- */
+const AssignmentDashboard = ({ selectedSkill }) => {
+  // --- MASTER DATA WITH MULTIPLE SKILLS ---
+  const SKILLS_DATA = {
+    'REACT-101': [
+      { id: 1, title: 'React Hooks Implementation', score: 50, group: 'REACT-101', day: 1, dueDate: '2024-10-30', status: 'Active' },
+      { id: 2, title: 'Component Lifecycle Quiz', score: 100, group: 'REACT-101', day: 3, dueDate: '2024-11-05', status: 'Active' },
+      { id: 3, title: 'State Management Exercise', score: 20, group: 'REACT-101', day: 5, dueDate: '2024-10-12', status: 'Inactive' },
+    ],
+    'WEB-201': [
+      { id: 4, title: 'CSS Grid Layout Project', score: 75, group: 'WEB-201', day: 1, dueDate: '2024-11-01', status: 'Active' },
+      { id: 5, title: 'HTML Semantic Tags Exercise', score: 50, group: 'WEB-201', day: 2, dueDate: '2024-10-25', status: 'Active' },
+    ],
+    'JS-301': [
+      { id: 6, title: 'Async/Await Implementation', score: 100, group: 'JS-301', day: 1, dueDate: '2024-11-10', status: 'Active' },
+      { id: 7, title: 'Closures and Scope Quiz', score: 30, group: 'JS-301', day: 3, dueDate: '2024-10-28', status: 'Inactive' },
+    ],
+    'NODE-401': [
+      { id: 8, title: 'Express.js REST API', score: 100, group: 'NODE-401', day: 1, dueDate: '2024-11-15', status: 'Active' },
+    ],
+    'DESIGN-501': [
+      { id: 9, title: 'Figma Prototype Project', score: 80, group: 'DESIGN-501', day: 1, dueDate: '2024-10-30', status: 'Active' },
+      { id: 10, title: 'Color Theory Quiz', score: 40, group: 'DESIGN-501', day: 2, dueDate: '2024-10-20', status: 'Active' },
+    ]
+  };
 
-const INITIAL_ASSIGNMENTS = [
-  { id: 1, title: 'Sorting Algorithms Impl.', score: 50, group: 'CS-201', day: 1, dueDate: '2024-10-30', status: 'Active' },
-  { id: 2, title: 'Database Design Schema', score: 100, group: 'CS-305', day: 2, dueDate: '2024-11-05', status: 'Active' },
-  { id: 3, title: 'Week 4: Reading Quiz', score: 20, group: 'ENG-101', day: 4, dueDate: '2024-10-12', status: 'Inactive' },
-];
+  const CLASSES_DATA = {
+    'REACT-101': ['REACT-101: React Mastery Workshop', 'REACT-102: Advanced React Patterns', 'REACT-103: React Native'],
+    'WEB-201': ['WEB-201: HTML & CSS Fundamentals', 'WEB-202: Responsive Design', 'WEB-203: CSS Frameworks'],
+    'JS-301': ['JS-301: JavaScript Deep Dive', 'JS-302: Modern JavaScript', 'JS-303: Design Patterns'],
+    'NODE-401': ['NODE-401: Node.js Backend', 'NODE-402: Express Framework', 'NODE-403: Database Integration'],
+    'DESIGN-501': ['DESIGN-501: UI/UX Principles', 'DESIGN-502: Wireframing', 'DESIGN-503: Prototyping']
+  };
 
-const CLASSES = ['CS-201', 'CS-305', 'ENG-101', 'PHY-102', 'CS-400'];
-
-const AssignmentDashboard = () => {
-  const [assignments, setAssignments] = useState(INITIAL_ASSIGNMENTS);
+  const [assignments, setAssignments] = useState([]);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('Active');
-
+  
   /* -------- FORM STATE -------- */
   const [title, setTitle] = useState('');
   const [group, setGroup] = useState('');
@@ -34,10 +56,22 @@ const AssignmentDashboard = () => {
   const [score, setScore] = useState(100);
   const [day, setDay] = useState(1);
   const [description, setDescription] = useState('');
-  const [materialType, setMaterialType] = useState('link'); // 'link' or 'file'
+  const [materialType, setMaterialType] = useState('link');
   const [externalUrl, setExternalUrl] = useState('');
   const [files, setFiles] = useState([]);
   const [openMenuId, setOpenMenuId] = useState(null);
+
+  // Get current skill's classes
+  const CLASSES = CLASSES_DATA[selectedSkill] || [];
+
+  // Initialize assignments for the selected skill
+  useEffect(() => {
+    if (selectedSkill && SKILLS_DATA[selectedSkill]) {
+      setAssignments(SKILLS_DATA[selectedSkill]);
+    } else if (selectedSkill) {
+      setAssignments([]);
+    }
+  }, [selectedSkill]);
 
   /* -------- FILTER LOGIC -------- */
   const filteredAssignments = useMemo(() => {
@@ -96,7 +130,6 @@ const AssignmentDashboard = () => {
   return (
     <div style={styles.container}>
       <div style={styles.layoutGrid}>
-
         {/* LEFT PANEL */}
         <div style={styles.formCard}>
           <div style={styles.formHeader}>
@@ -107,14 +140,23 @@ const AssignmentDashboard = () => {
           <div style={styles.formBody}>
             <div style={styles.fieldGroup}>
               <label style={styles.fieldLabel}>Assignment Title *</label>
-              <input style={styles.textInput} value={title} onChange={e => setTitle(e.target.value)} />
+              <input 
+                style={styles.textInput} 
+                value={title} 
+                onChange={e => setTitle(e.target.value)}
+                placeholder={`Add assignment for ${selectedSkill}`}
+              />
             </div>
 
             <div style={styles.splitRow}>
               <div style={{ flex: 1 }}>
                 <label style={styles.fieldLabel}>Target Class / Group *</label>
                 <div style={styles.relativeWrapper}>
-                  <select style={styles.selectInput} value={group} onChange={e => setGroup(e.target.value)}>
+                  <select 
+                    style={styles.selectInput} 
+                    value={group} 
+                    onChange={e => setGroup(e.target.value)}
+                  >
                     <option value="" hidden>Select a class...</option>
                     {CLASSES.map(cls => <option key={cls}>{cls}</option>)}
                   </select>
@@ -123,7 +165,13 @@ const AssignmentDashboard = () => {
               </div>
               <div style={{ flex: 1 }}>
                 <label style={styles.fieldLabel}>Select Day *</label>
-                <input type="number" style={styles.textInput} value={day} onChange={e => setDay(e.target.value)} min="1" />
+                <input 
+                  type="number" 
+                  style={styles.textInput} 
+                  value={day} 
+                  onChange={e => setDay(e.target.value)} 
+                  min="1" 
+                />
               </div>
             </div>
 
@@ -142,13 +190,23 @@ const AssignmentDashboard = () => {
               </div>
               <div style={{ flex: 1 }}>
                 <label style={styles.fieldLabel}>Max Score *</label>
-                <input type="number" style={styles.textInput} value={score} onChange={e => setScore(e.target.value)} />
+                <input 
+                  type="number" 
+                  style={styles.textInput} 
+                  value={score} 
+                  onChange={e => setScore(e.target.value)} 
+                />
               </div>
             </div>
 
             <div style={styles.fieldGroup}>
               <label style={styles.fieldLabel}>Description</label>
-              <textarea style={styles.textareaInput} value={description} onChange={e => setDescription(e.target.value)} />
+              <textarea 
+                style={styles.textareaInput} 
+                value={description} 
+                onChange={e => setDescription(e.target.value)}
+                placeholder="Describe the assignment requirements..."
+              />
             </div>
 
             {/* STUDY MATERIAL - Either/Or Format */}
@@ -211,7 +269,7 @@ const AssignmentDashboard = () => {
         {/* RIGHT PANEL */}
         <div style={styles.listCard}>
           <div style={styles.listHeader}>
-            <h3 style={styles.title}>Recent Assignments</h3>
+            <h3 style={styles.title}>Recent Assignments ({selectedSkill})</h3>
             <div style={styles.utilActions}>
               <Filter size={18} style={styles.grayAction} />
               <RotateCw size={18} style={styles.grayAction} onClick={() => { setSearch(''); setStatusFilter('Active'); }} />
@@ -221,11 +279,20 @@ const AssignmentDashboard = () => {
           <div style={styles.filterBar}>
             <div style={{ ...styles.relativeWrapper, flex: 1 }}>
               <Search size={16} style={styles.searchInsideIcon} />
-              <input style={styles.searchField} value={search} onChange={e => setSearch(e.target.value)} />
+              <input 
+                style={styles.searchField} 
+                value={search} 
+                onChange={e => setSearch(e.target.value)}
+                placeholder="Search assignments..."
+              />
             </div>
 
             <div style={{ ...styles.relativeWrapper, width: '130px' }}>
-              <select style={styles.filterSelect} value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
+              <select 
+                style={styles.filterSelect} 
+                value={statusFilter} 
+                onChange={e => setStatusFilter(e.target.value)}
+              >
                 <option>Active</option>
                 <option>Inactive</option>
                 <option>All</option>
@@ -243,37 +310,42 @@ const AssignmentDashboard = () => {
               <div style={{ width: '40px' }}></div>
             </div>
 
-            {filteredAssignments.map(row => (
-              <div key={row.id} style={styles.tableRow}>
-                <div style={{ flex: 2.5 }}>
-                  <div style={styles.boldText}>{row.title}</div>
-                  <div style={styles.subtitleText}>Day {row.day} | Max Score: {row.score}</div>
-                </div>
-                <div style={{ flex: 1 }}>{row.group}</div>
-                <div style={{ flex: 1 }}>{row.dueDate || '--'}</div>
-                <div style={{ flex: 1 }}>
-                  <span style={getStatusBadge(row.status)}>{row.status}</span>
-                </div>
-                <div style={{ width: '40px', position: 'relative' }}>
-                  <MoreHorizontal
-                    size={18}
-                    color="#94A3B8"
-                    style={{ cursor: 'pointer' }}
-                    onClick={() => setOpenMenuId(openMenuId === row.id ? null : row.id)}
-                  />
-                  {openMenuId === row.id && (
-                    <div style={{ position: 'absolute', right: 0, top: '22px', background: '#fff', border: '1px solid #E5E7EB', borderRadius: '6px', zIndex: 10, minWidth: '120px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
-                      <div style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '13px' }} onClick={() => toggleTaskStatus(row.id, row.status)}>
-                        {row.status === 'Active' ? 'Set as Inactive' : 'Set as Active'}
+            {filteredAssignments.length > 0 ? (
+              filteredAssignments.map(row => (
+                <div key={row.id} style={styles.tableRow}>
+                  <div style={{ flex: 2.5 }}>
+                    <div style={styles.boldText}>{row.title}</div>
+                    <div style={styles.subtitleText}>Day {row.day} | Max Score: {row.score}</div>
+                  </div>
+                  <div style={{ flex: 1 }}>{row.group}</div>
+                  <div style={{ flex: 1 }}>{row.dueDate || '--'}</div>
+                  <div style={{ flex: 1 }}>
+                    <span style={getStatusBadge(row.status)}>{row.status}</span>
+                  </div>
+                  <div style={{ width: '40px', position: 'relative' }}>
+                    <MoreHorizontal
+                      size={18}
+                      color="#94A3B8"
+                      style={{ cursor: 'pointer' }}
+                      onClick={() => setOpenMenuId(openMenuId === row.id ? null : row.id)}
+                    />
+                    {openMenuId === row.id && (
+                      <div style={{ position: 'absolute', right: 0, top: '22px', background: '#fff', border: '1px solid #E5E7EB', borderRadius: '6px', zIndex: 10, minWidth: '120px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
+                        <div style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '13px' }} onClick={() => toggleTaskStatus(row.id, row.status)}>
+                          {row.status === 'Active' ? 'Set as Inactive' : 'Set as Active'}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
+              ))
+            ) : (
+              <div style={styles.emptyState}>
+                No assignments found for {selectedSkill}. Create your first assignment!
               </div>
-            ))}
+            )}
           </div>
         </div>
-
       </div>
     </div>
   );
@@ -293,7 +365,7 @@ const styles = {
   },
   layoutGrid: {
     width: '100%',
-    maxWidth: '100%', // Updated to fill the parent container
+    maxWidth: '100%',
     display: 'flex',
     gap: '24px',
     maxHeight: '850px',
@@ -323,7 +395,6 @@ const styles = {
   },
   headerIcon: { color: '#2563EB', marginRight: '10px' },
   title: { fontSize: '15px', fontWeight: '800', margin: 0, color: '#1F2937' },
-
   formBody: {
     flex: 1,
     overflowY: 'auto',
@@ -364,7 +435,6 @@ const styles = {
     borderRadius: '6px',
     boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
   },
-  required: { color: '#DC2626' },
   textInput: {
     padding: '12px 14px',
     borderRadius: '8px',
@@ -399,7 +469,6 @@ const styles = {
   relativeWrapper: { position: 'relative', display: 'flex', alignItems: 'center' },
   dropdownIcon: { position: 'absolute', right: '12px', color: '#94A3B8', pointerEvents: 'none' },
   dateIcon: { position: 'absolute', right: '12px', color: '#4B5563', pointerEvents: 'none' },
-
   uploadBox: {
     padding: '28px',
     borderRadius: '8px',
@@ -415,7 +484,6 @@ const styles = {
   uploadText: { fontSize: '13px', color: '#4B5563', fontWeight: '500' },
   blueLink: { color: '#2563EB', fontWeight: '700' },
   uploadSubtext: { fontSize: '11px', color: '#94A3B8' },
-
   formFooter: {
     padding: '20px 24px',
     borderTop: '1px solid #F3F4F6',
@@ -437,18 +505,6 @@ const styles = {
     justifyContent: 'center',
     cursor: 'pointer'
   },
-  secondaryBtn: {
-    flex: 1,
-    padding: '12px',
-    borderRadius: '8px',
-    border: '1px solid #E2E8F0',
-    backgroundColor: 'white',
-    color: '#6B7280',
-    fontWeight: '600',
-    fontSize: '13px',
-    cursor: 'pointer'
-  },
-
   listHeader: { padding: '24px 30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
   utilActions: { display: 'flex', gap: '15px' },
   grayAction: { color: '#94A3B8', cursor: 'pointer' },
@@ -474,8 +530,7 @@ const styles = {
     outline: 'none',
     color: '#374151'
   },
-
-  table: { display: 'flex', flexDirection: 'column' },
+  table: { display: 'flex', flexDirection: 'column', flex: 1 },
   tableHeaderRow: {
     display: 'flex',
     padding: '14px 30px',
@@ -494,7 +549,14 @@ const styles = {
     fontSize: '13px'
   },
   boldText: { fontWeight: '800', color: '#1F2937', marginBottom: '2px' },
-  subtitleText: { color: '#94A3B8', fontSize: '11px', fontWeight: '500' }
+  subtitleText: { color: '#94A3B8', fontSize: '11px', fontWeight: '500' },
+  emptyState: {
+    padding: '40px 30px',
+    textAlign: 'center',
+    color: '#94A3B8',
+    fontSize: '14px',
+    fontStyle: 'italic'
+  }
 };
 
 export default AssignmentDashboard;
