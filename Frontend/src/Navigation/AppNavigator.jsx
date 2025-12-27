@@ -39,18 +39,9 @@ import FacultyAttendance from "../pages/Faculty/AttendancePage/Attendance";
 import FacultyTaskHeader from "../pages/Faculty/Task&Assignments/TaskHeader/TaskHeader";
 //Faculty -> Reports & Analytics
 import Reports from "../pages/Faculty/Reports&Analytics/Reporst&analytics";
-
-//Student Page
-// Student -> Dashboard
-import StudentDashboard from "../pages/Student/Dashboard/StudentDashboard";
-//Student -> RoadMap & Material
-import StudentRoadmap from "../pages/Student/RoadMap&Material/RoadMap&Material";
-//Student -> Tasks & Assignments
-import TasksAssignments from "../pages/Student/Tasks&Assignments/Tasks&Assignment";
-//Student -> Attendance
-import StudentAttendance from "../pages/Student/StudentAttendance/Attendance";
-//Student -> My Classroom
-import MyClassRoom from "../pages/Student/MyClassRoom/MyClassRoom";
+//Faculty  -> Attendance
+import FacultyAttendance from "../pages/Faculty/AttendancePage/Attendance";
+import ClassDetails from "../pages/SuperAdmin/Classes&Groups/ClassDetails/ClassDetails";
 
 
 const AppNavigator = () => {
@@ -70,7 +61,7 @@ const AppNavigator = () => {
           <Route path="/" element={<SideTab />}>
             <Route index element={<AdminDashboard />} />
             <Route path="faculty" element={<FacultyAccounts />} />
-            <Route path="classes" element={<GroupsClasses />} />
+            <Route path="classes" element={<ClassDetails />} />  {/* change to  GroupsClasses */}
             <Route path="students">
               <Route index element={<StudentsPage />} />
               <Route path=":studentId" element={<StudentHeader />} />
