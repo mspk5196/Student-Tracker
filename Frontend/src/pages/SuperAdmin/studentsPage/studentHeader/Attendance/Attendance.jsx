@@ -405,7 +405,7 @@ const AttendanceDashboard = ({ studentId }) => {
   return (
     <div className="dashboard-container">
       <style>{`
-        .dashboard-container { background-color: #f8faff; font-family: 'Inter', sans-serif; padding: 20px; min-height: 100vh; color: #1e293b; overflow-x: hidden; }
+        .dashboard-container { background-color: #f8faff; font-family: 'Inter', sans-serif; padding: 15px;border-radius:10px; min-height: 100vh; color: #1e293b; overflow-x: hidden; }
         .section-grid { display: grid; gap: 24px; margin-bottom: 24px; width: 100%; }
         . top-stats { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
         .middle-content { grid-template-columns: minmax(0, 2. 5fr) 350px; }

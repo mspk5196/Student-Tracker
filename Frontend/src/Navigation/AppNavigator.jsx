@@ -33,8 +33,7 @@ import ClassHeader from "../pages/Faculty/Class&Group/ClassHeader/ClassHeader";
 import MyClasses from "../pages/Faculty/Class&Group/MyClasses/MyClasses";
 import AllClasses from "../pages/Faculty/Class&Group/AllClasses/AllClasses";
 import StudentsPage from "../pages/SuperAdmin/studentsPage/AllStudents/studentsPage";
-//Faculty  -> Attendance
-import FacultyAttendance from "../pages/Faculty/AttendancePage/Attendance";
+
 //Faculty -> Task & Assignments
 import FacultyTaskHeader from "../pages/Faculty/Task&Assignments/TaskHeader/TaskHeader";
 //Faculty -> Reports & Analytics

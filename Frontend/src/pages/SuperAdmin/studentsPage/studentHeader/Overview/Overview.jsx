@@ -367,6 +367,7 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import useAuthStore from '../../../../../store/useAuthStore';
+import { BorderAllRounded, RoundedCorner } from '@mui/icons-material';
 
 const Overview = ({ studentId }) => {
   const { token } = useAuthStore();
@@ -716,7 +717,7 @@ const Overview = ({ studentId }) => {
 };
 
 const styles = {
-  container: { backgroundColor: '#fcfdfe', minHeight: '100vh', padding: '40px 5%' },
+  container: { backgroundColor: '#F8FAFF', minHeight: '100vh', padding: '15px', borderRadius: '10px'},
   layoutWrapper: { maxWidth: '1400px', margin: '0 auto', display: 'flex' },
   mainColumn: { flex: 1, minWidth: 0 },
   mouseTooltip: {
@@ -732,11 +733,11 @@ const styles = {
     display: 'flex',
     flexDirection: 'column',
   },
-  statsRow: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '24px', marginBottom: '32px' },
+  statsRow: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '24px', marginBottom: '32px', borderRadius: '10px' },
   statCard: {
     backgroundColor: '#fff',
     padding: '24px',
-    borderRadius: '18px',
+    borderRadius: '10px',
     border: '1px solid #f1f5f9',
     boxShadow: '0 2px 10px rgba(0,0,0,0.02)',
   },
@@ -752,21 +753,21 @@ const styles = {
   card: {
     backgroundColor: '#fff',
     padding: '30px',
-    borderRadius: '22px',
+    borderRadius: '10px',
     border: '1px solid #f1f5f9',
     marginBottom: '28px',
     boxShadow: '0 2px 15px rgba(0,0,0,0.01)',
   },
   cardTitle: { fontSize: '17px', fontWeight: '800', color: '#0f172a', marginBottom: '0', margin: 0 },
-  skillsGrid: { display: 'flex', flexWrap: 'wrap', gap: '10px', marginTop: '24px' },
+  skillsGrid: { display: 'flex', flexWrap: 'wrap', gap: '10px', marginTop: '24px', borderRadius: '10px' },
   skillTablet: {
     display: 'flex',
     alignItems: 'center',
     gap: '8px',
     padding: '7px 14px',
     backgroundColor: '#fff',
-    borderRadius: '30px',
-    border: '1. 5px solid #e2e8f0',
+    borderRadius: '10px',
+    border: '1.5px solid #e2e8f0',
   },
   skillName: { fontSize: '12px', fontWeight: '700', color: '#334155' },
   skillLevelBadge: {
@@ -774,39 +775,42 @@ const styles = {
     fontWeight: '900',
     color: '#2563eb',
     backgroundColor: '#eff6ff',
-    padding:  '2px 8px',
-    borderRadius: '20px',
+    padding: '2px 8px',
+    borderRadius: '10px',
   },
-  expandRow: { display: 'flex', justifyContent: 'center', marginTop: '20px' },
-  expandBtn:  {
+  expandRow: { display: 'flex', justifyContent: 'center', marginTop: '20px', borderRadius: '10px' },
+  expandBtn: {
     background: 'none',
     border: 'none',
     color: '#2563eb',
     fontWeight: '600',
     cursor: 'pointer',
     fontSize: '15px',
+    borderRadius: '10px',
   },
-  chartsRow: { display: 'flex', gap: '24px', marginBottom: '30px' },
-  chartSpace: { marginTop: '25px' },
-  chartLabels: { display: 'flex', justifyContent: 'space-between', marginTop: '12px', padding: '0 5px' },
-  xLabel:  { fontSize: '10px', fontWeight: '800', color: '#cbd5e1' },
-  donutWrapper: { margin: '20px auto', width: 'fit-content' },
-  legend: { display: 'flex', justifyContent: 'center', gap: '20px', marginTop: '10px' },
-  legendItem:  {
+  chartsRow: { display: 'flex', gap: '24px', marginBottom: '30px', borderRadius: '10px' },
+  chartSpace: { marginTop: '25px', borderRadius: '10px' },
+  chartLabels: { display: 'flex', justifyContent: 'space-between', marginTop: '12px', padding: '0 5px', borderRadius: '10px' },
+  xLabel: { fontSize: '10px', fontWeight: '800', color: '#cbd5e1' },
+  donutWrapper: { margin: '20px auto', width: 'fit-content', borderRadius: '10px' },
+  legend: { display: 'flex', justifyContent: 'center', gap: '20px', marginTop: '10px', borderRadius: '10px' },
+  legendItem: {
     display: 'flex',
     alignItems: 'center',
     gap: '8px',
     fontSize: '12px',
     fontWeight: '700',
     color: '#64748b',
+    borderRadius: '10px',
   },
-  dot: { width: '10px', height: '10px', borderRadius: '50%' },
+  dot: { width: '10px', height: '10px', borderRadius: '10px' },
   perfScrollContainer: {
     display: 'flex',
     gap: '30px',
     overflowX: 'auto',
     padding: '25px 0 10px 0',
     scrollbarWidth: 'none',
+    borderRadius: '10px',
   },
   perfColumn: {
     display: 'flex',
@@ -814,8 +818,9 @@ const styles = {
     alignItems: 'center',
     minWidth: '75px',
     cursor: 'pointer',
+    borderRadius: '10px',
   },
-  barLabelGroup: { display: 'flex', gap: '6px', marginBottom: '8px' },
+  barLabelGroup: { display: 'flex', gap: '6px', marginBottom: '8px', borderRadius: '10px' },
   tinyLabel: { fontSize: '8px', fontWeight: '900', color: '#cbd5e1' },
   barFrame: {
     height: '130px',
@@ -828,15 +833,15 @@ const styles = {
     padding: '6px',
     transition: 'background 0.3s',
   },
-  bar: { width: '12px', borderRadius: '3px', transition: 'height 1. 2s cubic-bezier(0.17, 0.67, 0.83, 0.67)' },
-  subjectText: { fontSize: '11px', fontWeight: '800', marginTop: '12px' },
-  footerContainer: { display: 'flex', justifyContent: 'center', gap: '30px', marginTop: '10px' },
+  bar: { width: '12px', borderRadius: '10px', transition: 'height 1.2s cubic-bezier(0.17, 0.67, 0.83, 0.67)' },
+  subjectText: { fontSize: '11px', fontWeight: '800', marginTop: '12px', borderRadius: '10px' },
+  footerContainer: { display: 'flex', justifyContent: 'center', gap: '30px', marginTop: '10px', borderRadius: '10px' },
   footerPod: {
     textAlign: 'center',
     padding: '20px 40px',
     backgroundColor: '#fff',
-    borderRadius: '18px',
-    border: '1. 5px solid #f1f5f9',
+    borderRadius: '10px',
+    border: '1.5px solid #f1f5f9',
     minWidth: '200px',
     boxShadow: '0 4px 15px rgba(0,0,0,0.02)',
   },

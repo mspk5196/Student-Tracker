@@ -1,168 +1,3 @@
-// import React, { useState } from 'react';
-// // Correct Professional Icons from Material UI
-// import DownloadIcon from '@mui/icons-material/DownloadOutlined';
-// import AssignmentIndIcon from '@mui/icons-material/AssignmentIndOutlined'; 
-// import BookIcon from '@mui/icons-material/MenuBookOutlined'; 
-// import LayersIcon from '@mui/icons-material/LayersOutlined'; 
-// import PeopleIcon from '@mui/icons-material/PeopleOutlined'; 
-
-// // Tabs component
-// import Overview from './Overview/Overview';
-// import AttendanceDashboard from './Attendance/Attendance';
-// import TaskGrade from './Task&Grades/TaskGrade';
-// import Ranking from './Ranking/Ranking';
-
-// const DATA = {
-//   name: "Emma Watson",
-//   id: "20230045",
-//   major: "Computer Science",
-//   year: "3rd Year (Sem 5)",
-//   group: "Group CS-A",
-//   avatar: "https://i.pravatar.cc/150?u=s1"
-// };
-
-// const styles = {
-//   container: {
-//     padding: '30px',
-//     backgroundColor: '#fff',
-//     fontFamily: "'Inter', sans-serif",
-//     minHeight: '100vh', // Ensure page is scrollable
-//   },
-//   profileCard: {
-//     display: 'flex',
-//     alignItems: 'center',
-//     background: '#ffffff',
-//     border: '1px solid #eef2f6',
-//     borderRadius: '12px',
-//     padding: '32px',
-//     position: 'relative',
-//     boxShadow: '0 2px 4px rgba(0,0,0,0.02)',
-//     marginBottom: '20px',
-//   },
-//   avatarContainer: { marginRight: '28px' },
-//   avatar: {
-//     width: '100px',
-//     height: '100px',
-//     borderRadius: '50%',
-//     objectFit: 'cover',
-//     padding: '3px',
-//     background: 'white',
-//     border: '1.5px solid #d1e1fb',
-//   },
-//   infoArea: { flexGrow: 1 },
-//   name: {
-//     fontSize: '28px',
-//     fontWeight: '700',
-//     color: '#1e293b',
-//     margin: '0 0 10px 0',
-//     letterSpacing: '-0.02em',
-//   },
-//   metaRow: { display: 'flex', alignItems: 'center', gap: '24px', flexWrap: 'wrap' },
-//   metaItem: { display: 'flex', alignItems: 'center', gap: '6px', color: '#64748b', fontSize: '14px', fontWeight: '500' },
-//   metaIcon: { fontSize: '16px', color: '#94a3b8' },
-//   btnGroup: { position: 'absolute', top: '32px', right: '32px', display: 'flex', gap: '12px' },
-//   btnOutline: {
-//     display: 'flex',
-//     alignItems: 'center',
-//     gap: '8px',
-//     padding: '10px 18px',
-//     background: '#fff',
-//     border: '1px solid #e2e8f0',
-//     borderRadius: '8px',
-//     fontSize: '14px',
-//     fontWeight: '600',
-//     color: '#334155',
-//     cursor: 'pointer',
-//   },
-//   // STICKY NAVBAR LOGIC
-//   navBar: {
-//     display: 'flex',
-//     gap: '35px',
-//     position: 'sticky',     // Makes the element sticky
-//     top: -25,                 // Sticks to the very top of the viewport
-//     backgroundColor: '#fff', // Important: covers content scrolling underneath
-//     zIndex: 1000,           // Ensures it stays above the dashboard content
-//     borderBottom: '1px solid #f1f5f9', // Optional: adds definition when sticky
-//     paddingTop: '10px',
-//   },
-//   tab: {
-//     padding: '14px 2px',
-//     fontSize: '15px',
-//     fontWeight: '600',
-//     background: 'none',
-//     border: 'none',
-//     cursor: 'pointer',
-//     color: '#64748b',
-//     borderBottom: '3px solid transparent',
-//     transition: '0.2s ease',
-//     marginBottom: '-1px', // Aligns with the borderBottom of navBar
-//   },
-//   tabActive: {
-//     color: '#2563eb',
-//     borderBottomColor: '#2563eb',
-//   }
-// };
-
-// const StudentHeader = () => {
-//   const [activeTab, setActiveTab] = useState('Overview');
-//   const tabs = ['Overview', 'Attendance', 'Tasks & Grades', 'Ranking'];
-
-//   return (
-//     <div style={styles.container}>
-      
-//       {/* 1. Profile Card (Will scroll away) */}
-//       <div style={styles.profileCard}>
-//         <div style={styles.avatarContainer}>
-//           <img src={DATA.avatar} alt={DATA.name} style={styles.avatar} />
-//         </div>
-
-//         <div style={styles.infoArea}>
-//           <h1 style={styles.name}>{DATA.name}</h1>
-//           <div style={styles.metaRow}>
-//             <span style={styles.metaItem}><AssignmentIndIcon style={styles.metaIcon} /> ID: {DATA.id}</span>
-//             <span style={styles.metaItem}><BookIcon style={styles.metaIcon} /> {DATA.major}</span>
-//             <span style={styles.metaItem}><LayersIcon style={styles.metaIcon} /> {DATA.year}</span>
-//             <span style={styles.metaItem}><PeopleIcon style={styles.metaIcon} /> {DATA.group}</span>
-//           </div>
-//         </div>
-
-//         <div style={styles.btnGroup}>
-//           <button style={styles.btnOutline}>
-//             <DownloadIcon sx={{ fontSize: 18 }} /> Download Report
-//           </button>
-//         </div>
-//       </div>
-
-//       {/* 2. Navigation Tabs (Will stick to top) */}
-//       <nav style={styles.navBar}>
-//         {tabs.map((tab) => (
-//           <button
-//             key={tab}
-//             onClick={() => setActiveTab(tab)}
-//             style={{
-//               ...styles.tab,
-//               ...(activeTab === tab ? styles.tabActive : {borderBottom:'0px'})
-//             }}
-//           >
-//             {tab}
-//           </button>
-//         ))}
-//       </nav>
-
-//       {/* 3. Component Content Area */}
-//       <div style={{ marginTop: '20px' }}>
-//         {activeTab === 'Overview' && <Overview />}
-//         {activeTab === 'Attendance' && <AttendanceDashboard />}
-//         {activeTab === 'Tasks & Grades' && <TaskGrade />}
-//         {activeTab === 'Ranking' && <Ranking />}
-//       </div>
-
-//     </div>
-//   );
-// };
-
-// export default StudentHeader;
-
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import useAuthStore from '../../../../store/useAuthStore';
@@ -185,27 +20,11 @@ import Ranking from './Ranking/Ranking';
 
 const styles = {
   container: {
-    padding: '30px',
-    backgroundColor: '#fff',
     fontFamily: "'Inter', sans-serif",
     minHeight: '100vh',
+    margin:'-25px'
   },
   backButton: {
-    marginBottom: '20px',
-    padding: '8px 16px',
-    backgroundColor: 'transparent',
-    border: 'none',
-    cursor: 'pointer',
-    fontSize: '14px',
-    fontWeight: '500',
-    color: '#6B7280',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '6px',
-    transition: 'all 0.2s',
-  },
-  backButton: {
-    marginBottom: '24px',
     padding: '10px 18px',
     backgroundColor: 'white',
     border: '1px solid #E5E7EB',
@@ -229,6 +48,7 @@ const styles = {
     position: 'relative',
     boxShadow: '0 2px 4px rgba(0,0,0,0.02)',
     marginBottom: '0px',
+    paddingTop:'80px'
   },
   avatarContainer: {
     marginRight: '28px',
@@ -240,7 +60,7 @@ const styles = {
     objectFit: 'cover',
     padding: '3px',
     background: 'white',
-    border: '1. 5px solid #d1e1fb',
+    border: '1.5px solid #d1e1fb',
   },
   avatarFallback: {
     width: '100px',
@@ -332,7 +152,7 @@ const styles = {
     borderBottom: '1px solid #f1f5f9',
     paddingTop: '10px',
   },
-   tab: {
+  tab: {
     padding: '14px 2px',
     fontSize: '15px',
     fontWeight: '600',
@@ -384,7 +204,6 @@ const styles = {
     color: '#6B7280',
     boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
   },
-  // Modal styles
   modalOverlay: {
     position: 'fixed',
     top: 0,
@@ -468,7 +287,6 @@ const StudentHeader = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [downloading, setDownloading] = useState(false);
 
-  // Edit form state
   const [editForm, setEditForm] = useState({
     name: '',
     email: '',
@@ -481,7 +299,6 @@ const StudentHeader = () => {
 
   const tabs = ['Overview', 'Attendance', 'Tasks & Grades', 'Ranking'];
 
-  // Fetch single student data
   const fetchStudentDetails = async () => {
     setLoading(true);
     setError('');
@@ -502,7 +319,7 @@ const StudentHeader = () => {
         },
       });
 
-      console.log('Response status:', response. status);
+      console.log('Response status:', response.status);
 
       const data = await response.json();
       console.log('Response data:', data);
@@ -511,12 +328,12 @@ const StudentHeader = () => {
         console.log('✅ Student data loaded');
         setStudent(data.data);
         setEditForm({
-          name: data. data.name,
+          name: data.data.name,
           email: data.data.email,
           department: data.data.department,
-          year: data.data. year,
-          semester: data. data.semester,
-          assigned_faculty_id: data.data. assigned_faculty_id || '',
+          year: data.data.year,
+          semester: data.data.semester,
+          assigned_faculty_id: data.data.assigned_faculty_id || '',
           is_active: data.data.is_active,
         });
       } else {
@@ -525,7 +342,7 @@ const StudentHeader = () => {
       }
     } catch (err) {
       console.error('❌ Fetch error:', err);
-      setError(`Failed to fetch student details: ${err. message}`);
+      setError(`Failed to fetch student details: ${err.message}`);
     } finally {
       setLoading(false);
     }
@@ -535,7 +352,7 @@ const StudentHeader = () => {
     if (token && studentId) {
       fetchStudentDetails();
     } else {
-      if (! token) setError('Authentication required');
+      if (!token) setError('Authentication required');
       if (!studentId) setError('Student ID is missing');
       setLoading(false);
     }
@@ -549,7 +366,6 @@ const StudentHeader = () => {
       .toUpperCase();
   };
 
-  // Download report
   const handleDownloadReport = async () => {
     setDownloading(true);
     try {
@@ -583,7 +399,6 @@ const StudentHeader = () => {
     }
   };
 
-  // Edit profile
   const handleEditProfile = () => {
     setShowEditModal(true);
   };
@@ -609,7 +424,7 @@ const StudentHeader = () => {
       if (data.success) {
         alert('Student updated successfully!');
         setShowEditModal(false);
-        fetchStudentDetails(); // Refresh data
+        fetchStudentDetails();
       } else {
         alert(data.message || 'Failed to update student');
       }
@@ -619,7 +434,6 @@ const StudentHeader = () => {
     }
   };
 
-  // Loading State
   if (loading) {
     return (
       <div style={styles.container}>
@@ -638,10 +452,9 @@ const StudentHeader = () => {
     );
   }
 
-  // Error State
   if (error) {
     return (
-      <div style={styles. container}>
+      <div style={styles.container}>
         <div style={styles.errorContainer}>
           <div>
             <div>⚠️ {error}</div>
@@ -651,7 +464,7 @@ const StudentHeader = () => {
           </div>
           <button
             onClick={() => navigate('/students')}
-            style={styles. errorButton}
+            style={styles.errorButton}
             onMouseEnter={(e) =>
               (e.currentTarget.style.backgroundColor = '#B91C1C')
             }
@@ -666,23 +479,22 @@ const StudentHeader = () => {
     );
   }
 
-  // Not Found State
   if (!student) {
     return (
-      <div style={styles. container}>
+      <div style={styles.container}>
         <div style={styles.notFoundContainer}>
           <div style={{ fontSize: '64px', marginBottom: '20px' }}>🔍</div>
           <h2
             style={{
               fontSize: '24px',
-              fontWeight:  '600',
+              fontWeight: '600',
               marginBottom: '12px',
               color: '#374151',
             }}
           >
             Student Not Found
           </h2>
-          <p style={{ marginBottom: '24px', color:  '#6B7280' }}>
+          <p style={{ marginBottom: '24px', color: '#6B7280' }}>
             The student you're looking for doesn't exist or has been removed.
           </p>
           <button
@@ -705,19 +517,25 @@ const StudentHeader = () => {
 
   return (
     <div style={styles.container}>
-      {/* Simple Back Button */}
-      <button
-        onClick={() => navigate('/students')}
-        style={styles.backButton}
-        onMouseEnter={(e) => (e.currentTarget.style. color = '#1F2937')}
-        onMouseLeave={(e) => (e.currentTarget.style.color = '#6B7280')}
-      >
-        <ArrowBackIcon sx={{ fontSize: 18 }} />
-        Back to Students
-      </button>
-
       {/* Main Profile Card */}
       <div style={styles.profileCard}>
+        {/* Back Button inside card */}
+        <button
+          onClick={() => navigate('/students')}
+          style={{
+            ...styles.backButton,
+            position: 'absolute',
+            top: '20px',
+            left: '20px',
+            margin: '0',
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.color = '#1F2937')}
+          onMouseLeave={(e) => (e.currentTarget.style.color = '#374151')}
+        >
+          <ArrowBackIcon sx={{ fontSize: 18 }} />
+          Back to Students
+        </button>
+
         {/* Avatar */}
         <div style={styles.avatarContainer}>
           {student.image ? (
@@ -736,16 +554,16 @@ const StudentHeader = () => {
               <AssignmentIndIcon style={styles.metaIcon} /> ID:{' '}
               {student.studentId || student.id}
             </span>
-            <span style={styles. metaItem}>
+            <span style={styles.metaItem}>
               <BookIcon style={styles.metaIcon} /> {student.department}
             </span>
             <span style={styles.metaItem}>
               <LayersIcon style={styles.metaIcon} /> Year {student.year}, Sem{' '}
-              {student. semester}
+              {student.semester}
             </span>
             <span style={styles.metaItem}>
               <PeopleIcon style={styles.metaIcon} /> Faculty:{' '}
-              {student. facultyName || 'Not Assigned'}
+              {student.facultyName || 'Not Assigned'}
             </span>
           </div>
         </div>
@@ -758,11 +576,11 @@ const StudentHeader = () => {
             disabled={downloading}
             onMouseEnter={(e) => {
               e.currentTarget.style.backgroundColor = '#f9fafb';
-              e. currentTarget.style.borderColor = '#cbd5e1';
+              e.currentTarget.style.borderColor = '#cbd5e1';
             }}
             onMouseLeave={(e) => {
               e.currentTarget.style.backgroundColor = '#fff';
-              e.currentTarget. style.borderColor = '#e2e8f0';
+              e.currentTarget.style.borderColor = '#e2e8f0';
             }}
           >
             <DownloadIcon sx={{ fontSize: 18 }} />
@@ -772,10 +590,10 @@ const StudentHeader = () => {
             style={styles.btnPrimary}
             onClick={handleEditProfile}
             onMouseEnter={(e) =>
-              (e.currentTarget. style.backgroundColor = '#1d4ed8')
+              (e.currentTarget.style.backgroundColor = '#1d4ed8')
             }
             onMouseLeave={(e) =>
-              (e.currentTarget. style.backgroundColor = '#2563eb')
+              (e.currentTarget.style.backgroundColor = '#2563eb')
             }
           >
             <EditIcon sx={{ fontSize: 18 }} /> Edit Profile
@@ -784,31 +602,31 @@ const StudentHeader = () => {
       </div>
 
       {/* Navigation Tabs */}
-<nav style={styles.navBar}>
-  {tabs.map((tab) => {
-    const isActive = activeTab === tab;
-    return (
-      <button
-        key={tab}
-        onClick={() => setActiveTab(tab)}
-        style={{
-          padding: '14px 2px',
-          fontSize: '15px',
-          fontWeight: '600',
-          background: 'none',
-          border: 'none',
-          cursor: 'pointer',
-          transition: '0.2s ease',
-          marginBottom: '-1px',
-          color: isActive ? '#2563eb' : '#64748b',
-          borderBottom: isActive ? '3px solid #2563eb' :  '3px solid transparent'
-        }}
-      >
-        {tab}
-      </button>
-    );
-  })}
-</nav>
+      <nav style={styles.navBar}>
+        {tabs.map((tab) => {
+          const isActive = activeTab === tab;
+          return (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              style={{
+                padding: '14px 2px',
+                fontSize: '15px',
+                fontWeight: '600',
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                transition: '0.2s ease',
+                marginBottom: '-1px',
+                color: isActive ? '#2563eb' : '#64748b',
+                borderBottom: isActive ? '3px solid #2563eb' : '3px solid transparent'
+              }}
+            >
+              {tab}
+            </button>
+          );
+        })}
+      </nav>
 
       {/* Tab Content */}
       <div style={{ marginTop: '20px' }}>
@@ -883,7 +701,7 @@ const StudentHeader = () => {
               </div>
 
               <div style={{ display: 'flex', gap: '16px' }}>
-                <div style={{ ... styles.formGroup, flex: 1 }}>
+                <div style={{ ...styles.formGroup, flex: 1 }}>
                   <label style={styles.label}>Year</label>
                   <select
                     name="year"
@@ -901,7 +719,7 @@ const StudentHeader = () => {
                 </div>
 
                 <div style={{ ...styles.formGroup, flex: 1 }}>
-                  <label style={styles. label}>Semester</label>
+                  <label style={styles.label}>Semester</label>
                   <select
                     name="semester"
                     value={editForm.semester}
@@ -926,7 +744,7 @@ const StudentHeader = () => {
                 <label style={styles.label}>Status</label>
                 <select
                   name="is_active"
-                  value={editForm. is_active ?  '1' : '0'}
+                  value={editForm.is_active ? '1' : '0'}
                   onChange={(e) =>
                     setEditForm((prev) => ({
                       ...prev,

@@ -66,7 +66,7 @@
 
     // --- STYLES ---
     const s = {
-        container: { fontFamily: 'Inter, system-ui, sans-serif', padding: '0 24px 24px 24px', backgroundColor: '#f8fafc', minHeight: '100vh' },
+        container: { fontFamily: 'Inter, system-ui, sans-serif', backgroundColor: '#f8fafc', minHeight: '100vh' },
         
         // Non-sticky wrapper
         Wrapper: { 

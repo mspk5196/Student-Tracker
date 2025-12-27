@@ -579,7 +579,6 @@ const StudentsPage = () => {
     <div style={{
       minHeight: '100vh',
       backgroundColor: '#F9FAFB',
-      padding:  '32px',
       fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
     }}>
       {error && (

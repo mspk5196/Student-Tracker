@@ -407,7 +407,6 @@
 
 // export default TaskGrade;
 
-
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import useAuthStore from '../../../../../store/useAuthStore';
 
@@ -445,7 +444,7 @@ const Icons = {
     </svg>
   ),
   ArrowLeft: () => (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2. 5" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
       <line x1="19" y1="12" x2="5" y2="12" />
       <polyline points="12 19 5 12 12 5" />
     </svg>
@@ -472,6 +471,10 @@ const TaskGrade = ({ studentId }) => {
   const [historyPage, setHistoryPage] = useState(0);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [loading, setLoading] = useState(true);
+  
+  // Tooltip state
+  const [tooltip, setTooltip] = useState({ visible: false, x: 0, y: 0, date: '', points: 0, day: '' });
+  
   const topRef = useRef(null);
 
   const PERF_LIMIT = 6;
@@ -484,7 +487,7 @@ const TaskGrade = ({ studentId }) => {
   }, [token, studentId]);
 
   useEffect(() => {
-    if (studentData?. currentWorkshop) {
+    if (studentData?.currentWorkshop) {
       setViewingWorkshop(studentData.currentWorkshop);
     }
   }, [studentData]);
@@ -515,7 +518,7 @@ const TaskGrade = ({ studentId }) => {
   const activityLog = useMemo(() => {
     if (!studentData) return {};
     const log = {};
-    const allWorkshops = [studentData.currentWorkshop, ...studentData.history]. filter(Boolean);
+    const allWorkshops = [studentData.currentWorkshop, ...studentData.history].filter(Boolean);
     allWorkshops.forEach((workshop) => {
       workshop.tasks.forEach((task) => {
         log[task.date] = (log[task.date] || 0) + task.points;
@@ -525,7 +528,7 @@ const TaskGrade = ({ studentId }) => {
   }, [studentData]);
 
   const currentDayInfo = useMemo(() => {
-    if (!studentData?. currentWorkshop) return 'N/A';
+    if (!studentData?.currentWorkshop) return 'N/A';
     const task = studentData.currentWorkshop.tasks.find((t) => t.date === TODAY);
     return task ? `Day ${String(task.day).padStart(2, '0')}` : 'N/A';
   }, [studentData]);
@@ -545,13 +548,43 @@ const TaskGrade = ({ studentId }) => {
 
   const handleHeatMapClick = (dateStr) => {
     if (!studentData) return;
-    const allWorkshops = [studentData. currentWorkshop, ...studentData.history].filter(Boolean);
+    const allWorkshops = [studentData.currentWorkshop, ...studentData.history].filter(Boolean);
     const foundWorkshop = allWorkshops.find((w) => w.tasks.some((t) => t.date === dateStr));
     if (foundWorkshop) handleWorkshopSelection(foundWorkshop, dateStr);
   };
 
+  // Tooltip handlers
+  const handleHeatMapHover = (e, dateStr, points) => {
+    const date = new Date(dateStr);
+    const dayName = date.toLocaleDateString('en-US', { weekday: 'short' });
+    const dayNum = date.getDate();
+    const monthName = date.toLocaleDateString('en-US', { month: 'short' });
+    
+    setTooltip({
+      visible: true,
+      x: e.clientX,
+      y: e.clientY,
+      date: `${dayName}, ${monthName} ${dayNum}`,
+      points: points,
+    });
+  };
+
+  const handleHeatMapMove = (e) => {
+    if (tooltip.visible) {
+      setTooltip(prev => ({
+        ...prev,
+        x: e.clientX,
+        y: e.clientY,
+      }));
+    }
+  };
+
+  const handleHeatMapLeave = () => {
+    setTooltip({ visible: false, x: 0, y: 0, date: '', points: 0 });
+  };
+
   const getHeatColor = (points) => {
-    if (! points || points === 0) return '#f8fafc';
+    if (!points || points === 0) return '#f8fafc';
     if (points < 35) return '#dbeafe';
     if (points < 45) return '#60a5fa';
     return '#2563eb';
@@ -561,9 +594,10 @@ const TaskGrade = ({ studentId }) => {
     container: {
       fontFamily: 'Inter, system-ui, sans-serif',
       backgroundColor: '#F8FAFF',
-      padding: '40px 6%',
+      padding: '15px',
       minHeight: '100vh',
       color: '#1e293b',
+      borderRadius: '10px',
     },
     headerCard: {
       backgroundColor: '#fff',
@@ -581,7 +615,7 @@ const TaskGrade = ({ studentId }) => {
       right: '25px',
       backgroundColor: '#eff6ff',
       color: '#1d4ed8',
-      padding:  '10px 18px',
+      padding: '10px 18px',
       borderRadius: '12px',
       fontSize: '11px',
       fontWeight: '800',
@@ -630,6 +664,7 @@ const TaskGrade = ({ studentId }) => {
       padding: '30px',
       borderRadius: '16px',
       border: '1px solid #e2e8f0',
+      position: 'relative',
     },
     navBtn: {
       padding: '8px 20px',
@@ -639,6 +674,20 @@ const TaskGrade = ({ studentId }) => {
       cursor: 'pointer',
       fontWeight: '700',
       fontSize: '13px',
+    },
+    tooltip: {
+      position: 'fixed',
+      backgroundColor: '#1e293b',
+      color: '#fff',
+      padding: '8px 12px',
+      borderRadius: '8px',
+      fontSize: '12px',
+      fontWeight: '600',
+      pointerEvents: 'none',
+      zIndex: 9999,
+      boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+      whiteSpace: 'nowrap',
+      transform: 'translate(10px, -50%)',
     },
   };
 
@@ -653,12 +702,12 @@ const TaskGrade = ({ studentId }) => {
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
   const renderHeatMap = () => (
-    <div style={styles. heatMapWrapper}>
+    <div style={styles.heatMapWrapper}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '25px' }}>
         <span style={styles.sectionTitle}>Engagement Activity</span>
         <select
           value={selectedYear}
-          onChange={(e) => setSelectedYear(parseInt(e.target. value))}
+          onChange={(e) => setSelectedYear(parseInt(e.target.value))}
           style={{
             padding: '8px 14px',
             borderRadius: '10px',
@@ -671,7 +720,7 @@ const TaskGrade = ({ studentId }) => {
           <option value={new Date().getFullYear() - 1}>Year {new Date().getFullYear() - 1}</option>
         </select>
       </div>
-      <div style={{ display:  'flex', gap: '10px', overflowX: 'auto', paddingBottom: '12px' }}>
+      <div style={{ display: 'flex', gap: '10px', overflowX: 'auto', paddingBottom: '12px' }}>
         {months.map((month, mIdx) => {
           const daysInMonth = new Date(selectedYear, mIdx + 1, 0).getDate();
           return (
@@ -684,11 +733,14 @@ const TaskGrade = ({ studentId }) => {
                     <div
                       key={d}
                       onClick={() => handleHeatMapClick(dateStr)}
+                      onMouseEnter={(e) => handleHeatMapHover(e, dateStr, pts)}
+                      onMouseMove={handleHeatMapMove}
+                      onMouseLeave={handleHeatMapLeave}
                       style={{
                         width: '13px',
                         height: '13px',
                         backgroundColor: getHeatColor(pts),
-                        borderRadius:  '3px',
+                        borderRadius: '3px',
                         cursor: pts > 0 ? 'pointer' : 'default',
                         border: pts > 0 ? 'none' : '1px solid #f1f5f9',
                       }}
@@ -701,15 +753,31 @@ const TaskGrade = ({ studentId }) => {
           );
         })}
       </div>
+      
+      {/* Tooltip */}
+      {tooltip.visible && (
+        <div
+          style={{
+            ...styles.tooltip,
+            left: `${tooltip.x}px`,
+            top: `${tooltip.y}px`,
+          }}
+        >
+          <div>{tooltip.date}</div>
+          <div style={{ marginTop: '2px', color: '#94a3b8' }}>
+            {tooltip.points} pts
+          </div>
+        </div>
+      )}
     </div>
   );
 
-  const isShowingCurrent = viewingWorkshop?. id === studentData.currentWorkshop?.id;
-  const hasData = studentData.currentWorkshop || (studentData.history && studentData. history.length > 0);
+  const isShowingCurrent = viewingWorkshop?.id === studentData.currentWorkshop?.id;
+  const hasData = studentData.currentWorkshop || (studentData.history && studentData.history.length > 0);
 
   return (
     <div style={styles.container} ref={topRef}>
-      {! hasData ?  (
+      {!hasData ? (
         <div style={styles.noRecords}>
           <Icons.EmptyState />
           <h2 style={{ marginTop: '15px', color: '#475569' }}>No Learning Records Found</h2>
@@ -721,8 +789,8 @@ const TaskGrade = ({ studentId }) => {
         <>
           {/* Header Card */}
           <div style={styles.headerCard}>
-            {! isShowingCurrent && studentData.currentWorkshop && (
-              <div style={styles. returnBtn} onClick={() => handleWorkshopSelection(studentData.currentWorkshop)}>
+            {!isShowingCurrent && studentData.currentWorkshop && (
+              <div style={styles.returnBtn} onClick={() => handleWorkshopSelection(studentData.currentWorkshop)}>
                 <Icons.ArrowLeft /> Back to Current Workshop
               </div>
             )}
@@ -732,20 +800,20 @@ const TaskGrade = ({ studentId }) => {
             <div style={{ display: 'flex', gap: '40px', flexWrap: 'wrap' }}>
               <div>
                 <div style={{ fontSize: '10px', color: '#94a3b8', fontWeight: '900', marginBottom: '6px' }}>FACULTY</div>
-                <div style={{ display: 'flex', alignItems:  'center', gap: '8px', fontSize: '14px', fontWeight: '600' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', fontWeight: '600' }}>
                   <Icons.Faculty /> {viewingWorkshop?.faculty}
                 </div>
               </div>
               <div>
                 <div style={{ fontSize: '10px', color: '#94a3b8', fontWeight: '900', marginBottom: '6px' }}>VENUE</div>
-                <div style={{ display: 'flex', alignItems: 'center', gap:  '8px', fontSize: '14px', fontWeight: '600' }}>
-                  <Icons. Venue /> {viewingWorkshop?.venue || 'Archive'}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', fontWeight: '600' }}>
+                  <Icons.Venue /> {viewingWorkshop?.venue || 'Archive'}
                 </div>
               </div>
               <div>
-                <div style={{ fontSize:  '10px', color: '#94a3b8', fontWeight:  '900', marginBottom: '6px' }}>DURATION</div>
-                <div style={{ display: 'flex', alignItems:  'center', gap: '8px', fontSize: '14px', fontWeight: '600' }}>
-                  <Icons.Calendar /> {viewingWorkshop?. duration || viewingWorkshop?.date}
+                <div style={{ fontSize: '10px', color: '#94a3b8', fontWeight: '900', marginBottom: '6px' }}>DURATION</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', fontWeight: '600' }}>
+                  <Icons.Calendar /> {viewingWorkshop?.duration || viewingWorkshop?.date}
                 </div>
               </div>
             </div>
@@ -770,35 +838,35 @@ const TaskGrade = ({ studentId }) => {
                   <div key={task.day} style={styles.perfCard(isActive, isLocked)}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px', alignItems: 'center' }}>
                       <span style={{ fontSize: '11px', color: '#94a3b8', fontWeight: '900' }}>
-                        DAY {String(task.day).padStart(2, '0')} {isActive ?  '(SELECTED)' : ''}
+                        DAY {String(task.day).padStart(2, '0')} {isActive ? '(SELECTED)' : ''}
                       </span>
-                      {task.points > 0 ?  (
+                      {task.points > 0 ? (
                         <span
                           style={{
                             backgroundColor: '#2563eb',
-                            color:  '#fff',
+                            color: '#fff',
                             fontSize: '11px',
                             padding: '5px 12px',
                             borderRadius: '25px',
-                            fontWeight:  '800',
+                            fontWeight: '800',
                             display: 'flex',
                             alignItems: 'center',
-                            gap:  '6px',
+                            gap: '6px',
                           }}
                         >
-                          <Icons. Star /> {task.points} Pts
+                          <Icons.Star /> {task.points} Pts
                         </span>
                       ) : (
                         <span
                           style={{
                             color: '#64748b',
-                            fontSize:  '11px',
+                            fontSize: '11px',
                             background: '#f8fafc',
                             padding: '5px 12px',
                             borderRadius: '25px',
                             fontWeight: '700',
                             display: 'flex',
-                            alignItems:  'center',
+                            alignItems: 'center',
                             gap: '6px',
                           }}
                         >
@@ -853,7 +921,7 @@ const TaskGrade = ({ studentId }) => {
             >
               <span>
                 Showing {performancePage * PERF_LIMIT + 1}-
-                {Math.min((performancePage + 1) * PERF_LIMIT, viewingWorkshop. tasks.length)} of{' '}
+                {Math.min((performancePage + 1) * PERF_LIMIT, viewingWorkshop.tasks.length)} of{' '}
                 {viewingWorkshop.tasks.length} tasks
               </span>
               <div style={{ display: 'flex', gap: '12px' }}>
@@ -881,7 +949,7 @@ const TaskGrade = ({ studentId }) => {
       <div style={{ marginTop: '50px' }}>{renderHeatMap()}</div>
 
       {/* History */}
-      <h3 style={{ ... styles.sectionTitle, marginTop: '60px' }}>History & Event Log</h3>
+      <h3 style={{ ...styles.sectionTitle, marginTop: '60px' }}>History & Event Log</h3>
       <div>
         {studentData.history.slice(historyPage * HIST_LIMIT, (historyPage + 1) * HIST_LIMIT).map((item) => (
           <div
