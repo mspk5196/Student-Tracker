@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Pencil, Trash2, FileText, Youtube, Download,
   ExternalLink, PlusCircle, X, Link as LinkIcon, Upload
@@ -72,6 +72,9 @@ const StudyRoadmap = ({ selectedSkill, isActiveTab, addDayTrigger }) => {
     kind: 'pdf',
     url: ''
   });
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const fileInputRef = useRef(null);
 
   // Initialize roadmap for selected skill
   useEffect(() => {
@@ -242,16 +245,88 @@ const StudyRoadmap = ({ selectedSkill, isActiveTab, addDayTrigger }) => {
     console.log("Day deleted!");
   };
 
+  /* ---------- ENHANCED FILE UPLOAD HANDLERS ---------- */
+  const handleFileSelect = () => {
+    fileInputRef.current.click();
+  };
+
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      // Check if file is PDF
+      if (file.type === 'application/pdf') {
+        setSelectedFile(file);
+        // Auto-fill resource name from filename
+        const fileNameWithoutExt = file.name.replace('.pdf', '');
+        setNewResource(prev => ({
+          ...prev,
+          name: prev.name || fileNameWithoutExt
+        }));
+      } else {
+        alert('Please select a PDF file');
+      }
+    }
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+      const file = files[0];
+      if (file.type === 'application/pdf') {
+        setSelectedFile(file);
+        // Auto-fill resource name from filename
+        const fileNameWithoutExt = file.name.replace('.pdf', '');
+        setNewResource(prev => ({
+          ...prev,
+          name: prev.name || fileNameWithoutExt
+        }));
+      } else {
+        alert('Please drop a PDF file');
+      }
+    }
+  };
+
+  const removeSelectedFile = () => {
+    setSelectedFile(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
   /* ---------- RESOURCE HANDLERS ---------- */
   const handleOpenResourceModal = (moduleId) => {
     console.log("Opening resource modal for module:", moduleId);
     setCurrentModuleId(moduleId);
     setShowResourceModal(true);
+    // Reset file state when opening modal
+    setSelectedFile(null);
+    setNewResource({ name: '', kind: 'pdf', url: '' });
   };
 
   const handleAddResource = () => {
     if (!newResource.name) {
       alert("Please enter a name");
+      return;
+    }
+
+    if (newResource.kind === 'pdf' && !selectedFile) {
+      alert("Please select a PDF file");
       return;
     }
 
@@ -262,7 +337,10 @@ const StudyRoadmap = ({ selectedSkill, isActiveTab, addDayTrigger }) => {
       name: newResource.name,
       kind: newResource.kind,
       type: newResource.kind === 'pdf' ? 'PDF Document' :
-        newResource.kind === 'video' ? 'Video Link' : 'Web Resource'
+        newResource.kind === 'video' ? 'Video Link' : 'Web Resource',
+      // In a real app, you would upload the file to a server here
+      // For now, we'll just store the filename
+      filename: selectedFile ? selectedFile.name : null
     };
 
     const updatedRoadmap = roadmap.map(item =>
@@ -281,6 +359,7 @@ const StudyRoadmap = ({ selectedSkill, isActiveTab, addDayTrigger }) => {
     // Reset modal
     setShowResourceModal(false);
     setNewResource({ name: '', kind: 'pdf', url: '' });
+    setSelectedFile(null);
     
     console.log("Resource added!");
   };
@@ -483,11 +562,90 @@ const StudyRoadmap = ({ selectedSkill, isActiveTab, addDayTrigger }) => {
               <label style={styles.label}>
                 {newResource.kind === 'pdf' ? 'Upload File' : 'Resource URL'}
               </label>
+              
               {newResource.kind === 'pdf' ? (
-                <div style={styles.filePlaceholder}>
-                  <Upload size={20} />
-                  <span>Choose PDF File</span>
-                </div>
+                <>
+                  {/* Hidden file input */}
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    style={{ display: 'none' }}
+                    accept=".pdf,application/pdf"
+                    onChange={handleFileChange}
+                  />
+                  
+                  {/* Drag and drop area */}
+                  <div
+                    style={{
+                      ...styles.filePlaceholder,
+                      borderColor: isDragging ? '#0066FF' : '#E5E7EB',
+                      backgroundColor: isDragging ? '#F0F7FF' : '#FFFFFF',
+                      borderStyle: selectedFile ? 'solid' : 'dashed'
+                    }}
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                    onDrop={handleDrop}
+                    onClick={handleFileSelect}
+                  >
+                    {selectedFile ? (
+                      <div style={styles.filePreview}>
+                        <FileText size={24} color="#0066FF" />
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <p style={{ margin: 0, fontWeight: '600', color: '#111827', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {selectedFile.name}
+                          </p>
+                          <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#6B7280' }}>
+                            {(selectedFile.size / 1024).toFixed(2)} KB
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            removeSelectedFile();
+                          }}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            color: '#EF4444',
+                            cursor: 'pointer',
+                            padding: '4px'
+                          }}
+                        >
+                          <X size={18} />
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <Upload size={20} />
+                        <span>Drag & drop a PDF file here or click to browse</span>
+                        <p style={{ fontSize: '12px', color: '#9CA3AF', margin: '8px 0 0 0' }}>
+                          Only PDF files are accepted
+                        </p>
+                      </>
+                    )}
+                  </div>
+                  
+                  {/* Browse button (alternative to clicking the area) */}
+                  {!selectedFile && (
+                    <button
+                      type="button"
+                      onClick={handleFileSelect}
+                      style={{
+                        marginTop: '8px',
+                        padding: '8px 16px',
+                        backgroundColor: '#F3F4F6',
+                        border: '1px solid #E5E7EB',
+                        borderRadius: '6px',
+                        cursor: 'pointer',
+                        fontSize: '14px',
+                        color: '#374151'
+                      }}
+                    >
+                      Browse Files
+                    </button>
+                  )}
+                </>
               ) : (
                 <input
                   style={styles.input}
@@ -905,7 +1063,21 @@ const styles = {
     alignItems: 'center', 
     gap: '8px', 
     color: '#6B7280', 
-    fontSize: '14px' 
+    fontSize: '14px',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
+    minHeight: '120px',
+    justifyContent: 'center'
+  },
+  filePreview: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+    width: '100%',
+    padding: '12px',
+    backgroundColor: '#F9FAFB',
+    borderRadius: '8px',
+    border: '1px solid #E5E7EB'
   },
   modalFooter: { 
     display: 'flex', 
