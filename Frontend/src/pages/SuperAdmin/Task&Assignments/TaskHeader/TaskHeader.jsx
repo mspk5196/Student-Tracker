@@ -140,7 +140,7 @@ const styles = {
   },
   stickyHeader: {
     position: 'sticky',
-    top: 0,
+    top: -25 ,
     zIndex: 1000,
     backgroundColor: '#ffffff',
     borderBottom: '1px solid #e2e8f0',

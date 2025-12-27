@@ -88,10 +88,6 @@ import StudentHeader from "../pages/SuperAdmin/studentsPage/studentHeader/Studen
 import StudentPage from "../pages/SuperAdmin/studentsPage/AllStudents/studentsPage";
 import TaskHeader from "../pages/SuperAdmin/Task&Assignments/TaskHeader/TaskHeader";
 
-import FacultyDashboard from '../pages/Faculty/DashboardPanal/Dashboard'
-import ClassHeader from "../pages/Faculty/Class&Group/ClassHeader/ClassHeader"
-import MyClasses from "../pages/Faculty/Class&Group/MyClasses/MyClasses"
-import AllClasses from "../pages/Faculty/Class&Group/AllClasses/AllClasses"
 
 // Faculty Pages
 import FacultyDashboard from "../pages/Faculty/DashboardPanal/Dashboard";
