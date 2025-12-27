@@ -1,610 +1,710 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
-    Rocket,
-    Calendar,
-    Clock,
-    BookOpen,
-    CheckCircle,
-    FileText,
-    Video,
-    Code,
-    Database,
-    Book,
-    MoreHorizontal
+    BookOpen, Calendar, Clock, ClipboardCheck,
+    MapPin, Users, ChevronRight, Plus,
+    BarChart3, PieChart, MoreVertical, CheckCircle,
+    AlertCircle, TrendingUp, TrendingDown,
+    FileText, Video, Code, Database, Rocket, Award,
+    Star, Target, ArrowRight, Bell
 } from 'lucide-react';
 
-const StudentDashboard = () => {
+// Static data for Student Dashboard
+const STATIC_DATA = {
+    stats: [
+        { id: 1, label: 'Overall Attendance', value: '82%', sub: 'Last 30 days: +2.4%', icon: <Calendar size={20} />, badge: 'Good' },
+        { id: 2, label: 'Pending Tasks', value: '3', sub: '2 due by tomorrow', icon: <ClipboardCheck size={20} />, badge: 'Urgent' },
+        { id: 3, label: 'Current CGPA', value: '8.4', sub: 'Semester 5 progress', icon: <Award size={20} /> },
+        { id: 4, label: 'Course Progress', value: '68%', sub: 'Target: 85% by Semester end', icon: <Target size={20} /> },
+    ],
+
+    schedule: [
+        {
+            id: 'CS-201',
+            name: 'Data Structures & Algorithms',
+            type: 'Lecture',
+            time: '10:00 - 11:00 AM',
+            loc: 'Lab 3',
+            faculty: 'Dr. Rajesh Kumar',
+            status: 'Ongoing',
+            statusType: 'progress'
+        },
+        {
+            id: 'CS-203',
+            name: 'Database Systems',
+            type: 'Laboratory',
+            time: '11:15 AM - 12:15 PM',
+            loc: 'Room 204',
+            faculty: 'Prof. Meena Sharma',
+            status: 'Upcoming',
+            statusType: 'pending'
+        },
+        {
+            id: 'CS-205',
+            name: 'Operating Systems',
+            type: 'Tutorial',
+            time: '02:00 - 03:00 PM',
+            loc: 'Seminar Hall',
+            faculty: 'Dr. Amit Patel',
+            status: 'Completed',
+            statusType: 'completed'
+        }
+    ],
+
+    tasks: [
+        { id: 1, name: 'AVL Tree Rotations', subject: 'DSA', submitted: 0, total: 1, status: 'pending', deadline: 'Today' },
+        { id: 2, name: 'SQL Normalization', subject: 'DBMS', submitted: 0, total: 1, status: 'progress', deadline: 'Tomorrow' },
+        { id: 3, name: 'Memory Management', subject: 'OS', submitted: 1, total: 1, status: 'completed', deadline: 'Done' }
+    ],
+
+    grades: [
+        { id: 1, subject: 'Mathematics IV', code: 'MTH-301', grade: 'A', score: '92/100', type: 'success' },
+        { id: 2, subject: 'Web Development', code: 'CS-304', grade: 'A+', score: '98/100', type: 'success' },
+        { id: 3, subject: 'Computer Networks', code: 'CS-302', grade: 'B+', score: '85/100', type: 'warning' },
+    ],
+
+    engagementData: {
+        attendance: {
+            labels: ['DSA', 'DBMS', 'OS', 'Math', 'Web'],
+            datasets: [
+                {
+                    data: [92, 75, 83, 76, 88],
+                    label: 'Attendance %',
+                    color: '#2563eb'
+                }
+            ]
+        },
+        taskCompletion: {
+            labels: ['Completed', 'Pending', 'Overdue'],
+            data: [68, 22, 10],
+            colors: ['#10b981', '#f59e0b', '#ef4444']
+        },
+        activity: Array.from({ length: 365 }, (_, i) => ({
+            level: Math.floor(Math.random() * 5),
+            date: new Date(2024, 0, i + 1).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+            tasks: [
+                'Attended: Data Structures Class',
+                'Submitted: Weekly Quiz 4',
+                'Completed: 2 Library coding hours',
+                'Forum Post: React Hooks discussion'
+            ].slice(0, Math.floor(Math.random() * 4) + 1)
+        }))
+    }
+};
+
+// HeatMap Component
+const ActivityHeatMap = ({ data }) => {
+    const [hoveredDay, setHoveredDay] = React.useState(null);
+    const [selectedYear, setSelectedYear] = React.useState('2024');
+
+    const months = [
+        'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+    ];
+
+    const monthData = [];
+    for (let i = 0; i < 12; i++) {
+        monthData.push(data.slice(i * 30, (i + 1) * 30));
+    }
+
+    const getColor = (value) => {
+        switch (value) {
+            case 0: return '#f1f5f9'; // Clear Slate (Empty)
+            case 1: return '#bfdbfe'; // Light Sky (Very Low)
+            case 2: return '#60a5fa'; // Bright Blue (Member)
+            case 3: return '#2563eb'; // Deep Blue (Active)
+            case 4: return '#1e3a8a'; // Navy Blue (Peak)
+            default: return '#f1f5f9';
+        }
+    };
+
     return (
-        <div className="dashboard-container">
-            {/* Header Section */}
-            <header className="header">
-                <div className="header-left">
-                    <h1 style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                        Welcome back, Arjun! <Rocket size={28} />
-                    </h1>
-                    <p className="header-subtext">
-                        <span><Calendar size={14} style={{ verticalAlign: 'text-bottom', marginRight: '4px' }} /> Today, Oct 24</span>
-                        <span className="separator">•</span>
-                        <span><Clock size={14} style={{ verticalAlign: 'text-bottom', marginRight: '4px' }} /> Week 8 of 16</span>
-                    </p>
-                </div>
-                <div className="stats-group">
-                    <div className="stat-card">
-                        <span className="stat-label">ATTENDANCE</span>
-                        <span className="stat-value">82%</span>
+        <div className="heatmap-card" style={{
+            background: 'white',
+            borderRadius: '24px',
+            border: '1px solid #f1f5f9',
+            padding: '32px',
+            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)',
+            position: 'relative'
+        }}>
+            {/* Header with Year Selector - Inside Card */}
+            <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: '32px'
+            }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                    <h3 style={{
+                        margin: 0,
+                        fontSize: '22px',
+                        fontWeight: 800,
+                        color: '#0f172a',
+                        letterSpacing: '-0.025em'
+                    }}>
+                        Academic Activity
+                    </h3>
+                    <div style={{ position: 'relative' }}>
+                        <select
+                            value={selectedYear}
+                            onChange={(e) => setSelectedYear(e.target.value)}
+                            style={{
+                                appearance: 'none',
+                                padding: '8px 40px 8px 16px',
+                                borderRadius: '12px',
+                                border: '1px solid #e2e8f0',
+                                backgroundColor: '#f8fafc',
+                                fontSize: '14px',
+                                fontWeight: 700,
+                                color: '#475569',
+                                cursor: 'pointer',
+                                outline: 'none',
+                                transition: 'all 0.2s ease',
+                                boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+                            }}
+                        >
+                            <option value="2024">2024</option>
+                            <option value="2023">2023</option>
+                        </select>
+                        <div style={{
+                            position: 'absolute',
+                            right: '12px',
+                            top: '50%',
+                            transform: 'translateY(-50%)',
+                            pointerEvents: 'none',
+                            color: '#94a3b8'
+                        }}>
+                            <ChevronRight size={16} style={{ transform: 'rotate(90deg)' }} />
+                        </div>
                     </div>
-                    <div className="stat-divider"></div>
-                    <div className="stat-card">
-                        <span className="stat-label">TASKS DUE</span>
-                        <span className="stat-value">3</span>
-                    </div>
-                    <div className="stat-divider"></div>
-                    <div className="stat-card">
-                        <span className="stat-label">CGPA</span>
-                        <span className="stat-value">8.4</span>
-                    </div>
-                </div>
-            </header>
-
-            <div className="main-layout">
-                {/* Left Content Area */}
-                <div className="content-left">
-                    {/* Roadmap Section */}
-                    <section className="card roadmap-card">
-                        <div className="card-header">
-                            <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <BookOpen size={18} color="#2563eb" /> Current Roadmap Track
-                            </h3>
-                            <button className="text-button">View Full Roadmap</button>
-                        </div>
-                        <div className="roadmap-body">
-                            <p className="course-name">Data Structures & Algorithms</p>
-                            <div className="module-info">
-                                <h4>Module 4: Binary Trees & Graphs</h4>
-                                <span className="progress-percent">65%</span>
-                            </div>
-                            <div className="progress-bar-container">
-                                <div className="progress-bar" style={{ width: '65%' }}></div>
-                            </div>
-                            <div className="roadmap-steps">
-                                <span>Basics</span>
-                                <span>Arrays</span>
-                                <span>Linked Lists</span>
-                                <span className="active-step">Trees</span>
-                                <span>Graphs</span>
-                            </div>
-                            <div className="resource-grid">
-                                <div className="resource-item">
-                                    <div className="icon-box pdf-icon">
-                                        <FileText size={20} color="#ef4444" />
-                                    </div>
-                                    <div className="resource-details">
-                                        <p className="resource-title">Lecture Notes: Trees</p>
-                                        <p className="resource-meta">PDF • 2.4 MB</p>
-                                    </div>
-                                </div>
-                                <div className="resource-item">
-                                    <div className="icon-box video-icon">
-                                        <Video size={20} color="#2563eb" />
-                                    </div>
-                                    <div className="resource-details">
-                                        <p className="resource-title">Binary Search Trees</p>
-                                        <p className="resource-meta">Video • 45 mins</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </section>
-
-                    {/* Pending Tasks Section */}
-                    <section className="card tasks-card">
-                        <div className="card-header">
-                            <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <CheckCircle size={18} color="#10b981" /> Pending Tasks
-                            </h3>
-                            <div className="card-header-right">
-                                <span className="due-count">2 Due Today</span>
-                                <button className="primary-button small">View All</button>
-                            </div>
-                        </div>
-                        <div className="task-list">
-                            <div className="task-item">
-                                <div className="task-icon code-icon">
-                                    <Code size={20} />
-                                </div>
-                                <div className="task-info">
-                                    <p className="task-name">Implement AVL Tree Rotations</p>
-                                    <p className="task-meta"><span className="due-today">Due Today, 11:59 PM</span> • DSA Lab</p>
-                                </div>
-                                <div className="task-action">
-                                    <span className="badge urgent">Urgent</span>
-                                    <button className="primary-button">Submit Now</button>
-                                </div>
-                            </div>
-
-                            <div className="task-item">
-                                <div className="task-icon db-icon">
-                                    <Database size={20} />
-                                </div>
-                                <div className="task-info">
-                                    <p className="task-name">SQL Normalization Case Study</p>
-                                    <p className="task-meta">Due Tomorrow • DBMS</p>
-                                </div>
-                                <div className="task-action">
-                                    <span className="badge pending">Pending</span>
-                                    <button className="secondary-button">Start Task</button>
-                                </div>
-                            </div>
-
-                            <div className="task-item">
-                                <div className="task-icon book-icon">
-                                    <Book size={20} />
-                                </div>
-                                <div className="task-info">
-                                    <p className="task-name">Operating Systems Quiz 3</p>
-                                    <p className="task-meta">Due Oct 28 • OS Theory</p>
-                                </div>
-                                <div className="task-action">
-                                    <span className="badge upcoming">Upcoming</span>
-                                    <button className="secondary-button">View Details</button>
-                                </div>
-                            </div>
-                        </div>
-                    </section>
                 </div>
 
-                {/* Sidebar Area */}
-                <div className="sidebar">
-                    {/* Up Next Section */}
-                    <section className="card next-class-card">
-                        <div className="next-header">
-                            <span className="label">UP NEXT</span>
-                            <Video size={16} color="#2563eb" />
-                        </div>
-                        <h4>Database Systems</h4>
-                        <p className="class-meta">Lab 304 • Prof. Gupta</p>
-                        <div className="timer">
-                            <span><Clock size={14} style={{ verticalAlign: 'text-bottom', marginRight: '4px' }} /> Starts in 15 mins</span>
-                        </div>
-                    </section>
-
-                    {/* Attendance Section */}
-                    <section className="card attendance-card">
-                        <div className="card-header">
-                            <h3>Attendance</h3>
-                            <MoreHorizontal size={18} color="#64748b" style={{ cursor: 'pointer' }} />
-                        </div>
-                        <div className="attendance-chart">
-                            <div className="circular-progress">
-                                <div className="inner-circle">
-                                    <span className="big-percent">82%</span>
-                                    <span className="label">Overall</span>
-                                </div>
-                            </div>
-                        </div>
-                        <p className="attendance-footer">
-                            You've attended <strong>45/55</strong> classes. <br />
-                            <span className="standing">Good Standing</span>
-                        </p>
-                    </section>
-
-                    {/* Recent Grades Section */}
-                    <section className="card grades-card">
-                        <div className="card-header">
-                            <h3>Recent Grades</h3>
-                            <button className="text-button">History</button>
-                        </div>
-                        <div className="grade-list">
-                            <div className="grade-item">
-                                <div>
-                                    <p className="subject">Mathematics IV</p>
-                                    <p className="exam-type">Mid-term Exam</p>
-                                </div>
-                                <span className="grade-badge grade-a">A</span>
-                            </div>
-                            <div className="grade-item">
-                                <div>
-                                    <p className="subject">Web Development</p>
-                                    <p className="exam-type">Project 1</p>
-                                </div>
-                                <span className="grade-badge grade-aplus">A+</span>
-                            </div>
-                            <div className="grade-item">
-                                <div>
-                                    <p className="subject">Comp. Networks</p>
-                                    <p className="exam-type">Quiz 2</p>
-                                </div>
-                                <span className="grade-badge grade-bplus">B+</span>
-                            </div>
-                        </div>
-                    </section>
+                <div style={{
+                    display: 'flex',
+                    gap: '12px',
+                    alignItems: 'center',
+                    background: '#f8fafc',
+                    padding: '10px 18px',
+                    borderRadius: '14px',
+                    border: '1px solid #e2e8f0'
+                }}>
+                    <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Less</span>
+                    <div style={{ display: 'flex', gap: '5px' }}>
+                        {[0, 1, 2, 3, 4].map(v => (
+                            <div key={v} style={{
+                                width: '12px',
+                                height: '12px',
+                                backgroundColor: getColor(v),
+                                borderRadius: '3px',
+                                border: '1px solid rgba(15, 23, 42, 0.05)'
+                            }} />
+                        ))}
+                    </div>
+                    <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em' }}>More</span>
                 </div>
             </div>
 
-            <style dangerouslySetInnerHTML={{
-                __html: `
-        :root {
-          --primary-blue: #2563eb; /* Solid Blue Header Color */
-          --bg-gray: #f8fafc;
-          --text-main: #1e293b;
-          --text-muted: #64748b;
-          --border-color: #e2e8f0;
-          --success: #10b981;
-          --urgent: #ef4444;
-          --pending: #f59e0b;
-          --white: #ffffff;
-        }
+            {/* Grid Content */}
+            <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                width: '100%',
+                gap: '8px',
+                padding: '10px 0'
+            }}>
+                {months.map((month, mIdx) => (
+                    <div key={month} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
+                        <div style={{
+                            display: 'grid',
+                            gridTemplateRows: 'repeat(7, 12px)',
+                            gridAutoFlow: 'column',
+                            gap: '4px'
+                        }}>
+                            {monthData[mIdx] && monthData[mIdx].map((day, dIdx) => (
+                                <div
+                                    key={dIdx}
+                                    style={{
+                                        width: '12px',
+                                        height: '12px',
+                                        backgroundColor: getColor(day.level),
+                                        borderRadius: '3px',
+                                        border: '1px solid #e2e8f0',
+                                        transition: 'all 0.1s ease',
+                                        cursor: 'pointer',
+                                        position: 'relative',
+                                        boxSizing: 'border-box'
+                                    }}
+                                    onMouseEnter={() => setHoveredDay(day)}
+                                    onMouseLeave={() => setHoveredDay(null)}
+                                />
+                            ))}
+                        </div>
+                        <span style={{
+                            fontSize: '11px',
+                            color: '#94a3b8',
+                            fontWeight: 800,
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.08em'
+                        }}>
+                            {month}
+                        </span>
+                    </div>
+                ))}
+            </div>
 
-        .dashboard-container {
-          font-family: 'Inter', -apple-system, sans-serif;
-          background-color: var(--bg-gray);
-          min-height: 100vh;
-          padding: 4px;
-          color: var(--text-main);
-        }
+            {/* Detailed Tooltip Overlay */}
+            {hoveredDay && (
+                <div style={{
+                    position: 'absolute',
+                    top: '120px',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    background: 'rgba(15, 23, 42, 0.98)',
+                    backdropFilter: 'blur(12px)',
+                    color: 'white',
+                    padding: '20px',
+                    borderRadius: '16px',
+                    boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+                    zIndex: 100,
+                    width: '300px',
+                    border: '1px solid rgba(255, 255, 255, 0.12)'
+                }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '14px', borderBottom: '1px solid rgba(255, 255, 255, 0.1)', paddingBottom: '12px' }}>
+                        <span style={{ fontWeight: 700, fontSize: '15px' }}>{hoveredDay.date}, {selectedYear}</span>
+                        <span style={{ fontSize: '10px', color: '#94a3b8', background: 'rgba(255,255,255,0.1)', padding: '2px 10px', borderRadius: '8px', fontWeight: 700 }}>
+                            {hoveredDay.level === 0 ? 'REST DAY' : `LVL ${hoveredDay.level}`}
+                        </span>
+                    </div>
 
-        /* Header Styles */
-        .header {
-          background-color: var(--primary-blue);
-          border-radius: 12px;
-          padding: 32px;
-          color: white;
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-bottom: 24px;
-          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-        }
+                    {hoveredDay.level === 0 ? (
+                        <div style={{ fontSize: '13.5px', color: '#94a3b8', textAlign: 'center', padding: '12px 0', fontWeight: 500 }}>
+                            No contribution has done for day
+                        </div>
+                    ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                            {hoveredDay.tasks.map((task, i) => (
+                                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '13px' }}>
+                                    <div style={{ width: '6px', height: '6px', background: '#3b82f6', borderRadius: '50%', boxShadow: '0 0 12px rgba(59, 130, 246, 0.5)' }} />
+                                    {task}
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            )}
 
-        .header h1 {
-          font-size: 28px;
-          font-weight: 700;
-          margin: 0 0 8px 0;
-        }
-
-        .header-subtext {
-          font-size: 14px;
-          opacity: 0.9;
-          display: flex;
-          align-items: center;
-          gap: 12px;
-        }
-
-        .stats-group {
-          background: rgba(255, 255, 255, 0.1);
-          padding: 16px 24px;
-          border-radius: 12px;
-          display: flex;
-          align-items: center;
-          gap: 32px;
-          border: 1px solid rgba(255, 255, 255, 0.2);
-        }
-
-        .stat-card {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-        }
-
-        .stat-label {
-          font-size: 10px;
-          font-weight: 700;
-          letter-spacing: 0.05em;
-          margin-bottom: 4px;
-          opacity: 0.8;
-        }
-
-        .stat-value {
-          font-size: 24px;
-          font-weight: 700;
-        }
-
-        .stat-divider {
-          width: 1px;
-          height: 30px;
-          background: rgba(255, 255, 255, 0.3);
-        }
-
-        /* Layout */
-        .main-layout {
-          display: grid;
-          grid-template-columns: 1fr 320px;
-          gap: 24px;
-        }
-
-        .card {
-          background: var(--white);
-          border-radius: 12px;
-          border: 1px solid var(--border-color);
-          margin-bottom: 24px;
-          overflow: hidden;
-        }
-
-        .card-header {
-          padding: 16px 20px;
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          border-bottom: 1px solid var(--border-color);
-        }
-
-        .card-header h3 {
-          font-size: 15px;
-          font-weight: 600;
-          margin: 0;
-          color: var(--text-main);
-        }
-
-        /* Roadmap Styles */
-        .roadmap-body {
-          padding: 20px;
-        }
-
-        .course-name {
-          font-size: 12px;
-          color: var(--text-muted);
-          margin-bottom: 4px;
-        }
-
-        .module-info {
-          display: flex;
-          justify-content: space-between;
-          align-items: flex-end;
-          margin-bottom: 12px;
-        }
-
-        .module-info h4 {
-          font-size: 16px;
-          font-weight: 700;
-          margin: 0;
-        }
-
-        .progress-percent {
-          font-weight: 700;
-          color: var(--primary-blue);
-        }
-
-        .progress-bar-container {
-          height: 8px;
-          background: #f1f5f9;
-          border-radius: 4px;
-          overflow: hidden;
-          margin-bottom: 16px;
-        }
-
-        .progress-bar {
-          height: 100%;
-          background: var(--primary-blue);
-          border-radius: 4px;
-        }
-
-        .roadmap-steps {
-          display: flex;
-          justify-content: space-between;
-          font-size: 12px;
-          color: var(--text-muted);
-          padding-bottom: 24px;
-          border-bottom: 1px solid var(--border-color);
-          margin-bottom: 20px;
-        }
-
-        .active-step {
-          color: var(--primary-blue);
-          font-weight: 700;
-          position: relative;
-        }
-
-        .active-step::after {
-          content: '';
-          position: absolute;
-          bottom: -24px;
-          left: 50%;
-          transform: translateX(-50%);
-          width: 100%;
-          height: 2px;
-          background: var(--primary-blue);
-        }
-
-        .resource-grid {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 16px;
-        }
-
-        .resource-item {
-          display: flex;
-          align-items: center;
-          padding: 12px;
-          border: 1px solid var(--border-color);
-          border-radius: 8px;
-        }
-
-        .icon-box {
-          width: 40px;
-          height: 40px;
-          border-radius: 6px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          margin-right: 12px;
-          font-size: 18px;
-        }
-
-        .pdf-icon { background: #fff1f2; }
-        .video-icon { background: #eff6ff; }
-
-        .resource-title { font-size: 13px; font-weight: 600; margin: 0; }
-        .resource-meta { font-size: 11px; color: var(--text-muted); margin: 2px 0 0 0; }
-
-        /* Task Styles */
-        .task-list {
-          padding: 0 20px;
-        }
-
-        .task-item {
-          display: flex;
-          align-items: center;
-          padding: 20px 0;
-          border-bottom: 1px solid var(--border-color);
-        }
-
-        .task-item:last-child { border-bottom: none; }
-
-        .task-icon {
-          width: 40px;
-          height: 40px;
-          border-radius: 8px;
-          background: #eff6ff;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          margin-right: 16px;
-          color: var(--primary-blue);
-          font-weight: bold;
-        }
-
-        .task-info { flex: 1; }
-        .task-name { font-weight: 600; margin: 0; font-size: 14px; }
-        .task-meta { font-size: 12px; color: var(--text-muted); margin: 4px 0 0 0; }
-        .due-today { color: #ef4444; font-weight: 500; }
-
-        .task-action {
-          display: flex;
-          flex-direction: column;
-          align-items: flex-end;
-          gap: 8px;
-        }
-
-        .badge {
-          font-size: 10px;
-          font-weight: 700;
-          padding: 2px 8px;
-          border-radius: 10px;
-          text-transform: uppercase;
-        }
-
-        .urgent { background: #fee2e2; color: #b91c1c; }
-        .pending { background: #ffedd5; color: #9a3412; }
-        .upcoming { background: #fef9c3; color: #854d0e; }
-
-        /* Button Styles */
-        .primary-button {
-          background: var(--primary-blue);
-          color: white;
-          border: none;
-          padding: 8px 16px;
-          border-radius: 6px;
-          font-size: 12px;
-          font-weight: 600;
-          cursor: pointer;
-        }
-
-        .primary-button.small { padding: 4px 12px; }
-
-        .secondary-button {
-          background: white;
-          border: 1px solid var(--border-color);
-          padding: 6px 12px;
-          border-radius: 6px;
-          font-size: 12px;
-          font-weight: 600;
-          cursor: pointer;
-        }
-
-        .text-button {
-          background: transparent;
-          border: none;
-          color: var(--text-muted);
-          font-size: 12px;
-          cursor: pointer;
-        }
-
-        /* Sidebar Widgets */
-        .next-class-card {
-          background: #eff6ff;
-          padding: 20px;
-          border-color: #dbeafe;
-        }
-
-        .next-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-bottom: 12px;
-        }
-
-        .next-header .label {
-          font-size: 10px;
-          font-weight: 700;
-          color: var(--text-muted);
-        }
-
-        .next-class-card h4 { font-size: 16px; margin: 0 0 4px 0; }
-        .class-meta { font-size: 12px; color: var(--text-muted); margin: 0 0 16px 0; }
-        .timer { font-size: 13px; color: var(--primary-blue); font-weight: 600; }
-
-        .attendance-card { padding: 20px; }
-        .attendance-chart {
-          display: flex;
-          justify-content: center;
-          padding: 20px 0;
-        }
-
-        .circular-progress {
-          width: 140px;
-          height: 140px;
-          border-radius: 50%;
-          background: conic-gradient(var(--success) 82%, #f1f5f9 0);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        }
-
-        .inner-circle {
-          width: 110px;
-          height: 110px;
-          background: white;
-          border-radius: 50%;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-        }
-
-        .big-percent { font-size: 28px; font-weight: 800; }
-        .inner-circle .label { font-size: 11px; color: var(--text-muted); }
-
-        .attendance-footer { text-align: center; font-size: 12px; color: var(--text-muted); line-height: 1.5; }
-        .standing { color: var(--success); font-weight: 700; }
-
-        .grade-item {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          padding: 12px 20px;
-          border-bottom: 1px solid var(--border-color);
-        }
-
-        .grade-item:last-child { border-bottom: none; }
-        .subject { font-size: 13px; font-weight: 600; margin: 0; }
-        .exam-type { font-size: 11px; color: var(--text-muted); margin: 2px 0 0 0; }
-
-        .grade-badge {
-          width: 32px;
-          height: 32px;
-          border-radius: 6px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-weight: 700;
-          font-size: 12px;
-        }
-
-        .grade-a { background: #eff6ff; color: #2563eb; }
-        .grade-aplus { background: #f0fdf4; color: #16a34a; }
-        .grade-bplus { background: #fff7ed; color: #ea580c; }
-      ` }} />
         </div>
+    );
+};
+
+// Graph Components (Exact same as Faculty)
+const BarChart = ({ data }) => {
+    const baseline = 100;
+    return (
+        <div style={{ padding: '24px 8px 10px 8px', marginTop: '25px' }}>
+            <div style={{
+                display: 'flex',
+                alignItems: 'flex-end',
+                height: '180px',
+                gap: '20px',
+                paddingBottom: '30px',
+                borderBottom: '1px solid #f1f5f9',
+                position: 'relative'
+            }}>
+                {data.labels.map((label, index) => {
+                    const value = data.datasets[0].data[index];
+                    const height = (value / baseline) * 100;
+                    return (
+                        <div key={index} style={{
+                            flex: 1,
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            height: '100%',
+                            justifyContent: 'flex-end',
+                            position: 'relative'
+                        }}>
+                            <div style={{ position: 'absolute', bottom: 0, width: '32px', height: '100%', backgroundColor: '#f1f5f9', borderRadius: '6px', zIndex: 1 }} />
+                            <div style={{
+                                width: '32px',
+                                height: `${height}%`,
+                                backgroundColor: data.datasets[0].color,
+                                borderRadius: '6px',
+                                transition: 'height 0.6s cubic-bezier(0.4, 0, 0.2, 1)',
+                                position: 'relative',
+                                display: 'flex',
+                                alignItems: 'flex-end',
+                                justifyContent: 'center',
+                                zIndex: 2,
+                                boxShadow: '0 4px 6px -1px rgba(37, 99, 235, 0.2)'
+                            }}>
+                                <span style={{ position: 'absolute', top: '-25px', fontSize: '12px', fontWeight: 700, color: '#1e293b', whiteSpace: 'nowrap' }}>
+                                    {value}%
+                                </span>
+                            </div>
+                            <span style={{ position: 'absolute', bottom: '-25px', fontSize: '11px', color: '#64748b', fontWeight: 700, textAlign: 'center', width: 'max-content' }}>
+                                {label}
+                            </span>
+                        </div>
+                    );
+                })}
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '32px', alignItems: 'center' }}>
+                <span style={{ fontSize: '13px', color: '#94a3b8', fontWeight: 500 }}>Attendance by Subject</span>
+                <div style={{ fontSize: '13px', color: '#22c55e', backgroundColor: '#f0fdf4', padding: '4px 10px', borderRadius: '20px', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600 }}>
+                    <TrendingUp size={14} /> +2.4%
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const DonutChart = ({ data }) => {
+    const total = data.data.reduce((a, b) => a + b, 0);
+    let accumulatedAngle = 0;
+    return (
+        <div style={{ padding: '8px 4px' }}>
+            <div style={{ position: 'relative', width: '150px', height: '150px', margin: '0 auto' }}>
+                <svg width="150" height="150" viewBox="0 0 100 100">
+                    {data.data.map((value, index) => {
+                        const percentage = (value / total) * 100;
+                        const angle = (percentage / 100) * 360;
+                        const startAngle = accumulatedAngle;
+                        const endAngle = startAngle + angle;
+                        accumulatedAngle = endAngle;
+                        const startRad = (startAngle - 90) * (Math.PI / 180);
+                        const endRad = (endAngle - 90) * (Math.PI / 180);
+                        const x1 = 50 + 40 * Math.cos(startRad);
+                        const y1 = 50 + 40 * Math.sin(startRad);
+                        const x2 = 50 + 40 * Math.cos(endRad);
+                        const y2 = 50 + 40 * Math.sin(endRad);
+                        const largeArcFlag = angle > 180 ? 1 : 0;
+                        return (
+                            <path key={index} d={`M 50 50 L ${x1} ${y1} A 40 40 0 ${largeArcFlag} 1 ${x2} ${y2} Z`} fill={data.colors[index]} stroke="white" strokeWidth="2" />
+                        );
+                    })}
+                </svg>
+                <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', textAlign: 'center' }}>
+                    <div style={{ fontSize: '24px', fontWeight: 800, color: '#111827' }}>{data.data[0]}%</div>
+                    <div style={{ fontSize: '11px', color: '#6b7280' }}>Completed</div>
+                </div>
+            </div>
+            <div style={{ marginTop: '16px' }}>
+                {data.labels.map((label, index) => (
+                    <div key={index} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #f9fafb' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <div style={{ width: '14px', height: '14px', borderRadius: '4px', backgroundColor: data.colors[index] }} />
+                            <span style={{ fontSize: '13px', color: '#111827', fontWeight: 500 }}>{label}</span>
+                        </div>
+                        <span style={{ fontSize: '14px', fontWeight: 700, color: '#111827' }}>{data.data[index]}%</span>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+};
+
+const StudentDashboard = () => {
+    return (
+        <div className="dashboard-wrapper">
+            {/* Scoped CSS - Identical to Faculty Dashboard */}
+            <style>{`
+                .dashboard-wrapper {
+                    background-color: #f9fafb;
+                    min-height: 100vh;
+                    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+                    color: #111827;
+                    padding: 24px;
+                    max-width: 1920px;
+                    margin: 0 auto;
+                }
+                .header h1 { font-size: 24px; font-weight: 600; margin-bottom: 32px; color: #374151; letter-spacing: -0.02em; }
+                
+                /* Stats Grid */
+                .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; margin-bottom: 40px; }
+                .stat-card { 
+                    background: white; 
+                    padding: 28px 24px; 
+                    border-radius: 16px; 
+                    border: 1px solid #e5e7eb; 
+                    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+                    transition: all 0.3s ease;
+                    cursor: pointer;
+                }
+                .stat-card:hover {
+                    transform: translateY(-3px);
+                    box-shadow: 0 6px 12px rgba(0,0,0,0.08);
+                    border-color: #d1d5db;
+                }
+                .stat-top { display: flex; justify-content: space-between; color: #6b7280; margin-bottom: 16px; font-size: 15px; font-weight: 500; }
+                .stat-val { font-size: 36px; font-weight: 700; display: flex; align-items: center; gap: 10px; line-height: 1; }
+                .stat-sub { font-size: 14px; color: #9ca3af; margin-top: 8px; }
+                .pill-green { background: #dcfce7; color: #166534; font-size: 11px; padding: 4px 10px; border-radius: 20px; font-weight: 600; }
+                .pill-blue { background: #dbeafe; color: #1e40af; font-size: 11px; padding: 4px 10px; border-radius: 20px; font-weight: 600; }
+
+                /* Main Layout */
+                .main-grid { 
+                    display: grid; 
+                    grid-template-columns: 1fr 480px; 
+                    gap: 32px; 
+                    align-items: start;
+                }
+                .left-content {
+                    position: sticky;
+                    top: 4px;
+                    align-self: start;
+                }
+                @media (max-width: 1200px) {
+                    .main-grid { grid-template-columns: 1fr; }
+                    .stats-row { grid-template-columns: repeat(2, 1fr); }
+                    .left-content { position: relative; top: 0; }
+                }
+                
+                .section-label { margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
+                .section-label h2 { font-size: 20px; font-weight: 700; margin: 0; letter-spacing: -0.01em; }
+                .section-label p { font-size: 14px; color: #6b7280; margin-top: 4px; }
+
+                /* Class/Item Cards */
+                .class-card { 
+                    background: white; 
+                    border: 1px solid #e5e7eb; 
+                    border-radius: 16px; 
+                    padding: 24px 28px; 
+                    margin-bottom: 16px; 
+                    display: flex; 
+                    justify-content: space-between; 
+                    align-items: center;
+                    transition: all 0.2s ease;
+                }
+                .class-card:hover {
+                    border-color: #3b82f6;
+                    box-shadow: 0 4px 8px rgba(59, 130, 246, 0.12);
+                }
+                .class-info-top { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+                .class-name { font-weight: 700; font-size: 16px; }
+                .meta-row { display: flex; gap: 20px; font-size: 14px; color: #6b7280; }
+                .status-badge { font-size: 13px; padding: 4px 12px; border-radius: 6px; font-weight: 600; }
+                .status-pending { background: #eff6ff; color: #2563eb; }
+                .status-progress { background: #ecfdf5; color: #059669; }
+                .status-completed { background: #f3f4f6; color: #6b7280; }
+
+                .btn-primary { 
+                    background: #2563eb; 
+                    color: white; 
+                    border: none; 
+                    padding: 10px 20px; 
+                    border-radius: 10px; 
+                    font-size: 15px; 
+                    font-weight: 600; 
+                    display: flex; 
+                    align-items: center; 
+                    gap: 10px; 
+                    cursor: pointer;
+                    transition: all 0.2s;
+                }
+                .btn-primary:hover { background: #1d4ed8; transform: translateY(-1px); }
+
+                /* Sidebar */
+                .sidebar-card { 
+                    background: white; 
+                    border: 1px solid #e5e7eb; 
+                    border-radius: 16px; 
+                    padding: 24px; 
+                    margin-bottom: 28px;
+                }
+                .sb-title { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+                .sb-title h3 { font-size: 17px; font-weight: 700; margin: 0; }
+                .graph-card {
+                    background: white;
+                    border: 1px solid #e5e7eb;
+                    border-radius: 16px;
+                    padding: 24px;
+                    margin-bottom: 24px;
+                }
+
+                /* Table styles for grades */
+                .table-card { 
+                    background: white; 
+                    border: 1px solid #e5e7eb; 
+                    border-radius: 16px; 
+                    overflow: hidden; 
+                }
+                .data-table { width: 100%; border-collapse: collapse; }
+                .data-table th { 
+                    background: #f9fafb; 
+                    text-align: left; 
+                    padding: 16px 20px; 
+                    font-size: 13px; 
+                    color: #6b7280; 
+                    text-transform: uppercase; 
+                    font-weight: 700; 
+                    border-bottom: 1px solid #e5e7eb; 
+                }
+                .data-table td { padding: 16px 20px; border-bottom: 1px solid #f3f4f6; font-size: 14px; }
+                .badge-flat { font-size: 11px; font-weight: 800; text-transform: uppercase; padding: 4px 8px; border-radius: 6px; }
+                .type-success { color: #059669; background: #f0fdf4; }
+                .type-warning { color: #d97706; background: #fffbeb; }
+
+                .action-row { 
+                    display: flex; 
+                    justify-content: space-between; 
+                    align-items: center; 
+                    padding: 14px 0; 
+                    border-bottom: 1px solid #f9fafb; 
+                    cursor: pointer;
+                }
+                .action-row:last-child { border: none; }
+                .at-text { font-size: 14px; font-weight: 600; }
+                .as-text { font-size: 12px; color: #9ca3af; }
+            `}</style>
+
+            <header className="header">
+                <h1>Overview of today's classes, attendance, and pending tasks</h1>
+            </header>
+
+            {/* Top 4 Stats */}
+            <div className="stats-row">
+                {STATIC_DATA.stats.map(s => (
+                    <div className="stat-card" key={s.id}>
+                        <div className="stat-top">
+                            <span>{s.label}</span>
+                            <span style={{ color: '#d1d5db' }}>{s.icon}</span>
+                        </div>
+                        <div className="stat-val">
+                            {s.value}
+                            {s.badge && <span className={s.badge === 'Urgent' ? 'pill-blue' : 'pill-green'}>{s.badge}</span>}
+                        </div>
+                        <div className="stat-sub">{s.sub}</div>
+                    </div>
+                ))}
+            </div>
+
+
+            <div style={{ width: '100%', margin: '0 auto 40px auto' }}>
+                <ActivityHeatMap data={STATIC_DATA.engagementData.activity} />
+            </div>
+
+            <div className="main-grid">
+                {/* Left Content Area */}
+                <div className="left-content">
+                    <div className="section-label">
+                        <div>
+                            <h2>Today's Schedule</h2>
+                            <p>Upcoming classes and sessions</p>
+                        </div>
+                        <button className="btn-primary" onClick={() => window.location.hash = '#/roadmap'}>
+                            <BookOpen size={18} /> View Roadmap
+                        </button>
+                    </div>
+
+                    <div className="schedule-list">
+                        {STATIC_DATA.schedule.map(c => (
+                            <div className="class-card" key={c.id}>
+                                <div>
+                                    <div className="class-info-top">
+                                        <span className="class-name">{c.id} {c.name}</span>
+                                        <span className={`status-badge status-${c.statusType}`}>{c.status}</span>
+                                    </div>
+                                    <div className="meta-row">
+                                        <span><Clock size={14} style={{ verticalAlign: 'middle', marginRight: '4px' }} /> {c.time}</span>
+                                        <span><MapPin size={14} style={{ verticalAlign: 'middle', marginRight: '4px' }} /> {c.loc}</span>
+                                        <span><Users size={14} style={{ verticalAlign: 'middle', marginRight: '4px' }} /> {c.faculty}</span>
+                                    </div>
+                                </div>
+                                <div className="actions">
+                                    <button className="btn-primary" style={{ backgroundColor: 'white', color: '#2563eb', border: '1px solid #e5e7eb' }}>
+                                        View Details
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+
+                    <div className="section-label" style={{ marginTop: '40px' }}>
+                        <div>
+                            <h2>Assignments & Tasks</h2>
+                            <p>Recent tasks requiring your attention</p>
+                        </div>
+                    </div>
+
+                    <div className="table-card">
+                        <table className="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Assignment Name</th>
+                                    <th>Subject</th>
+                                    <th>Deadline</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {STATIC_DATA.tasks.map(t => (
+                                    <tr key={t.id}>
+                                        <td><span style={{ fontWeight: 700 }}>{t.name}</span></td>
+                                        <td>{t.subject}</td>
+                                        <td>{t.deadline}</td>
+                                        <td>
+                                            <span className={`badge-flat ${t.status === 'completed' ? 'type-success' : 'type-warning'}`}>
+                                                {t.status}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+
+                </div>
+
+                {/* Right Sidebar */}
+                <div className="sidebar">
+                    <div className="graph-card">
+                        <div className="sb-title">
+                            <h3>Attendance Engagement</h3>
+                            <BarChart3 size={18} color="#2563eb" />
+                        </div>
+                        <BarChart data={STATIC_DATA.engagementData.attendance} />
+                    </div>
+
+                    <div className="graph-card">
+                        <div className="sb-title">
+                            <h3>Task Completion</h3>
+                            <PieChart size={18} color="#10b981" />
+                        </div>
+                        <DonutChart data={STATIC_DATA.engagementData.taskCompletion} />
+                    </div>
+
+                    <div className="sidebar-card">
+                        <div className="sb-title">
+                            <h3>Recent Grades</h3>
+                            <span style={{ fontSize: '12px', color: '#2563eb', fontWeight: 700, cursor: 'pointer' }}>View All</span>
+                        </div>
+                        <div className="action-list">
+                            {STATIC_DATA.grades.map(g => (
+                                <div className="action-row" key={g.id}>
+                                    <div>
+                                        <div className="at-text">{g.subject}</div>
+                                        <div className="as-text">{g.code} • {g.score}</div>
+                                    </div>
+                                    <div className={`badge-flat type-${g.type}`} style={{ borderRadius: '4px', padding: '2px 6px' }}>{g.grade}</div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className="sidebar-card" style={{ background: '#f8fafc', border: '1px dashed #cbd5e1' }}>
+                        <div className="sb-title">
+                            <h3>Quick Help</h3>
+                        </div>
+                        <p style={{ fontSize: '13px', color: '#64748b', lineHeight: '1.5', margin: 0 }}>
+                            Need assistance with your courses or facing technical issues? Contact the campus helpdesk or reach out to your faculty advisor.
+                        </p>
+                        <button className="btn-primary" style={{ marginTop: '16px', width: '100%', justifyContent: 'center' }}>
+                            Contact Support
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div >
     );
 };
 
