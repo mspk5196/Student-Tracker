@@ -12,7 +12,9 @@ import {
   Layers,
   LogOut,
   CalendarCheck,
-  ClipboardCheck
+  ClipboardCheck,
+  Map,
+  Home
 } from 'lucide-react';
 
 const SideTab = () => {
@@ -51,9 +53,11 @@ const SideTab = () => {
     ],
     "student": [
       { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, section: 'main' },
-      { id: 'classes', label: 'My Classes', icon: Layers, section: 'main' },
-      { id: 'attendance', label: 'My Attendance', icon: CalendarCheck, section: 'main' },
-      { id: 'tasks', label: 'My Tasks', icon: ClipboardCheck, section: 'main' },
+      { id: 'classroom', label: 'My Class Room', icon: Home, section: 'main' },
+      { id: 'roadmap', label: 'Roadmap & Material', icon: Map, section: 'academic' },
+      { id: 'tasks', label: 'Tasks & Assignments', icon: ClipboardCheck, section: 'academic' },
+      { id: 'attendance', label: 'Attendance', icon: CalendarCheck, section: 'academic' },
+      { id: 'performance', label: 'Performance', icon: BarChart3, section: 'system' },
     ],
   };
 
