@@ -28,6 +28,7 @@ import StudentsPage from "../pages/SuperAdmin/studentsPage/AllStudents/studentsP
 import Reports from "../pages/Faculty/Reports&Analytics/Reporst&analytics";
 //Faculty  -> Attendance
 import FacultyAttendance from "../pages/Faculty/AttendancePage/Attendance";
+import ClassDetails from "../pages/SuperAdmin/Classes&Groups/ClassDetails/ClassDetails";
 
 
 const AppNavigator = () => {
@@ -47,7 +48,7 @@ const AppNavigator = () => {
           <Route path="/" element={<SideTab />}>
             <Route index element={<AdminDashboard />} />
             <Route path="faculty" element={<FacultyAccounts />} />
-            <Route path="classes" element={<GroupsClasses />} />
+            <Route path="classes" element={<ClassDetails />} />  {/* change to  GroupsClasses */}
             <Route path="students">
               <Route index element={<StudentsPage />} />
               <Route path=":studentId" element={<StudentHeader />} />
