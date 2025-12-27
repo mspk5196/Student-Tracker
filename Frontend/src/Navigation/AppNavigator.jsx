@@ -38,9 +38,19 @@ import StudentsPage from "../pages/SuperAdmin/studentsPage/AllStudents/studentsP
 import FacultyTaskHeader from "../pages/Faculty/Task&Assignments/TaskHeader/TaskHeader";
 //Faculty -> Reports & Analytics
 import Reports from "../pages/Faculty/Reports&Analytics/Reporst&analytics";
-//Faculty  -> Attendance
-import FacultyAttendance from "../pages/Faculty/AttendancePage/Attendance";
 import ClassDetails from "../pages/SuperAdmin/Classes&Groups/ClassDetails/ClassDetails";
+
+//Student Page
+// Student -> Dashboard
+import StudentDashboard from "../pages/Student/Dashboard/StudentDashboard";
+//Student -> RoadMap & Material
+import StudentRoadmap from "../pages/Student/RoadMap&Material/RoadMap&Material";
+//Student -> Tasks & Assignments
+import TasksAssignments from "../pages/Student/Tasks&Assignments/Tasks&Assignment";
+//Student -> Attendance
+import StudentAttendance from "../pages/Student/StudentAttendance/Attendance";
+//Student -> My Classroom
+import MyClassRoom from "../pages/Student/MyClassRoom/MyClassRoom";
 
 
 const AppNavigator = () => {
