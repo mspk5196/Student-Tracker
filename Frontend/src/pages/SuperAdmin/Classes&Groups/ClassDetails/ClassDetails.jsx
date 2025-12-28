@@ -219,7 +219,7 @@
         {/* Student Grid */}
         <div style={s.studentGrid}>
             {currentStudents.map(student => (
-            <StudentCard key={student.id} student={student} />
+            <StudentCard key={student.id} student={student} navigate={navigate} />
             ))}
         </div>
 
@@ -261,7 +261,7 @@
     };
 
     // --- SUB-COMPONENT: STUDENT CARD ---
-    const StudentCard = ({ student }) => {
+    const StudentCard = ({ student, navigate }) => {
     const [isHovered, setIsHovered] = useState(false);
 
     const cardStyle = {
@@ -278,7 +278,8 @@
     const valueStyle = { fontSize: '14px', color: '#1e293b', fontWeight: '600' };
 
     return (
-        <div 
+        <div
+        
         style={cardStyle}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
@@ -319,7 +320,7 @@
             </div>
         </div>
 
-        <div style={{ 
+        <div onClick={()=>navigate("/students")} style={{ 
             backgroundColor: '#eff6ff', 
             padding: '14px', 
             textAlign: 'center', 

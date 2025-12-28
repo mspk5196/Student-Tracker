@@ -40,6 +40,8 @@ import FacultyTaskHeader from "../pages/Faculty/Task&Assignments/TaskHeader/Task
 import Reports from "../pages/Faculty/Reports&Analytics/Reporst&analytics";
 import ClassDetails from "../pages/SuperAdmin/Classes&Groups/ClassDetails/ClassDetails";
 
+//Faculty -> Faculty attendance
+import FacultyAttendance from "../pages/Faculty/AttendancePage/Attendance"
 //Student Page
 // Student -> Dashboard
 import StudentDashboard from "../pages/Student/Dashboard/StudentDashboard";
@@ -86,6 +88,10 @@ const AppNavigator = () => {
         {user?.role === "faculty" && (
           <Route path="/" element={<SideTab />}>
             <Route index element={<FacultyDashboard />} />
+            <Route path="students">
+              <Route index element={<StudentsPage />} />
+              <Route path=":studentId" element={<StudentHeader />} />
+            </Route>
             <Route path="classes" element={<ClassHeader />}>
               <Route index element={<MyClasses />} />
               <Route path="all" element={<AllClasses />} />

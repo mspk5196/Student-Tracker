@@ -14,7 +14,9 @@ import {
   CalendarCheck,
   ClipboardCheck,
   Map,
-  Home
+  Home,
+  Menu,
+  X
 } from 'lucide-react';
 
 const SideTab = () => {
@@ -23,6 +25,7 @@ const SideTab = () => {
   const { user, logout } = useAuthStore();
 
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     const segments = location.pathname.split('/').filter(Boolean);
@@ -77,11 +80,13 @@ const SideTab = () => {
   const handleNavigation = (id) => {
     setActiveTab(id);
     navigate(id === 'dashboard' ? '/' : id);
+    setIsMobileMenuOpen(false);
   };
 
   const handleLogout = () => {
     logout();
     navigate('/login');
+    setIsMobileMenuOpen(false);
   };
 
   const renderNavItem = (item) => {
@@ -103,60 +108,127 @@ const SideTab = () => {
     );
   };
 
+  const SidebarContent = () => (
+    <>
+      {/* LOGO */}
+      <div style={styles.logo}>
+        <div style={styles.logoContent}>
+          <div style={styles.logoIcon}>
+            <GraduationCap size={24} color="#ffffff" />
+          </div>
+          <span style={styles.logoText}>Academia</span>
+        </div>
+      </div>
+
+      {/* NAV + SCROLL */}
+      <div style={styles.navWrapper}>
+        <nav style={styles.nav}>
+          {menuItems.filter(i => i.section === 'main').map(renderNavItem)}
+
+          {menuItems.some(i => i.section === 'academic') && (
+            <div style={styles.navSection}>
+              <div style={styles.navSectionTitle}>ACADEMIC</div>
+              {menuItems.filter(i => i.section === 'academic').map(renderNavItem)}
+            </div>
+          )}
+
+          {menuItems.some(i => i.section === 'system') && (
+            <div style={styles.navSection}>
+              <div style={styles.navSectionTitle}>SYSTEM</div>
+              {menuItems.filter(i => i.section === 'system').map(renderNavItem)}
+            </div>
+          )}
+        </nav>
+      </div>
+
+      {/* LOGOUT FIXED AT BOTTOM */}
+      <div style={styles.logoutWrapper}>
+        <div
+          style={{ ...styles.navItem, color: '#ef4444' }}
+          onClick={handleLogout}
+        >
+          <LogOut size={20} />
+          <span>Logout</span>
+        </div>
+      </div>
+    </>
+  );
+
   return (
     <div style={styles.container}>
-      {/* ================= SIDEBAR ================= */}
-      <aside style={styles.sidebar}>
-        {/* LOGO */}
-        <div style={styles.logo}>
-          <div style={styles.logoContent}>
-            <div style={styles.logoIcon}>
-              <GraduationCap size={24} color="#ffffff" />
-            </div>
-            <span style={styles.logoText}>Academia</span>
-          </div>
-        </div>
+      <style>{`
+        @media (max-width: 768px) {
+          .desktop-sidebar {
+            display: none !important;
+          }
+          
+          .hamburger-button {
+            display: flex !important;
+          }
+          
+          .header-title {
+            font-size: 18px !important;
+          }
+          
+          .user-text-mobile {
+            display: none !important;
+          }
+        }
 
-        {/* NAV + SCROLL */}
-        <div style={styles.navWrapper}>
-          <nav style={styles.nav}>
-            {menuItems.filter(i => i.section === 'main').map(renderNavItem)}
+        @keyframes slideIn {
+          from {
+            transform: translateX(-100%);
+          }
+          to {
+            transform: translateX(0);
+          }
+        }
 
-            {menuItems.some(i => i.section === 'academic') && (
-              <div style={styles.navSection}>
-                <div style={styles.navSectionTitle}>ACADEMIC</div>
-                {menuItems.filter(i => i.section === 'academic').map(renderNavItem)}
-              </div>
-            )}
+        .close-button:hover,
+        .hamburger-button:hover {
+          background-color: #f3f4f6 !important;
+        }
+      `}</style>
 
-            {menuItems.some(i => i.section === 'system') && (
-              <div style={styles.navSection}>
-                <div style={styles.navSectionTitle}>SYSTEM</div>
-                {menuItems.filter(i => i.section === 'system').map(renderNavItem)}
-              </div>
-            )}
-          </nav>
-        </div>
-
-        {/* LOGOUT FIXED AT BOTTOM */}
-        <div style={styles.logoutWrapper}>
-          <div
-            style={{ ...styles.navItem, color: '#ef4444' }}
-            onClick={handleLogout}
-          >
-            <LogOut size={20} />
-            <span>Logout</span>
-          </div>
-        </div>
+      {/* ================= DESKTOP SIDEBAR ================= */}
+      <aside style={styles.sidebar} className="desktop-sidebar">
+        <SidebarContent />
       </aside>
+
+      {/* ================= MOBILE MENU OVERLAY ================= */}
+      {isMobileMenuOpen && (
+        <div style={styles.mobileOverlay} onClick={() => setIsMobileMenuOpen(false)}>
+          <div style={styles.mobileMenu} onClick={(e) => e.stopPropagation()}>
+            <div style={styles.mobileMenuHeader}>
+              <button 
+                className="close-button"
+                style={styles.closeButton} 
+                onClick={() => setIsMobileMenuOpen(false)}
+              >
+                <X size={24} />
+              </button>
+            </div>
+            <SidebarContent />
+          </div>
+        </div>
+      )}
 
       {/* ================= MAIN ================= */}
       <main style={styles.mainContent}>
         <header style={styles.header}>
           <div style={styles.headerContent}>
-            <h1 style={styles.headerTitle}>
-              {menuItems.find(i => i.id === activeTab)?.label || tabContent[activeTab]?.title || 'Dashboard'}
-            </h1>
+            <div style={styles.headerLeft}>
+              <button 
+                className="hamburger-button"
+                style={styles.hamburgerButton}
+                onClick={() => setIsMobileMenuOpen(true)}
+              >
+                <Menu size={24} />
+              </button>
+              <h1 className="header-title" style={styles.headerTitle}>
+                {menuItems.find(i => i.id === activeTab)?.label || tabContent[activeTab]?.title || 'Dashboard'}
+              </h1>
+            </div>
 
             <div style={styles.headerRight}>
               <button style={styles.bellButton}>
@@ -164,7 +236,7 @@ const SideTab = () => {
               </button>
 
               <div style={styles.userInfo}>
-                <div style={styles.userText}>
+                <div style={styles.userText} className="user-text-mobile">
                   <div style={styles.userName}>{user?.name || 'User'}</div>
                   <div style={styles.userRole}>
                     {user?.role === 1 && 'Super Admin'}
@@ -274,6 +346,64 @@ const styles = {
     borderTop: '1px solid #e5e7eb',
   },
 
+  /* ================= MOBILE MENU ================= */
+  mobileOverlay: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    zIndex: 1000,
+  },
+
+  mobileMenu: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    bottom: 0,
+    width: '280px',
+    maxWidth: '85%',
+    backgroundColor: '#ffffff',
+    boxShadow: '2px 0 8px rgba(0, 0, 0, 0.15)',
+    display: 'flex',
+    flexDirection: 'column',
+    animation: 'slideIn 0.3s ease-out',
+  },
+
+  mobileMenuHeader: {
+    display: 'flex',
+    justifyContent: 'flex-end',
+    padding: '16px',
+    borderBottom: '1px solid #e5e7eb',
+  },
+
+  closeButton: {
+    background: 'none',
+    border: 'none',
+    cursor: 'pointer',
+    padding: '8px',
+    color: '#6b7280',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: '8px',
+    transition: 'all 0.2s',
+  },
+
+  hamburgerButton: {
+    display: 'none',
+    background: 'none',
+    border: 'none',
+    cursor: 'pointer',
+    padding: '8px',
+    color: '#6b7280',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: '8px',
+    transition: 'all 0.2s',
+  },
+
   /* ================= MAIN ================= */
   mainContent: {
     flex: 1,
@@ -297,6 +427,11 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between'
+  },
+  headerLeft: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '16px',
   },
   headerTitle: {
     fontSize: '24px',
