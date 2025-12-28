@@ -2,7 +2,6 @@ import React, { useState, useMemo, useEffect } from 'react';
 import {
     PlusCircle,
     Search,
-    Filter,
     RotateCw,
     MoreHorizontal,
     CloudUpload,
@@ -13,6 +12,17 @@ import {
 } from 'lucide-react';
 
 const AssignmentDashboard = ({ selectedSkill }) => {
+    // --- Responsive Logic ---
+    const [width, setWidth] = useState(window.innerWidth);
+    useEffect(() => {
+        const handleResize = () => setWidth(window.innerWidth);
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
+
+    const isMobile = width <= 1024;
+    const isSmall = width <= 600;
+
     // --- MASTER DATA WITH MULTIPLE SKILLS ---
     const SKILLS_DATA = {
         'REACT-101': [
@@ -61,10 +71,8 @@ const AssignmentDashboard = ({ selectedSkill }) => {
     const [files, setFiles] = useState([]);
     const [openMenuId, setOpenMenuId] = useState(null);
 
-    // Get current skill's classes
     const CLASSES = CLASSES_DATA[selectedSkill] || [];
 
-    // Initialize assignments for the selected skill
     useEffect(() => {
         if (selectedSkill && SKILLS_DATA[selectedSkill]) {
             setAssignments(SKILLS_DATA[selectedSkill]);
@@ -119,7 +127,6 @@ const AssignmentDashboard = ({ selectedSkill }) => {
         alert('Assignment Published!');
     };
 
-    /* -------- STATUS ACTION -------- */
     const toggleTaskStatus = (id, currentStatus) => {
         setAssignments(prev =>
             prev.map(a => a.id === id ? { ...a, status: currentStatus === 'Active' ? 'Inactive' : 'Active' } : a)
@@ -129,7 +136,7 @@ const AssignmentDashboard = ({ selectedSkill }) => {
 
     return (
         <div style={styles.container}>
-            <div style={styles.layoutGrid}>
+            <div style={{...styles.layoutGrid, flexDirection: isMobile ? 'column' : 'row', maxHeight: isMobile ? 'none' : '850px'}}>
                 {/* LEFT PANEL */}
                 <div style={styles.formCard}>
                     <div style={styles.formHeader}>
@@ -148,7 +155,7 @@ const AssignmentDashboard = ({ selectedSkill }) => {
                             />
                         </div>
 
-                        <div style={styles.splitRow}>
+                        <div style={{...styles.splitRow, flexDirection: isSmall ? 'column' : 'row'}}>
                             <div style={{ flex: 1 }}>
                                 <label style={styles.fieldLabel}>Target Class / Group *</label>
                                 <div style={styles.relativeWrapper}>
@@ -175,7 +182,7 @@ const AssignmentDashboard = ({ selectedSkill }) => {
                             </div>
                         </div>
 
-                        <div style={styles.splitRow}>
+                        <div style={{...styles.splitRow, flexDirection: isSmall ? 'column' : 'row'}}>
                             <div style={{ flex: 1 }}>
                                 <label style={styles.fieldLabel}>Due Date</label>
                                 <div style={styles.relativeWrapper}>
@@ -209,7 +216,6 @@ const AssignmentDashboard = ({ selectedSkill }) => {
                             />
                         </div>
 
-                        {/* STUDY MATERIAL - Either/Or Format */}
                         <div style={styles.fieldGroup}>
                             <label style={styles.fieldLabel}>Study Material</label>
                             <div style={styles.tabToggleGroup}>
@@ -268,11 +274,11 @@ const AssignmentDashboard = ({ selectedSkill }) => {
 
                 {/* RIGHT PANEL */}
                 <div style={styles.listCard}>
-                    <div style={styles.listHeader}>
-                        <h3 style={styles.title}>Recent Assignments ({selectedSkill})</h3>
+                    <div style={{...styles.listHeader, padding: isSmall ? '16px' : '24px 30px'}}>
+                        <h3 style={styles.title}>Recent Assignments</h3>
                     </div>
 
-                    <div style={styles.filterBar}>
+                    <div style={{...styles.filterBar, padding: isSmall ? '0 16px 16px 16px' : '0 30px 20px 30px', flexDirection: isSmall ? 'column' : 'row'}}>
                         <div style={{ ...styles.relativeWrapper, flex: 1 }}>
                             <Search size={16} style={styles.searchInsideIcon} />
                             <input
@@ -283,7 +289,7 @@ const AssignmentDashboard = ({ selectedSkill }) => {
                             />
                         </div>
 
-                        <div style={{ ...styles.relativeWrapper, width: '130px' }}>
+                        <div style={{ ...styles.relativeWrapper, width: isSmall ? '100%' : '130px' }}>
                             <select
                                 style={styles.filterSelect}
                                 value={statusFilter}
@@ -298,47 +304,59 @@ const AssignmentDashboard = ({ selectedSkill }) => {
                     </div>
 
                     <div style={styles.table}>
-                        <div style={styles.tableHeaderRow}>
-                            <div style={{ flex: 2.5 }}>Task Name</div>
-                            <div style={{ flex: 1 }}>Group</div>
-                            <div style={{ flex: 1 }}>Due Date</div>
-                            <div style={{ flex: 1 }}>Status</div>
-                            <div style={{ width: '40px' }}></div>
-                        </div>
+                        {!isMobile && (
+                            <div style={styles.tableHeaderRow}>
+                                <div style={{ flex: 2.5 }}>Task Name</div>
+                                <div style={{ flex: 1 }}>Group</div>
+                                <div style={{ flex: 1 }}>Due Date</div>
+                                <div style={{ flex: 1 }}>Status</div>
+                                <div style={{ width: '40px' }}></div>
+                            </div>
+                        )}
 
                         {filteredAssignments.length > 0 ? (
                             filteredAssignments.map(row => (
-                                <div key={row.id} style={styles.tableRow}>
-                                    <div style={{ flex: 2.5 }}>
+                                <div key={row.id} style={{
+                                    ...styles.tableRow, 
+                                    flexDirection: isMobile ? 'column' : 'row',
+                                    alignItems: isMobile ? 'flex-start' : 'center',
+                                    gap: isMobile ? '12px' : '0',
+                                    padding: isSmall ? '16px' : '18px 30px'
+                                }}>
+                                    <div style={{ flex: 2.5, width: isMobile ? '100%' : 'auto' }}>
                                         <div style={styles.boldText}>{row.title}</div>
                                         <div style={styles.subtitleText}>Day {row.day} | Max Score: {row.score}</div>
                                     </div>
-                                    <div style={{ flex: 1 }}>{row.group}</div>
-                                    <div style={{ flex: 1 }}>{row.dueDate || '--'}</div>
-                                    <div style={{ flex: 1 }}>
-                                        <span style={getStatusBadge(row.status)}>{row.status}</span>
+                                    <div style={{ flex: 1, fontSize: '13px', color: '#64748B' }}>
+                                        {isMobile && <span style={{fontWeight: 'bold'}}>Group: </span>}
+                                        {row.group}
                                     </div>
-                                    <div style={{ width: '40px', position: 'relative' }}>
-                                        <MoreHorizontal
-                                            size={18}
-                                            color="#94A3B8"
-                                            style={{ cursor: 'pointer' }}
-                                            onClick={() => setOpenMenuId(openMenuId === row.id ? null : row.id)}
-                                        />
-                                        {openMenuId === row.id && (
-                                            <div style={{ position: 'absolute', right: 0, top: '22px', background: '#fff', border: '1px solid #E5E7EB', borderRadius: '6px', zIndex: 10, minWidth: '120px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
-                                                <div style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '13px' }} onClick={() => toggleTaskStatus(row.id, row.status)}>
-                                                    {row.status === 'Active' ? 'Set as Inactive' : 'Set as Active'}
+                                    <div style={{ flex: 1, fontSize: '13px', color: '#64748B' }}>
+                                        {isMobile && <span style={{fontWeight: 'bold'}}>Due: </span>}
+                                        {row.dueDate || '--'}
+                                    </div>
+                                    <div style={{ flex: 1, display: 'flex', justifyContent: 'space-between', width: isMobile ? '100%' : 'auto', alignItems: 'center' }}>
+                                        <span style={getStatusBadge(row.status)}>{row.status}</span>
+                                        <div style={{ position: 'relative' }}>
+                                            <MoreHorizontal
+                                                size={18}
+                                                color="#94A3B8"
+                                                style={{ cursor: 'pointer' }}
+                                                onClick={() => setOpenMenuId(openMenuId === row.id ? null : row.id)}
+                                            />
+                                            {openMenuId === row.id && (
+                                                <div style={{ position: 'absolute', right: 0, bottom: '22px', background: '#fff', border: '1px solid #E5E7EB', borderRadius: '6px', zIndex: 10, minWidth: '120px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
+                                                    <div style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '13px' }} onClick={() => toggleTaskStatus(row.id, row.status)}>
+                                                        {row.status === 'Active' ? 'Deactivate' : 'Activate'}
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        )}
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
                             ))
                         ) : (
-                            <div style={styles.emptyState}>
-                                No assignments found for {selectedSkill}. Create your first assignment!
-                            </div>
+                            <div style={styles.emptyState}>No assignments found.</div>
                         )}
                     </div>
                 </div>
@@ -349,211 +367,50 @@ const AssignmentDashboard = ({ selectedSkill }) => {
 
 /* -------- BADGE STYLE LOGIC -------- */
 const getStatusBadge = (status) => {
-    const base = { padding: '4px 14px', borderRadius: '16px', fontSize: '13px', fontWeight: '700' };
+    const base = { padding: '4px 14px', borderRadius: '16px', fontSize: '12px', fontWeight: '700' };
     if (status === 'Active') return { ...base, backgroundColor: '#E1F5FE', color: '#0288D1' };
     return { ...base, backgroundColor: '#FFEBEE', color: '#D32F2F' };
 };
 
 const styles = {
-    container: {
-        width: '100%',
-        fontFamily: '"Inter", sans-serif',
-        padding: '0 0',
-    },
-    layoutGrid: {
-        width: '100%',
-        maxWidth: '100%',
-        display: 'flex',
-        gap: '24px',
-        maxHeight: '850px',
-    },
-    formCard: {
-        flex: 1,
-        backgroundColor: '#FFFFFF',
-        borderRadius: '12px',
-        border: '1px solid #E9EDF2',
-        display: 'flex',
-        flexDirection: 'column',
-        boxShadow: '0 2px 4px rgba(0,0,0,0.01)',
-    },
-    listCard: {
-        flex: 2,
-        backgroundColor: '#FFFFFF',
-        borderRadius: '12px',
-        border: '1px solid #E9EDF2',
-        display: 'flex',
-        flexDirection: 'column',
-    },
-    formHeader: {
-        padding: '24px',
-        borderBottom: '1px solid #F3F4F6',
-        display: 'flex',
-        alignItems: 'center',
-    },
+    container: { width: '100%', fontFamily: '"Inter", sans-serif', padding: '0' },
+    layoutGrid: { width: '100%', display: 'flex', gap: '24px' },
+    formCard: { flex: 1, backgroundColor: '#FFFFFF', borderRadius: '12px', border: '1px solid #E9EDF2', display: 'flex', flexDirection: 'column', boxShadow: '0 2px 4px rgba(0,0,0,0.01)' },
+    listCard: { flex: 2, backgroundColor: '#FFFFFF', borderRadius: '12px', border: '1px solid #E9EDF2', display: 'flex', flexDirection: 'column' },
+    formHeader: { padding: '24px', borderBottom: '1px solid #F3F4F6', display: 'flex', alignItems: 'center' },
     headerIcon: { color: '#2563EB', marginRight: '10px' },
-    title: { fontSize: '18px', fontWeight: '800', margin: 0, color: '#1F2937' },
-    formBody: {
-        flex: 1,
-        overflowY: 'auto',
-        padding: '24px',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '20px',
-    },
+    title: { fontSize: '17px', fontWeight: '800', margin: 0, color: '#1F2937' },
+    formBody: { flex: 1, overflowY: 'auto', padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' },
     fieldGroup: { display: 'flex', flexDirection: 'column', gap: '8px' },
-    fieldLabel: { fontSize: '15px', fontWeight: '700', color: '#4B5563' },
-    tabToggleGroup: {
-        display: 'flex',
-        backgroundColor: '#F3F4F6',
-        padding: '5px',
-        borderRadius: '8px',
-        marginBottom: '12px'
-    },
-    toggleBtn: {
-        flex: 1,
-        padding: '10px',
-        border: 'none',
-        backgroundColor: 'transparent',
-        fontSize: '14px',
-        fontWeight: '600',
-        color: '#6B7280',
-        cursor: 'pointer',
-        borderRadius: '6px'
-    },
-    toggleBtnActive: {
-        flex: 1,
-        padding: '10px',
-        border: 'none',
-        backgroundColor: '#FFFFFF',
-        fontSize: '14px',
-        fontWeight: '700',
-        color: '#2563EB',
-        cursor: 'pointer',
-        borderRadius: '6px',
-        boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
-    },
-    textInput: {
-        padding: '12px 14px',
-        borderRadius: '8px',
-        border: '1px solid #E2E8F0',
-        fontSize: '15px',
-        outline: 'none',
-        color: '#1F2937',
-        width: '100%',
-        boxSizing: 'border-box'
-    },
-    textareaInput: {
-        padding: '12px 14px',
-        borderRadius: '8px',
-        border: '1px solid #E2E8F0',
-        fontSize: '15px',
-        minHeight: '100px',
-        outline: 'none',
-        resize: 'none',
-    },
-    selectInput: {
-        width: '100%',
-        padding: '12px 14px',
-        borderRadius: '8px',
-        border: '1px solid #E2E8F0',
-        fontSize: '15px',
-        appearance: 'none',
-        backgroundColor: '#FFFFFF',
-        outline: 'none',
-        color: '#6B7280'
-    },
+    fieldLabel: { fontSize: '14px', fontWeight: '700', color: '#4B5563' },
+    tabToggleGroup: { display: 'flex', backgroundColor: '#F3F4F6', padding: '5px', borderRadius: '8px', marginBottom: '12px' },
+    toggleBtn: { flex: 1, padding: '10px', border: 'none', backgroundColor: 'transparent', fontSize: '13px', fontWeight: '600', color: '#6B7280', cursor: 'pointer', borderRadius: '6px' },
+    toggleBtnActive: { flex: 1, padding: '10px', border: 'none', backgroundColor: '#FFFFFF', fontSize: '13px', fontWeight: '700', color: '#2563EB', cursor: 'pointer', borderRadius: '6px', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' },
+    textInput: { padding: '12px 14px', borderRadius: '8px', border: '1px solid #E2E8F0', fontSize: '14px', outline: 'none', color: '#1F2937', width: '100%', boxSizing: 'border-box' },
+    textareaInput: { padding: '12px 14px', borderRadius: '8px', border: '1px solid #E2E8F0', fontSize: '14px', minHeight: '80px', outline: 'none', resize: 'none' },
+    selectInput: { width: '100%', padding: '12px 14px', borderRadius: '8px', border: '1px solid #E2E8F0', fontSize: '14px', appearance: 'none', backgroundColor: '#FFFFFF', outline: 'none', color: '#6B7280' },
     splitRow: { display: 'flex', gap: '16px' },
     relativeWrapper: { position: 'relative', display: 'flex', alignItems: 'center' },
     dropdownIcon: { position: 'absolute', right: '12px', color: '#94A3B8', pointerEvents: 'none' },
-    dateIcon: { position: 'absolute', right: '12px', color: '#4B5563', pointerEvents: 'none' },
-    uploadBox: {
-        padding: '28px',
-        borderRadius: '8px',
-        border: '2px dashed #D1D5DB',
-        backgroundColor: '#EBF5FF',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        gap: '6px',
-        cursor: 'pointer'
-    },
+    dateIcon: { position: 'absolute', right: '20px', color: '#4B5563', pointerEvents: 'none' },
+    uploadBox: { padding: '28px', borderRadius: '8px', border: '2px dashed #D1D5DB', backgroundColor: '#EBF5FF', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', cursor: 'pointer' },
     cloudIcon: { color: '#94A3B8' },
-    uploadText: { fontSize: '15px', color: '#4B5563', fontWeight: '500' },
+    uploadText: { fontSize: '14px', color: '#4B5563', fontWeight: '500', textAlign: 'center' },
     blueLink: { color: '#2563EB', fontWeight: '700' },
-    uploadSubtext: { fontSize: '13px', color: '#94A3B8' },
-    formFooter: {
-        padding: '20px 24px',
-        borderTop: '1px solid #F3F4F6',
-        display: 'flex',
-        gap: '12px',
-        backgroundColor: '#FAFBFC'
-    },
-    primaryBtn: {
-        flex: 1.5,
-        padding: '14px',
-        borderRadius: '8px',
-        border: 'none',
-        backgroundColor: '#2563EB',
-        color: 'white',
-        fontWeight: '700',
-        fontSize: '16px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        cursor: 'pointer'
-    },
-    listHeader: { padding: '24px 30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
-    utilActions: { display: 'flex', gap: '15px' },
-    grayAction: { color: '#94A3B8', cursor: 'pointer' },
-    filterBar: { padding: '0 30px 20px 30px', display: 'flex', gap: '12px' },
+    uploadSubtext: { fontSize: '12px', color: '#94A3B8', textAlign: 'center' },
+    formFooter: { padding: '20px 24px', borderTop: '1px solid #F3F4F6', display: 'flex', backgroundColor: '#FAFBFC' },
+    primaryBtn: { flex: 1, padding: '14px', borderRadius: '8px', border: 'none', backgroundColor: '#2563EB', color: 'white', fontWeight: '700', fontSize: '15px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' },
+    listHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
+    filterBar: { display: 'flex', gap: '12px' },
     searchInsideIcon: { position: 'absolute', left: '12px', color: '#94A3B8' },
-    searchField: {
-        width: '100%',
-        padding: '12px 12px 12px 36px',
-        borderRadius: '6px',
-        border: '1px solid #F1F5F9',
-        backgroundColor: '#F8FAFC',
-        fontSize: '15px',
-        outline: 'none'
-    },
-    filterSelect: {
-        width: '100%',
-        padding: '12px 12px',
-        borderRadius: '6px',
-        border: '1px solid #F1F5F9',
-        backgroundColor: 'white',
-        fontSize: '15px',
-        appearance: 'none',
-        outline: 'none',
-        color: '#374151'
-    },
+    searchField: { width: '100%', padding: '12px 12px 12px 36px', borderRadius: '6px', border: '1px solid #F1F5F9', backgroundColor: '#F8FAFC', fontSize: '14px', outline: 'none' },
+    filterSelect: { width: '100%', padding: '12px 12px', borderRadius: '6px', border: '1px solid #F1F5F9', backgroundColor: 'white', fontSize: '14px', appearance: 'none', outline: 'none', color: '#374151' },
     table: { display: 'flex', flexDirection: 'column', flex: 1 },
-    tableHeaderRow: {
-        display: 'flex',
-        padding: '14px 30px',
-        backgroundColor: '#F8F9FB',
-        borderBottom: '1px solid #E9EDF2',
-        color: '#94A3B8',
-        fontSize: '14px',
-        fontWeight: '700',
-        letterSpacing: '0.2px'
-    },
-    tableRow: {
-        display: 'flex',
-        padding: '18px 30px',
-        borderBottom: '1px solid #F8FAFC',
-        alignItems: 'center',
-        fontSize: '15px'
-    },
-    boldText: { fontWeight: '800', color: '#1F2937', marginBottom: '2px', fontSize: '16px' },
-    subtitleText: { color: '#94A3B8', fontSize: '13px', fontWeight: '500' },
-    emptyState: {
-        padding: '40px 30px',
-        textAlign: 'center',
-        color: '#94A3B8',
-        fontSize: '14px',
-        fontStyle: 'italic'
-    }
+    tableHeaderRow: { display: 'flex', padding: '14px 30px', backgroundColor: '#F8F9FB', borderBottom: '1px solid #E9EDF2', color: '#94A3B8', fontSize: '13px', fontWeight: '700' },
+    tableRow: { display: 'flex', borderBottom: '1px solid #F8FAFC' },
+    boldText: { fontWeight: '800', color: '#1F2937', marginBottom: '2px', fontSize: '15px' },
+    subtitleText: { color: '#94A3B8', fontSize: '12px', fontWeight: '500' },
+    emptyState: { padding: '40px 30px', textAlign: 'center', color: '#94A3B8', fontSize: '13px', fontStyle: 'italic' }
 };
 
 export default AssignmentDashboard;

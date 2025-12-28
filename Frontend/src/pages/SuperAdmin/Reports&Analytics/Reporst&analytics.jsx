@@ -142,7 +142,6 @@ const ReportsAnalytics = () => {
             font-family: 'Inter', sans-serif;
             background-color: #f8fafc;
             min-height: 100vh;
-            padding: 2px;
             color: #1e293b;
             }
 
@@ -152,6 +151,19 @@ const ReportsAnalytics = () => {
             grid-template-columns: repeat(4, 1fr);
             gap: 24px;
             margin-bottom: 32px;
+            }
+
+            @media (max-width: 1024px) {
+            .stats-grid {
+            grid-template-columns: repeat(2, 1fr);
+            }
+            }
+
+            @media (max-width: 640px) {
+            .stats-grid {
+            grid-template-columns: 1fr;
+            gap: 16px;
+            }
             }
 
             .stat-card {
@@ -188,6 +200,12 @@ const ReportsAnalytics = () => {
             gap: 16px;
             }
 
+            @media (max-width: 768px) {
+            .toolbar {
+            flex-direction: column;
+            }
+            }
+
             .filters { display: flex; gap: 12px; flex-wrap: wrap; }
 
             .btn-ui {
@@ -213,6 +231,12 @@ const ReportsAnalytics = () => {
             width: 320px;
             }
 
+            @media (max-width: 768px) {
+            .search-box {
+            width: 100%;
+            }
+            }
+
             .search-box input {
             width: 100%;
             padding: 10px 10px 10px 42px;
@@ -233,7 +257,18 @@ const ReportsAnalytics = () => {
             overflow: hidden;
             }
 
+            @media (max-width: 768px) {
+            .table-wrap {
+            overflow-x: auto;
+            }
+            }
+
             table { width: 100%; border-collapse: collapse; }
+
+            @media (max-width: 768px) {
+            table { min-width: 800px; }
+            }
+
             th { 
             background: #fcfdfe; 
             padding: 16px 24px; 
@@ -320,6 +355,13 @@ const ReportsAnalytics = () => {
             padding: 20px 24px;
             background: #fcfdfe;
             border-top: 1px solid #e2e8f0;
+            }
+
+            @media (max-width: 640px) {
+            .pagination-bar {
+            flex-direction: column;
+            gap: 16px;
+            }
             }
         `}</style>
 

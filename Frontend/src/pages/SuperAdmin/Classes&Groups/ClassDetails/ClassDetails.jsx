@@ -1,4 +1,4 @@
-    import React, { useState, useMemo } from 'react';
+    import React, { useState, useMemo, useEffect } from 'react';
     import { useNavigate } from 'react-router-dom';
     // MUI Icon Imports
     import { 
@@ -13,8 +13,25 @@
     FactCheck
     } from '@mui/icons-material';
 
+    // --- Custom Hook for Responsive Logic ---
+    const useWindowSize = () => {
+    const [windowSize, setWindowSize] = useState({
+        width: typeof window !== 'undefined' ? window.innerWidth : 1200,
+    });
+
+    useEffect(() => {
+        const handleResize = () => setWindowSize({ width: window.innerWidth });
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
+
+    return windowSize;
+    };
+
     const ClassDetails = () => {
     const navigate = useNavigate();
+    const { width } = useWindowSize();
+    const isMobile = width <= 768;
 
     // --- DATA SOURCE (JSON) ---
     const data = {
@@ -68,22 +85,21 @@
     const s = {
         container: { fontFamily: 'Inter, system-ui, sans-serif', backgroundColor: '#f8fafc', minHeight: '100vh' },
         
-        // Non-sticky wrapper
-        Wrapper: { 
-        padding: '24px 0 10px 0',
-        },
+        Wrapper: { padding: '0 0 10px 0' },
         headerCard: { 
         backgroundColor: '#eff6ff', 
         borderRadius: '16px', 
-        padding: '24px 32px', 
+        padding: isMobile ? '20px' : '24px 32px', 
         display: 'flex', 
+        flexDirection: isMobile ? 'column' : 'row',
         justifyContent: 'space-between', 
-        alignItems: 'center', 
+        alignItems: isMobile ? 'flex-start' : 'center', 
         borderLeft: '6px solid #3b82f6',
-        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)'
+        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)',
+        gap: isMobile ? '20px' : '0'
         },
         
-        facultySection: { display: 'flex', alignItems: 'center', gap: '12px' },
+        facultySection: { display: 'flex', alignItems: 'center', gap: '12px', textAlign: 'left' },
         avatarLarge: { width: '50px', height: '50px', borderRadius: '50%', objectFit: 'cover', border: '2px solid white' },
         badge: { 
         backgroundColor: '#dcfce7', 
@@ -97,24 +113,38 @@
         gap: '4px' 
         },
         
-        // Updated Grid for 3 items
         quickActions: { 
         display: 'grid', 
-        gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', 
+        gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))', 
         gap: '20px', 
         margin: '32px 0 40px 0' 
         },
         actionCard: { backgroundColor: 'white', padding: '20px', borderRadius: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', border: '1px solid #f1f5f9' },
         
-        filterBar: { display: 'flex', gap: '12px', marginBottom: '24px', alignItems: 'center' },
-        inputWrapper: { flex: 1, position: 'relative', display: 'flex', alignItems: 'center' },
-        input: { width: '100%', padding: '15px 16px 15px 40px', borderRadius: '8px', border: '1px solid #e2e8f0', outline: 'none', fontSize: '14px' },
+        filterBar: { 
+        display: 'flex', 
+        flexDirection: isMobile ? 'column' : 'row',
+        gap: '12px', 
+        marginBottom: '24px', 
+        alignItems: 'stretch' 
+        },
+        inputWrapper: { flex: 2, position: 'relative', display: 'flex', alignItems: 'center' },
+        input: { width: '100%', padding: '12px 16px 12px 40px', borderRadius: '8px', border: '1px solid #e2e8f0', outline: 'none', fontSize: '14px' },
         searchIcon: { position: 'absolute', left: '12px', color: '#94a3b8', fontSize: '20px' },
-        select: { padding: '10px', borderRadius: '8px', border: '1px solid #e2e8f0', backgroundColor: 'white', color: '#64748b', fontSize: '14px', cursor: 'pointer' },
+        select: { padding: '10px', borderRadius: '8px', border: '1px solid #e2e8f0', backgroundColor: 'white', color: '#64748b', fontSize: '14px', cursor: 'pointer', flex: 1 },
         
-        studentGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '24px' },
+        studentGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 320px), 1fr))', gap: '24px' },
         
-        pagination: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '40px', padding: '20px 0', borderTop: '1px solid #e2e8f0' },
+        pagination: { 
+        display: 'flex', 
+        flexDirection: isMobile ? 'column' : 'row',
+        justifyContent: 'space-between', 
+        alignItems: 'center', 
+        marginTop: '40px', 
+        padding: '20px 0', 
+        borderTop: '1px solid #e2e8f0',
+        gap: isMobile ? '20px' : '0'
+        },
         pageBtn: { padding: '8px 16px', cursor: 'pointer', border: 'none', background: 'none', fontWeight: '600', fontSize: '14px' },
         pageNum: (active) => ({ 
         width: '36px', height: '36px', borderRadius: '8px', border: 'none', margin: '0 4px', cursor: 'pointer', fontWeight: '600',
@@ -127,29 +157,35 @@
         <div style={s.Wrapper}>
             <div style={s.headerCard}>
             <div>
-                <h1 style={{ margin: '0 0 4px 0', fontSize: '24px', color: '#1e293b', fontWeight: '800' }}>{data.course.title}</h1>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#64748b', fontSize: '14px' }}>
+                <h1 style={{ margin: '0 0 4px 0', fontSize: isMobile ? '20px' : '24px', color: '#1e293b', fontWeight: '800' }}>{data.course.title}</h1>
+                <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px', color: '#64748b', fontSize: '14px' }}>
                 <span>{data.course.code}</span> • <span>{data.course.semester}</span> • <span>{data.course.batch}</span>
                 </div>
             </div>
-            <div style={{ textAlign: 'right' }}>
+            <div style={{ textAlign: isMobile ? 'left' : 'right' }}>
                 <div style={{ marginBottom: '12px' }}>
                 <span style={s.badge}><Verified style={{ fontSize: '14px' }} /> {data.course.status}</span>
                 </div>
                 <div style={s.facultySection}>
-                <div style={{ textAlign: 'right' }}>
+                {!isMobile && (
+                    <div style={{ textAlign: 'right' }}>
                     <p style={{ margin: 0, fontWeight: '700', fontSize: '14px', color: '#1e293b' }}>{data.course.faculty.name}</p>
                     <p style={{ margin: 0, fontSize: '12px', color: '#64748b' }}>{data.course.faculty.role}</p>
-                </div>
+                    </div>
+                )}
                 <img src={data.course.faculty.avatar} style={s.avatarLarge} alt="faculty" />
+                {isMobile && (
+                    <div style={{ textAlign: 'left' }}>
+                    <p style={{ margin: 0, fontWeight: '700', fontSize: '14px', color: '#1e293b' }}>{data.course.faculty.name}</p>
+                    <p style={{ margin: 0, fontSize: '12px', color: '#64748b' }}>{data.course.faculty.role}</p>
+                    </div>
+                )}
                 </div>
             </div>
             </div>
         </div>
 
-        {/* --- QUICK ACTIONS (3 CARDS) --- */}
         <div style={s.quickActions}>
-            {/* Materials */}
             <div style={s.actionCard}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
                 <FolderOpen color="primary" />
@@ -161,7 +197,6 @@
             </div>
             </div>
 
-            {/* Assessments */}
             <div style={s.actionCard}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
                 <Assignment style={{ color: '#f59e0b' }} />
@@ -173,7 +208,6 @@
             </div>
             </div>
 
-            {/* NEW: Attendance Tracker */}
             <div style={s.actionCard}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
                 <FactCheck style={{ color: '#10b981' }} />
@@ -186,7 +220,6 @@
             </div>
         </div>
 
-        {/* --- STUDENT LIST SECTION --- */}
         <h3 style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '24px', color: '#1e293b' }}>
             <Groups color="primary" /> Total Students Assigned
         </h3>
@@ -196,37 +229,37 @@
             <Search style={s.searchIcon} />
             <input 
                 style={s.input} 
-                placeholder="Search by name or student ID..." 
+                placeholder="Search name or ID..." 
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
             />
             </div>
+            <div style={{ display: 'flex', gap: '12px', flex: 1 }}>
             <select style={s.select} onChange={(e) => setDeptFilter(e.target.value)}>
-            <option>All Departments</option>
-            <option>Computer Science</option>
-            <option>Engineering</option>
-            <option>Business</option>
+                <option>All Departments</option>
+                <option>Computer Science</option>
+                <option>Engineering</option>
+                <option>Business</option>
             </select>
             <select style={s.select} onChange={(e) => setYearFilter(e.target.value)}>
-            <option>All Years</option>
-            <option>1st Year</option>
-            <option>2nd Year</option>
-            <option>3rd Year</option>
-            <option>4th Year</option>
+                <option>All Years</option>
+                <option>1st Year</option>
+                <option>2nd Year</option>
+                <option>3rd Year</option>
+                <option>4th Year</option>
             </select>
+            </div>
         </div>
 
-        {/* Student Grid */}
         <div style={s.studentGrid}>
             {currentStudents.map(student => (
             <StudentCard key={student.id} student={student} navigate={navigate} />
             ))}
         </div>
 
-        {/* Pagination */}
         <div style={s.pagination}>
             <div style={{ fontSize: '14px', color: '#64748b' }}>
-            Showing <b>{indexOfFirstStudent + 1}-{Math.min(indexOfLastStudent, filteredStudents.length)}</b> of <b>{filteredStudents.length}</b> students
+            Showing <b>{indexOfFirstStudent + 1}-{Math.min(indexOfLastStudent, filteredStudents.length)}</b> of <b>{filteredStudents.length}</b>
             </div>
             <div style={{ display: 'flex', alignItems: 'center' }}>
             <button 
@@ -260,7 +293,6 @@
     );
     };
 
-    // --- SUB-COMPONENT: STUDENT CARD ---
     const StudentCard = ({ student, navigate }) => {
     const [isHovered, setIsHovered] = useState(false);
 
@@ -279,7 +311,6 @@
 
     return (
         <div
-        
         style={cardStyle}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}

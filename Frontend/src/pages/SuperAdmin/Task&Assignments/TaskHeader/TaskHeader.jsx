@@ -8,6 +8,15 @@ const TaskHeader = () => {
     const [skills, setSkills] = useState([]);
     const [addDayTrigger, setAddDayTrigger] = useState(0);
 
+    // --- Responsive State ---
+    const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+
+    useEffect(() => {
+        const handleResize = () => setIsMobile(window.innerWidth <= 768);
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
+
     // --- SKILLS/COURSES DATA ---
     const skillsData = [
         { id: 1, name: 'React Mastery Workshop', code: 'REACT-101' },
@@ -18,7 +27,6 @@ const TaskHeader = () => {
     ];
 
     useEffect(() => {
-        // Initialize with first skill
         if (skillsData.length > 0 && !selectedSkill) {
             setSelectedSkill(skillsData[0].code);
         }
@@ -33,41 +41,60 @@ const TaskHeader = () => {
         </svg>
     );
 
-    const PlusIcon = () => (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '8px' }}>
-            <line x1="12" y1="5" x2="12" y2="19"></line>
-            <line x1="5" y1="12" x2="19" y2="12"></line>
-        </svg>
-    );
-
-    // Function to handle Add Day/Module button click
-    const handleAddModule = () => {
-        // First switch to roadmap tab
-        setActiveTab('roadmap');
-
-        // Then trigger the add day action after a small delay to ensure component is rendered
-        setTimeout(() => {
-            setAddDayTrigger(prev => prev + 1);
-        }, 100);
-    };
-
     // Handle skill change
     const handleSkillChange = (e) => {
         setSelectedSkill(e.target.value);
     };
 
+    // --- Dynamic Styles Based on Screen Size ---
+    const responsiveStyles = {
+        stickyHeader: {
+            ...styles.stickyHeader,
+            padding: isMobile ? '12px 16px' : '16px 24px',
+        },
+        headerContainer: {
+            ...styles.headerContainer,
+            flexDirection: isMobile ? 'column' : 'row',
+            alignItems: isMobile ? 'stretch' : 'center',
+            gap: isMobile ? '16px' : '0',
+        },
+        leftSection: {
+            ...styles.leftSection,
+            flexDirection: isMobile ? 'column' : 'row',
+            alignItems: isMobile ? 'stretch' : 'center',
+            gap: isMobile ? '12px' : '20px',
+        },
+        toggleContainer: {
+            ...styles.toggleContainer,
+            width: isMobile ? '100%' : 'auto',
+        },
+        tab: {
+            ...styles.tab,
+            flex: isMobile ? 1 : 'none',
+            textAlign: 'center',
+        },
+        dropdownContainer: {
+            ...styles.dropdownContainer,
+            minWidth: isMobile ? '100%' : '220px',
+        },
+        contentArea: {
+            ...styles.contentArea,
+            padding: isMobile ? '10px 16px' : '10px 24px',
+        }
+    };
+
     return (
         <div style={styles.pageWrapper}>
             {/* STICKY HEADER WRAPPER */}
-            <div style={styles.stickyHeader}>
-                <div style={styles.headerContainer}>
+            <div style={responsiveStyles.stickyHeader}>
+                <div style={responsiveStyles.headerContainer}>
                     {/* Left Section: Tabs and Dropdown */}
-                    <div style={styles.leftSection}>
-                        <div style={styles.toggleContainer}>
+                    <div style={responsiveStyles.leftSection}>
+                        <div style={responsiveStyles.toggleContainer}>
                             <button
                                 onClick={() => setActiveTab('assignments')}
                                 style={{
-                                    ...styles.tab,
+                                    ...responsiveStyles.tab,
                                     ...(activeTab === 'assignments' ? styles.activeTab : styles.inactiveTab)
                                 }}
                             >
@@ -76,7 +103,7 @@ const TaskHeader = () => {
                             <button
                                 onClick={() => setActiveTab('roadmap')}
                                 style={{
-                                    ...styles.tab,
+                                    ...responsiveStyles.tab,
                                     ...(activeTab === 'roadmap' ? styles.activeTab : styles.inactiveTab)
                                 }}
                             >
@@ -84,7 +111,7 @@ const TaskHeader = () => {
                             </button>
                         </div>
 
-                        <div style={styles.dropdownContainer}>
+                        <div style={responsiveStyles.dropdownContainer}>
                             <select
                                 value={selectedSkill}
                                 onChange={handleSkillChange}
@@ -103,7 +130,7 @@ const TaskHeader = () => {
                     </div>
 
                     {/* Right Section: Buttons */}
-                    <div style={styles.rightSection}>
+                    <div style={{ ...styles.rightSection, justifyContent: isMobile ? 'flex-start' : 'flex-end' }}>
                         <button style={styles.outlineBtn}>
                             <EyeIcon />
                             Student View
@@ -113,7 +140,7 @@ const TaskHeader = () => {
             </div>
 
             {/* SCROLLING CONTENT AREA */}
-            <div style={styles.contentArea}>
+            <div style={responsiveStyles.contentArea}>
                 <div style={styles.contentPlaceholder}>
                     {activeTab === 'assignments' ? (
                         <AssignmentDashboard selectedSkill={selectedSkill} />
@@ -122,7 +149,7 @@ const TaskHeader = () => {
                             selectedSkill={selectedSkill}
                             isActiveTab={activeTab === 'roadmap'}
                             addDayTrigger={addDayTrigger}
-                            key={`${selectedSkill}-${addDayTrigger}`} // Force re-render when skill or trigger changes
+                            key={`${selectedSkill}-${addDayTrigger}`}
                         />
                     )}
                 </div>
@@ -137,7 +164,8 @@ const styles = {
         fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
         backgroundColor: '#f8fafc',
         minHeight: '100vh',
-        margin: '-24px -24px 0 -24px', // Offset SideTab's content padding
+        margin: '-24px -24px 0 -24px',
+        overflowX: 'hidden' // Prevent horizontal scroll on mobile
     },
     stickyHeader: {
         position: 'sticky',
@@ -145,8 +173,8 @@ const styles = {
         zIndex: 1000,
         backgroundColor: '#ffffff',
         borderBottom: '1px solid #e2e8f0',
-        padding: '16px 24px',
         width: '100%',
+        boxSizing: 'border-box'
     },
     headerContainer: {
         width: '100%',
@@ -157,7 +185,6 @@ const styles = {
     leftSection: {
         display: 'flex',
         alignItems: 'center',
-        gap: '20px',
     },
     toggleContainer: {
         display: 'flex',
@@ -165,12 +192,13 @@ const styles = {
         padding: '4px',
         borderRadius: '8px',
         border: '1px solid #e2e8f0',
+        boxSizing: 'border-box'
     },
     tab: {
         padding: '8px 16px',
         border: 'none',
         borderRadius: '6px',
-        fontSize: '14px',
+        fontSize: '13px', // Slightly smaller for mobile fit
         fontWeight: '500',
         cursor: 'pointer',
         transition: 'all 0.2s ease',
@@ -188,11 +216,10 @@ const styles = {
         position: 'relative',
         display: 'flex',
         alignItems: 'center',
-        minWidth: '220px',
     },
     dropdownSelect: {
         width: '100%',
-        padding: '10px 16px',
+        padding: '10px 32px 10px 16px', // Extra right padding for custom arrow
         border: '1px solid #e2e8f0',
         borderRadius: '8px',
         fontSize: '14px',
@@ -220,21 +247,9 @@ const styles = {
         color: '#1e293b',
         cursor: 'pointer',
     },
-    primaryBtn: {
-        display: 'flex',
-        alignItems: 'center',
-        padding: '10px 18px',
-        backgroundColor: '#0066ff',
-        border: 'none',
-        borderRadius: '8px',
-        fontSize: '14px',
-        fontWeight: '600',
-        color: '#ffffff',
-        cursor: 'pointer',
-    },
     contentArea: {
-        padding: '10px 24px',
         width: '100%',
+        boxSizing: 'border-box'
     },
     contentPlaceholder: {
         marginTop: '0px',
