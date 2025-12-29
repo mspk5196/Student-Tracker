@@ -6,6 +6,8 @@ import facultyRoutes from './routes/faculty.routes.js';
 import studentRoutes from './routes/student.routes.js';
 import attendanceRoutes from './routes/attendance.routes.js'; 
  import groupsRoutes from './routes/groups.routes.js';
+ import tasksRoutes from './routes/tasks.routes.js';
+ import roadmapRoutes from './routes/roadmap.routes.js'; 
 dotenv.config();
 
 const app = express();
@@ -17,5 +19,7 @@ app.use('/api/faculty', facultyRoutes);
 app.use('/api/students', studentRoutes);
  app.use('/api/attendance', attendanceRoutes);
 app.use('/api/groups', groupsRoutes);
+app.use('/api/tasks', tasksRoutes);
+ app.use('/api/roadmap', roadmapRoutes);
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server running on ${PORT}`));
+app.listen(PORT,'0.0.0.0', () => console.log(`Server running on ${PORT}`));
