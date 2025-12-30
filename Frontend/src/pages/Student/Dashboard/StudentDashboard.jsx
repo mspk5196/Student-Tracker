@@ -350,53 +350,64 @@ const ActivityHeatMap = ({ data }) => {
 const BarChart = ({ data }) => {
     const baseline = 100;
     return (
-        <div style={{ padding: '24px 8px 10px 8px', marginTop: '25px' }}>
-            <div style={{
-                display: 'flex',
-                alignItems: 'flex-end',
-                height: '180px',
-                gap: '20px',
-                paddingBottom: '30px',
-                borderBottom: '1px solid #f1f5f9',
-                position: 'relative'
-            }}>
-                {data.labels.map((label, index) => {
-                    const value = data.datasets[0].data[index];
-                    const height = (value / baseline) * 100;
-                    return (
-                        <div key={index} style={{
-                            flex: 1,
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            height: '100%',
-                            justifyContent: 'flex-end',
-                            position: 'relative'
-                        }}>
-                            <div style={{ position: 'absolute', bottom: 0, width: '32px', height: '100%', backgroundColor: '#f1f5f9', borderRadius: '6px', zIndex: 1 }} />
-                            <div style={{
-                                width: '32px',
-                                height: `${height}%`,
-                                backgroundColor: data.datasets[0].color,
-                                borderRadius: '6px',
-                                transition: 'height 0.6s cubic-bezier(0.4, 0, 0.2, 1)',
-                                position: 'relative',
+        <div style={{ padding: '24px 0 10px 0', marginTop: '25px' }}>
+            {/* Added Scroll Container specifically for the bars */}
+            <div style={{ 
+                width: '100%', 
+                overflowX: 'auto', 
+                WebkitOverflowScrolling: 'touch',
+                paddingBottom: '20px'
+            }} className="barchart-scroll">
+                <div style={{
+                    display: 'flex',
+                    alignItems: 'flex-end',
+                    height: '180px',
+                    gap: '20px',
+                    paddingBottom: '30px',
+                    borderBottom: '1px solid #f1f5f9',
+                    position: 'relative',
+                    minWidth: 'max-content', // This ensures it doesn't shrink on mobile
+                    paddingRight: '10px'
+                }}>
+                    {data.labels.map((label, index) => {
+                        const value = data.datasets[0].data[index];
+                        const height = (value / baseline) * 100;
+                        return (
+                            <div key={index} style={{
+                                width: '50px', // Fixed width per bar to allow horizontal scrolling
                                 display: 'flex',
-                                alignItems: 'flex-end',
-                                justifyContent: 'center',
-                                zIndex: 2,
-                                boxShadow: '0 4px 6px -1px rgba(37, 99, 235, 0.2)'
+                                flexDirection: 'column',
+                                alignItems: 'center',
+                                height: '100%',
+                                justifyContent: 'flex-end',
+                                position: 'relative',
+                                flexShrink: 0
                             }}>
-                                <span style={{ position: 'absolute', top: '-25px', fontSize: '12px', fontWeight: 700, color: '#1e293b', whiteSpace: 'nowrap' }}>
-                                    {value}%
+                                <div style={{ position: 'absolute', bottom: 0, width: '32px', height: '100%', backgroundColor: '#f1f5f9', borderRadius: '6px', zIndex: 1 }} />
+                                <div style={{
+                                    width: '32px',
+                                    height: `${height}%`,
+                                    backgroundColor: data.datasets[0].color,
+                                    borderRadius: '6px',
+                                    transition: 'height 0.6s cubic-bezier(0.4, 0, 0.2, 1)',
+                                    position: 'relative',
+                                    display: 'flex',
+                                    alignItems: 'flex-end',
+                                    justifyContent: 'center',
+                                    zIndex: 2,
+                                    boxShadow: '0 4px 6px -1px rgba(37, 99, 235, 0.2)'
+                                }}>
+                                    <span style={{ position: 'absolute', top: '-25px', fontSize: '12px', fontWeight: 700, color: '#1e293b', whiteSpace: 'nowrap' }}>
+                                        {value}%
+                                    </span>
+                                </div>
+                                <span style={{ position: 'absolute', bottom: '-25px', fontSize: '11px', color: '#64748b', fontWeight: 700, textAlign: 'center', width: 'max-content' }}>
+                                    {label}
                                 </span>
                             </div>
-                            <span style={{ position: 'absolute', bottom: '-25px', fontSize: '11px', color: '#64748b', fontWeight: 700, textAlign: 'center', width: 'max-content' }}>
-                                {label}
-                            </span>
-                        </div>
-                    );
-                })}
+                        );
+                    })}
+                </div>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '32px', alignItems: 'center' }}>
                 <span style={{ fontSize: '13px', color: '#94a3b8', fontWeight: 500 }}>Attendance by Subject</span>
@@ -404,6 +415,10 @@ const BarChart = ({ data }) => {
                     <TrendingUp size={14} /> +2.4%
                 </div>
             </div>
+            <style>{`
+                .barchart-scroll::-webkit-scrollbar { height: 4px; }
+                .barchart-scroll::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
+            `}</style>
         </div>
     );
 };
@@ -500,10 +515,23 @@ const StudentDashboard = () => {
                     top: 4px;
                     align-self: start;
                 }
+
                 @media (max-width: 1200px) {
                     .main-grid { grid-template-columns: 1fr; }
                     .stats-row { grid-template-columns: repeat(2, 1fr); }
                     .left-content { position: relative; top: 0; }
+                }
+
+                @media (max-width: 768px) {
+                    .dashboard-wrapper { padding: 16px; }
+                    .header h1 { font-size: 20px; margin-bottom: 24px; }
+                    .stats-row { grid-template-columns: 1fr; gap: 16px; }
+                    .class-card { flex-direction: column; align-items: flex-start; gap: 16px; }
+                    .class-card .actions { width: 100%; }
+                    .class-card .actions button { width: 100%; justify-content: center; }
+                    .stat-val { font-size: 28px; }
+                    .section-label { flex-direction: column; align-items: flex-start; gap: 12px; }
+                    .section-label button { width: 100%; justify-content: center; }
                 }
                 
                 .section-label { margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
@@ -525,9 +553,9 @@ const StudentDashboard = () => {
                     border-color: #3b82f6;
                     box-shadow: 0 4px 8px rgba(59, 130, 246, 0.12);
                 }
-                .class-info-top { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+                .class-info-top { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; flex-wrap: wrap; }
                 .class-name { font-weight: 700; font-size: 16px; }
-                .meta-row { display: flex; gap: 20px; font-size: 14px; color: #6b7280; }
+                .meta-row { display: flex; gap: 20px; font-size: 14px; color: #6b7280; flex-wrap: wrap; }
                 .status-badge { font-size: 13px; padding: 4px 12px; border-radius: 6px; font-weight: 600; }
                 .status-pending { background: #eff6ff; color: #2563eb; }
                 .status-progress { background: #ecfdf5; color: #059669; }
@@ -546,6 +574,7 @@ const StudentDashboard = () => {
                     gap: 10px; 
                     cursor: pointer;
                     transition: all 0.2s;
+                    white-space: nowrap;
                 }
                 .btn-primary:hover { background: #1d4ed8; transform: translateY(-1px); }
 
@@ -570,9 +599,9 @@ const StudentDashboard = () => {
                     background: white; 
                     border: 1px solid #e5e7eb; 
                     border-radius: 16px; 
-                    overflow: hidden; 
+                    overflow-x: auto; 
                 }
-                .data-table { width: 100%; border-collapse: collapse; }
+                .data-table { width: 100%; border-collapse: collapse; min-width: 500px; }
                 .data-table th { 
                     background: #f9fafb; 
                     text-align: left; 
@@ -728,18 +757,6 @@ const StudentDashboard = () => {
                                 </div>
                             ))}
                         </div>
-                    </div>
-
-                    <div className="sidebar-card" style={{ background: '#f8fafc', border: '1px dashed #cbd5e1' }}>
-                        <div className="sb-title">
-                            <h3>Quick Help</h3>
-                        </div>
-                        <p style={{ fontSize: '13px', color: '#64748b', lineHeight: '1.5', margin: 0 }}>
-                            Need assistance with your courses or facing technical issues? Contact the campus helpdesk or reach out to your faculty advisor.
-                        </p>
-                        <button className="btn-primary" style={{ marginTop: '16px', width: '100%', justifyContent: 'center' }}>
-                            Contact Support
-                        </button>
                     </div>
                 </div>
             </div>
