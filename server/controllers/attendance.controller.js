@@ -313,18 +313,17 @@ export const getVenueAllocations = async (req, res) => {
 
     console.log('📍 Fetching all venues for faculty_id:', facultyId);
 
-    // Fetch ALL active venues with student count
     const [allocations] = await db.query(`
       SELECT 
-        v. venue_id,
-        v. venue_name,
-        v. capacity,
+        v.venue_id,
+        v.venue_name,
+        v.capacity,
         v.assigned_faculty_id,
         COUNT(DISTINCT gs.student_id) as student_count,
         u.name as assigned_faculty_name
       FROM venue v
       LEFT JOIN \`groups\` g ON v.venue_id = g.venue_id
-      LEFT JOIN group_students gs ON g.group_id = gs. group_id AND gs.status = 'Active'
+      LEFT JOIN group_students gs ON g.group_id = gs.group_id AND gs.status = 'Active'
       LEFT JOIN faculties f ON v.assigned_faculty_id = f.faculty_id
       LEFT JOIN users u ON f.user_id = u.user_id
       WHERE v.status = 'Active'
@@ -332,7 +331,7 @@ export const getVenueAllocations = async (req, res) => {
       ORDER BY v.venue_name
     `);
 
-    console.log('✅ Found venues:', allocations. length);
+    console.log('✅ Found venues:', allocations.length);
 
     res.status(200).json({ success: true, data: allocations });
   } catch (error) {
@@ -341,14 +340,13 @@ export const getVenueAllocations = async (req, res) => {
   }
 };
 
-// Get ALL students for a specific venue (regardless of faculty)
+// Get ALL students for a specific venue
 export const getStudentsForVenue = async (req, res) => {
   try {
     const { venueId, facultyId } = req.params;
 
     console.log('📋 Fetching students for venue:', venueId);
 
-    // Fetch ALL students in this venue from groups
     const [students] = await db.query(`
       SELECT 
         s.student_id,
@@ -361,10 +359,10 @@ export const getStudentsForVenue = async (req, res) => {
         g.group_name
       FROM group_students gs
       INNER JOIN students s ON gs.student_id = s.student_id
-      INNER JOIN users u ON s. user_id = u.user_id
+      INNER JOIN users u ON s.user_id = u. user_id
       INNER JOIN \`groups\` g ON gs.group_id = g.group_id
-      WHERE g.venue_id = ? 
-        AND gs. status = 'Active'
+      WHERE g.venue_id = ?  
+        AND gs.status = 'Active'
         AND u.is_active = 1
       ORDER BY u.name
     `, [venueId]);
@@ -372,12 +370,12 @@ export const getStudentsForVenue = async (req, res) => {
     console.log('✅ Found students:', students.length);
 
     const formattedStudents = students.map(student => ({
-      id:  student.roll_number,
+      id: student.roll_number,
       student_id: student.student_id,
-      name: student. name,
-      email: student. email,
-      department: student. department,
-      group_name:  student.group_name,
+      name: student.name,
+      email: student.email,
+      department: student.department,
+      group_name: student.group_name,
       status: '',
       remarks: '',
       avatarColor: getRandomColor()
@@ -392,18 +390,24 @@ export const getStudentsForVenue = async (req, res) => {
 
 // Get or create attendance session
 export const getOrCreateSession = async (req, res) => {
-  const connection = await db. getConnection();
+  const connection = await db.getConnection();
   
   try {
     const { sessionName, date, timeSlot } = req.body;
+
+    if (!sessionName || !date || ! timeSlot) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Missing required fields:  sessionName, date, timeSlot' 
+      });
+    }
 
     const fullSessionName = `${sessionName}_${date}_${timeSlot}`;
 
     console.log('🔍 Checking session:', fullSessionName);
 
-    // Check if session already exists
     const [existingSession] = await connection. query(
-      'SELECT session_id FROM attendance_session WHERE session_name = ?',
+      'SELECT session_id FROM attendance_session WHERE session_name = ? ',
       [fullSessionName]
     );
 
@@ -415,8 +419,7 @@ export const getOrCreateSession = async (req, res) => {
       });
     }
 
-    // Create new session
-    const [result] = await connection. query(
+    const [result] = await connection.query(
       'INSERT INTO attendance_session (session_name, created_at) VALUES (?, NOW())',
       [fullSessionName]
     );
@@ -425,7 +428,7 @@ export const getOrCreateSession = async (req, res) => {
 
     res.status(201).json({ 
       success: true, 
-      data: { session_id: result.insertId, existing: false }
+      data: { session_id:  result.insertId, existing: false }
     });
 
   } catch (error) {
@@ -448,7 +451,7 @@ export const saveAttendance = async (req, res) => {
       date, 
       timeSlot,
       attendance 
-    } = req. body;
+    } = req.body;
 
     console.log('💾 Saving attendance:', { 
       facultyId, 
@@ -457,41 +460,37 @@ export const saveAttendance = async (req, res) => {
       recordCount: attendance?. length 
     });
 
-    // Validation
-    if (!facultyId || ! venueId || !sessionId || !attendance || attendance.length === 0) {
-      return res. status(400).json({ 
+    if (!facultyId || !venueId || !sessionId || !attendance || attendance.length === 0) {
+      return res.status(400).json({ 
         success: false, 
-        message: 'Missing required fields' 
+        message: 'Missing required fields:  facultyId, venueId, sessionId, attendance' 
       });
     }
 
     await connection.beginTransaction();
 
-    // Check if attendance already exists for this session
-    const [existingAttendance] = await connection. query(
+    const [existingAttendance] = await connection.query(
       'SELECT attendance_id FROM attendance WHERE session_id = ?  LIMIT 1',
       [sessionId]
     );
 
-    if (existingAttendance. length > 0) {
+    if (existingAttendance.length > 0) {
       console.log('📝 Updating existing attendance records');
-      // Update existing attendance
       for (const record of attendance) {
-        const isPresent = record. status === 'present' ? 1 : 0;
-        const isLate = record.status === 'late' ? 1 :  0;
+        const isPresent = record.status === 'present' ?  1 : 0;
+        const isLate = record.status === 'late' ? 1 : 0;
         
         await connection.query(`
           UPDATE attendance 
           SET is_present = ?, remarks = ?, is_late = ?, updated_at = NOW()
-          WHERE student_id = ? AND session_id = ? 
+          WHERE student_id = ? AND session_id = ?
         `, [isPresent, record.remarks || null, isLate, record.student_id, sessionId]);
       }
     } else {
-      console. log('➕ Inserting new attendance records');
-      // Insert new attendance records
+      console.log('➕ Inserting new attendance records');
       for (const record of attendance) {
         const isPresent = record.status === 'present' ? 1 : 0;
-        const isLate = record.status === 'late' ? 1 : 0;
+        const isLate = record.status === 'late' ? 1 :  0;
         
         await connection.query(`
           INSERT INTO attendance 
@@ -509,7 +508,7 @@ export const saveAttendance = async (req, res) => {
       }
     }
 
-    await connection. commit();
+    await connection.commit();
 
     console.log('✅ Attendance saved successfully');
 
@@ -531,38 +530,36 @@ export const saveAttendance = async (req, res) => {
   }
 };
 
-// Get students who are late 5+ times (for ANY faculty)
+// Get students who are late 5+ times
 export const getLateStudents = async (req, res) => {
   try {
     const { facultyId } = req.params;
 
     console.log('⏰ Fetching late students');
 
-    // If facultyId is provided, filter by that faculty, otherwise show all
     let query = `
       SELECT 
         s.student_id,
         u.user_id,
         u.name,
-        u. ID as roll_number,
+        u.ID as roll_number,
         u.email,
-        u. department,
+        u.department,
         COUNT(CASE WHEN a.is_late = 1 THEN 1 END) as late_count,
         GROUP_CONCAT(
           CONCAT(ats.session_name, ' - ', DATE_FORMAT(a.created_at, '%Y-%m-%d %H:%i'))
-          ORDER BY a. created_at DESC
+          ORDER BY a.created_at DESC
           SEPARATOR '||'
         ) as late_sessions
       FROM students s
       INNER JOIN users u ON s.user_id = u.user_id
       INNER JOIN attendance a ON s.student_id = a.student_id
-      INNER JOIN attendance_session ats ON a. session_id = ats.session_id
+      INNER JOIN attendance_session ats ON a.session_id = ats. session_id
       WHERE a.is_late = 1
     `;
 
     const params = [];
 
-    // Optionally filter by faculty
     if (facultyId && facultyId !== 'all') {
       query += ` AND a.faculty_id = ?`;
       params.push(facultyId);
@@ -578,20 +575,20 @@ export const getLateStudents = async (req, res) => {
 
     console.log('✅ Found late students:', students.length);
 
-    const formattedStudents = students.map(student => ({
+    const formattedStudents = students. map(student => ({
       student_id: student.student_id,
       name: student.name,
-      roll_number: student. roll_number,
-      email:  student.email,
+      roll_number: student.roll_number,
+      email: student.email,
       department: student.department,
       late_count: student.late_count,
-      late_sessions: student. late_sessions ?  student.late_sessions.split('||') : []
+      late_sessions: student.late_sessions ?  student.late_sessions.split('||') : []
     }));
 
-    res.status(200).json({ success: true, data:  formattedStudents });
+    res.status(200).json({ success: true, data: formattedStudents });
   } catch (error) {
     console.error('❌ Error fetching late students:', error);
-    res.status(500).json({ success: false, message: 'Failed to fetch late students' });
+    res.status(500).json({ success: false, message:  'Failed to fetch late students' });
   }
 };
 
@@ -602,20 +599,20 @@ export const getStudentAttendanceHistory = async (req, res) => {
 
     console.log('📊 Fetching attendance history for student:', studentId);
 
-    const [history] = await db. query(`
+    const [history] = await db.query(`
       SELECT 
-        a.attendance_id,
-        a.is_present,
+        a. attendance_id,
+        a. is_present,
         a.is_late,
         a.remarks,
-        a. created_at,
+        a.created_at,
         ats.session_name,
         v.venue_name,
         u.name as faculty_name
       FROM attendance a
-      INNER JOIN attendance_session ats ON a. session_id = ats.session_id
+      INNER JOIN attendance_session ats ON a.session_id = ats.session_id
       INNER JOIN venue v ON a.venue_id = v.venue_id
-      INNER JOIN faculties f ON a. faculty_id = f.faculty_id
+      INNER JOIN faculties f ON a.faculty_id = f.faculty_id
       INNER JOIN users u ON f.user_id = u.user_id
       WHERE a.student_id = ? 
       ORDER BY a.created_at DESC
@@ -624,20 +621,22 @@ export const getStudentAttendanceHistory = async (req, res) => {
 
     console.log('✅ Found history records:', history.length);
 
-    res.status(200).json({ success: true, data:  history });
+    res.status(200).json({ success: true, data: history });
   } catch (error) {
     console.error('❌ Error fetching attendance history:', error);
-    res.status(500).json({ success: false, message: 'Failed to fetch attendance history' });
+    res.status(500).json({ success: false, message:  'Failed to fetch attendance history' });
   }
 };
 
-// NEW: Get attendance dashboard data for a student
+// Get attendance dashboard data for a student
 export const getStudentAttendanceDashboard = async (req, res) => {
   try {
     const { studentId } = req.params;
     const { year } = req.query;
 
     console.log('📊 Fetching attendance dashboard for student:', studentId, 'year:', year);
+
+    const currentYear = year || new Date().getFullYear();
 
     // Get overall attendance stats
     const [overallStats] = await db.query(`
@@ -649,7 +648,7 @@ export const getStudentAttendanceDashboard = async (req, res) => {
       FROM attendance
       WHERE student_id = ?
         AND YEAR(created_at) = ?
-    `, [studentId, year || new Date().getFullYear()]);
+    `, [studentId, currentYear]);
 
     // Get venue-wise (subject) attendance
     const [subjectStats] = await db.query(`
@@ -664,7 +663,7 @@ export const getStudentAttendanceDashboard = async (req, res) => {
         AND YEAR(a.created_at) = ?
       GROUP BY v.venue_id
       ORDER BY v.venue_name
-    `, [studentId, year || new Date().getFullYear()]);
+    `, [studentId, currentYear]);
 
     // Get recent skills/events attendance
     const [recentSkills] = await db.query(`
@@ -683,7 +682,7 @@ export const getStudentAttendanceDashboard = async (req, res) => {
         AND YEAR(a.created_at) = ?
       ORDER BY a.created_at DESC
       LIMIT 10
-    `, [studentId, year || new Date().getFullYear()]);
+    `, [studentId, currentYear]);
 
     // Get month-wise attendance for chart
     const [monthlyStats] = await db.query(`
@@ -696,16 +695,16 @@ export const getStudentAttendanceDashboard = async (req, res) => {
         AND YEAR(created_at) = ?
       GROUP BY MONTH(created_at)
       ORDER BY MONTH(created_at)
-    `, [studentId, year || new Date().getFullYear()]);
+    `, [studentId, currentYear]);
 
     const stats = overallStats[0];
     const absentCount = stats.total_sessions - stats.present_count - stats.late_count;
 
     const dashboardData = {
-      overallStats:  [
+      overallStats: [
         {
           title: "OVERALL ATTENDANCE",
-          value:  `${stats.attendance_percentage}%`,
+          value: `${stats.attendance_percentage}%`,
           sub: `Total days: ${stats.present_count} / ${stats.total_sessions}`,
           color: stats.attendance_percentage >= 75 ? "#10B981" : "#F59E0B"
         },
@@ -718,7 +717,7 @@ export const getStudentAttendanceDashboard = async (req, res) => {
       ],
       sessionStatus: [
         { label: "Present", count: stats.present_count, theme: "green" },
-        { label:  "Late", count: stats.late_count, theme: "orange" },
+        { label: "Late", count: stats.late_count, theme: "orange" },
         { label: "Absent", count: absentCount, theme: "red" }
       ],
       subjects: subjectStats,
@@ -735,7 +734,7 @@ export const getStudentAttendanceDashboard = async (req, res) => {
   }
 };
 
-// Helper function for random avatar colors
+// Helper function
 function getRandomColor() {
   const colors = ['#C0C6D8', '#9CA3AF', '#EBE0D9', '#D1D5DB', '#B4B8C5'];
   return colors[Math. floor(Math.random() * colors.length)];

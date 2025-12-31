@@ -83,7 +83,6 @@ const FacultyAccounts = () => {
     // Close menu when clicking outside
     useEffect(() => {
         const handleClickOutside = (event) => {
-            // close menu if click is outside both the inline container and the portal menu
             if (activeMenu && !event.target.closest('.action-menu-container') && !event.target.closest('.action-menu-portal')) {
                 setActiveMenu(null);
                 setMenuCoords(null);
@@ -174,7 +173,7 @@ const FacultyAccounts = () => {
             const data = await response.json();
 
             if (data.success) {
-                await fetchFaculties(); // Refresh the list
+                await fetchFaculties(); 
                 closeModal();
                 alert('Faculty created successfully!');
             } else {
@@ -182,14 +181,13 @@ const FacultyAccounts = () => {
             }
         } catch (err) {
             console.error('Error creating faculty:', err);
-            setError('Failed to create faculty');
+            setError('Failed to fetch faculties');
         } finally {
             setLoading(false);
         }
     };
 
     // Menu handlers
-    // Toggle the action menu and compute portal coordinates so the menu does not affect table layout
     const toggleMenu = (e, faculty) => {
         e.stopPropagation();
         const userId = faculty.user_id;
@@ -200,20 +198,17 @@ const FacultyAccounts = () => {
             return;
         }
 
-        // compute position from the clicked button
         const rect = e.currentTarget.getBoundingClientRect();
-        const menuWidth = 160; // approx
-        const menuHeight = 120; // approx
+        const menuWidth = 160; 
+        const menuHeight = 120; 
         const padding = 8;
 
         let left = rect.right;
-        // avoid overflowing right edge
         if (left + menuWidth + padding > window.innerWidth) {
             left = Math.max(padding, window.innerWidth - menuWidth - padding);
         }
 
         let top = rect.bottom;
-        // if menu would overflow bottom, show above the button
         if (top + menuHeight + padding > window.innerHeight) {
             top = Math.max(padding, rect.top - menuHeight);
         }
@@ -242,13 +237,11 @@ const FacultyAccounts = () => {
         setEditFormData({});
     };
 
-    // Handle edit form change
     const handleEditInputChange = (e) => {
         const { name, value } = e.target;
         setEditFormData(prev => ({ ...prev, [name]: value }));
     };
 
-    // Save edited faculty
     const handleSaveEdit = async (userId) => {
         setLoading(true);
         setError('');
@@ -266,7 +259,7 @@ const FacultyAccounts = () => {
             const data = await response.json();
 
             if (data.success) {
-                await fetchFaculties(); // Refresh the list
+                await fetchFaculties(); 
                 setEditingRow(null);
                 setEditFormData({});
                 alert('Faculty updated successfully!');
@@ -281,7 +274,6 @@ const FacultyAccounts = () => {
         }
     };
 
-    // Delete faculty
     const handleDelete = async (faculty) => {
         if (! window.confirm(`Are you sure you want to delete ${faculty.name}?`)) {
             return;
@@ -302,7 +294,7 @@ const FacultyAccounts = () => {
             const data = await response.json();
 
             if (data.success) {
-                await fetchFaculties(); // Refresh the list
+                await fetchFaculties(); 
                 alert('Faculty deleted successfully!');
             } else {
                 setError(data.message || 'Failed to delete faculty');
@@ -318,7 +310,6 @@ const FacultyAccounts = () => {
 
     return (
         <div style={styles.container}>
-            {/* Error Message */}
             {error && (
                 <div style={styles.errorBanner}>
                     <span>{error}</span>
@@ -326,7 +317,6 @@ const FacultyAccounts = () => {
                 </div>
             )}
 
-            {/* Filters & Search */}
             <div style={styles.controlsRow}>
                 <div style={styles.searchWrapper}>
                     <Search sx={{ color: '#94a3b8', fontSize: 22 }} />
@@ -381,7 +371,6 @@ const FacultyAccounts = () => {
                 </div>
             </div>
 
-            {/* Faculty List Table */}
             <div style={styles.tableCard}>
                 {loading && <div style={styles.loadingOverlay}>Loading... </div>}
                 
@@ -408,7 +397,6 @@ const FacultyAccounts = () => {
                                 currentData. map((faculty) => (
                                     <tr key={faculty.user_id} style={styles.trBody}>
                                         {editingRow === faculty.user_id ? (
-                                            // Edit Mode
                                             <>
                                                 <td style={styles.td}>
                                                     <input
@@ -482,7 +470,6 @@ const FacultyAccounts = () => {
                                                 </td>
                                             </>
                                         ) : (
-                                            // View Mode
                                             <>
                                                 <td style={styles.td}>
                                                     <div style={styles.profileCell}>
@@ -538,7 +525,6 @@ const FacultyAccounts = () => {
                     </table>
                 </div>
 
-                {/* Pagination Footer */}
                 <div style={styles.paginationWrapper}>
                     <div style={styles.showingText}>
                         Showing {startIndex + 1}-{Math.min(endIndex, filteredData.length)} of {filteredData.length} faculty members
@@ -562,7 +548,6 @@ const FacultyAccounts = () => {
                 </div>
             </div>
 
-                {/* Portal Action Menu (renders fixed so it doesn't affect table layout) */}
                 {activeMenu && menuFaculty && menuCoords && (
                     <div
                         className="action-menu-portal"
@@ -580,8 +565,6 @@ const FacultyAccounts = () => {
                                 setMenuCoords(null);
                                 setMenuFaculty(null);
                             }}
-                            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8fafc'}
-                            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                         >
                             <Edit sx={{ fontSize: 16 }} />
                             <span>Edit</span>
@@ -594,8 +577,6 @@ const FacultyAccounts = () => {
                                 setMenuCoords(null);
                                 setMenuFaculty(null);
                             }}
-                            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#fef2f2'}
-                            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                         >
                             <Delete sx={{ fontSize: 16 }} />
                             <span>Delete</span>
@@ -603,7 +584,6 @@ const FacultyAccounts = () => {
                     </div>
                 )}
 
-                {/* Add Faculty Modal */}
             {isModalOpen && (
                 <div style={styles.modalOverlay} onClick={closeModal}>
                     <div style={styles.modalContent} onClick={(e) => e.stopPropagation()}>
@@ -636,7 +616,7 @@ const FacultyAccounts = () => {
                                         name="designation"
                                         value={formData.designation}
                                         onChange={handleInputChange}
-                                        placeholder="e.g., Professor, Lecturer"
+                                        placeholder="e.g., Professor"
                                         style={styles.input}
                                         required
                                     />
@@ -697,19 +677,10 @@ const FacultyAccounts = () => {
                             </div>
 
                             <div style={styles.modalFooter}>
-                                <button 
-                                    type="button" 
-                                    style={styles.cancelBtnModal} 
-                                    onClick={closeModal}
-                                    disabled={loading}
-                                >
+                                <button type="button" style={styles.cancelBtnModal} onClick={closeModal}>
                                     Cancel
                                 </button>
-                                <button 
-                                    type="submit" 
-                                    style={styles.submitBtn}
-                                    disabled={loading}
-                                >
+                                <button type="submit" style={styles.submitBtn} disabled={loading}>
                                     {loading ? 'Adding...' : 'Add Faculty'}
                                 </button>
                             </div>
@@ -721,517 +692,72 @@ const FacultyAccounts = () => {
     );
 };
 
-// --- Styles ---
 const styles = {
-    container: { 
-        padding: '0', 
-        width: '100%', 
-        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-        position: 'relative'
-    },
-    errorBanner: {
-        backgroundColor: '#fee2e2',
-        color:  '#991b1b',
-        padding:  '12px 16px',
-        borderRadius: '8px',
-        marginBottom: '20px',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        fontSize: '14px'
-    },
-    errorClose: {
-        background: 'none',
-        border: 'none',
-        fontSize: '24px',
-        color: '#991b1b',
-        cursor: 'pointer',
-        padding: '0 8px'
-    },
-    loadingOverlay: {
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: 'rgba(255, 255, 255, 0.8)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 10,
-        fontSize: '16px',
-        fontWeight: '600',
-        color: '#3b82f6'
-    },
-    controlsRow: { 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center', 
-        marginBottom: '20px', 
-        gap: '16px', 
-        flexWrap: 'wrap' 
-    },
-    searchWrapper: { 
-        display: 'flex', 
-        alignItems: 'center', 
-        gap: '12px', 
-        backgroundColor: '#ffffff', 
-        border: '1px solid #e2e8f0', 
-        borderRadius: '8px', 
-        padding: '10px 16px', 
-        flex: 1, 
-        minWidth: '250px', 
-        boxShadow: '0 1px 2px rgba(0,0,0,0.05)' 
-    },
-    searchInput: { 
-        border: 'none', 
-        outline: 'none', 
-        fontSize: '14px', 
-        width: '100%', 
-        color: '#1e293b', 
-        background: 'transparent' 
-    },
-    filtersGroup: { 
-        display: 'flex', 
-        gap: '12px', 
-        flexWrap: 'wrap' 
-    },
-    selectWrapper: { 
-        position: 'relative', 
-        minWidth: '150px' 
-    },
-    select: { 
-        appearance: 'none', 
-        backgroundColor: '#ffffff', 
-        border: '1px solid #e2e8f0', 
-        color: '#64748b', 
-        padding: '10px 40px 10px 16px', 
-        borderRadius:  '8px', 
-        fontSize: '14px', 
-        fontWeight: '500', 
-        cursor: 'pointer', 
-        width: '100%', 
-        outline: 'none' 
-    },
-    selectArrow: { 
-        position:  'absolute', 
-        right: '12px', 
-        top: '50%', 
-        transform:  'translateY(-50%)', 
-        pointerEvents: 'none', 
-        color: '#64748b' 
-    },
-    addBtn: { 
-        display: 'flex', 
-        alignItems: 'center', 
-        gap: '8px', 
-        backgroundColor: '#3b82f6', 
-        color: '#ffffff', 
-        border: 'none', 
-        padding: '10px 20px', 
-        borderRadius:  '8px', 
-        fontSize: '14px', 
-        fontWeight: '600', 
-        cursor: 'pointer', 
-        boxShadow: '0 1px 2px rgba(0,0,0,0.05)', 
-        whiteSpace: 'nowrap' 
-    },
-    tableCard: { 
-        backgroundColor: '#ffffff', 
-        borderRadius: '12px', 
-        border: '1px solid #e2e8f0', 
-        overflow: 'visible',
-        boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
-        position: 'relative'
-    },
-    tableWrapper: { 
-        overflowX: 'auto',
-        overflowY: 'visible'
-    },
-    table:  { 
-        width: '100%', 
-        borderCollapse: 'collapse', 
-        textAlign: 'left', 
-        minWidth: '800px' 
-    },
-    trHead: { 
-        backgroundColor: '#f8fafc', 
-        borderBottom: '1px solid #e2e8f0' 
-    },
-    th: { 
-        padding: '16px 24px', 
-        fontSize: '12px', 
-        fontWeight:  '600', 
-        color: '#64748b', 
-        textTransform: 'uppercase', 
-        letterSpacing: '0.5px', 
-        whiteSpace: 'nowrap' 
-    },
-    trBody: { 
-        borderBottom: '1px solid #f1f5f9' 
-    },
-    td: { 
-        padding: '16px 24px', 
-        fontSize: '14px', 
-        color:  '#334155',
-        position: 'relative'
-    },
-    profileCell: { 
-        display: 'flex', 
-        alignItems: 'center', 
-        gap: '12px' 
-    },
-    avatar: { 
-        width:  '40px', 
-        height: '40px', 
-        borderRadius: '50%', 
-        backgroundColor: '#e0e7ff', 
-        color: '#4f46e5', 
-        display: 'flex', 
-        alignItems: 'center', 
-        justifyContent: 'center', 
-        fontWeight: '700', 
-        fontSize: '16px', 
-        flexShrink: 0 
-    },
-    nameText:  { 
-        fontWeight: '600', 
-        color: '#0f172a' 
-    },
-    idText: { 
-        fontSize: '12px', 
-        color: '#94a3b8', 
-        marginTop: '2px' 
-    },
-    deptText: { 
-        fontWeight: '500', 
-        color: '#1e293b' 
-    },
-    roleText: { 
-        fontSize: '12px', 
-        color: '#64748b', 
-        marginTop: '2px' 
-    },
-    contactRow: { 
-        display: 'flex', 
-        alignItems: 'center', 
-        gap: '8px', 
-        fontSize: '13px', 
-        color: '#475569' 
-    },
-    statusActive: { 
-        backgroundColor: '#16A34A', 
-        color:  'white', 
-        padding:  '4px 12px', 
-        borderRadius:  '20px', 
-        fontSize: '12px', 
-        fontWeight:  '600', 
-        display: 'inline-block' 
-    },
-    statusOnLeave: { 
-        backgroundColor:  '#F59E0B', 
-        color: 'black', 
-        padding: '4px 12px', 
-        borderRadius: '20px', 
-        fontSize: '12px', 
-        fontWeight: '600', 
-        display: 'inline-block' 
-    },
-    statusInactive: { 
-        backgroundColor: '#f1f5f9', 
-        color: '#475569', 
-        padding: '4px 12px', 
-        borderRadius: '20px', 
-        fontSize: '12px', 
-        fontWeight: '600', 
-        display: 'inline-block' 
-    },
-    actionBtnsGroup: { 
-        position: 'relative', 
-        display: 'flex', 
-        gap: '8px', 
-        alignItems: 'center' 
-    },
-    actionBtn: { 
-        background: 'none', 
-        border:  'none', 
-        cursor: 'pointer', 
-        padding: '4px', 
-        borderRadius: '4px', 
-        display: 'flex', 
-        alignItems: 'center', 
-        justifyContent: 'center' 
-    },
-    actionMenu: { 
-        position: 'absolute', 
-        right: '0', 
-        top: '100%', 
-        marginTop: '4px',
-        backgroundColor: '#ffffff', 
-        border: '1px solid #e2e8f0', 
-        borderRadius: '8px', 
-        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
-        zIndex: 100,
-        minWidth: '140px',
-        overflow: 'hidden',
-        whiteSpace: 'nowrap'
-    },
-    actionMenuPortal: {
-        position: 'fixed',
-        backgroundColor: '#ffffff',
-        border: '1px solid #e2e8f0',
-        borderRadius: '8px',
-        boxShadow: '0 8px 20px rgba(2,6,23,0.2)',
-        zIndex: 3000,
-        minWidth: '140px',
-        overflow: 'hidden',
-        whiteSpace: 'nowrap'
-    },
-    menuItem: {
-        display: 'flex',
-        alignItems: 'center',
-        gap: '8px',
-        width: '100%',
-        padding: '10px 16px',
-        border: 'none',
-        background: 'transparent',
-        cursor: 'pointer',
-        fontSize: '14px',
-        color: '#334155',
-        textAlign: 'left',
-        transition: 'background-color 0.15s'
-    },
-    menuItemDelete: {
-        display: 'flex',
-        alignItems: 'center',
-        gap: '8px',
-        width: '100%',
-        padding: '10px 16px',
-        border: 'none',
-        background: 'transparent',
-        cursor: 'pointer',
-        fontSize: '14px',
-        color: '#ef4444',
-        textAlign:  'left',
-        transition:  'background-color 0.15s',
-        borderTop: '1px solid #f1f5f9'
-    },
-    inlineInput: {
-        width: '100%',
-        padding: '6px 10px',
-        border: '1px solid #e2e8f0',
-        borderRadius:  '6px',
-        fontSize: '14px',
-        outline: 'none',
-        backgroundColor: '#ffffff'
-    },
-    inlineSelect: {
-        width:  '100%',
-        padding:  '6px 10px',
-        border: '1px solid #e2e8f0',
-        borderRadius: '6px',
-        fontSize: '14px',
-        outline: 'none',
-        backgroundColor: '#ffffff',
-        cursor: 'pointer'
-    },
-    saveBtn: {
-        backgroundColor: '#10b981',
-        color: '#ffffff',
-        border: 'none',
-        padding: '6px 12px',
-        borderRadius: '6px',
-        cursor: 'pointer',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center'
-    },
-    cancelBtnInline: {
-        backgroundColor: '#ef4444',
-        color:  '#ffffff',
-        border: 'none',
-        padding: '6px 12px',
-        borderRadius: '6px',
-        cursor: 'pointer',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center'
-    },
-    paginationWrapper: { 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center', 
-        padding: '16px 24px', 
-        borderTop: '1px solid #e2e8f0', 
-        backgroundColor: '#fafafa', 
-        flexWrap: 'wrap', 
-        gap: '12px' 
-    },
-    showingText: { 
-        fontSize: '14px', 
-        color: '#64748b' 
-    },
-    paginationControls: { 
-        display: 'flex', 
-        gap: '12px' 
-    },
-    pageBtn: { 
-        backgroundColor: '#ffffff', 
-        border: '1px solid #e2e8f0', 
-        color: '#334155', 
-        padding: '8px 16px', 
-        borderRadius: '6px', 
-        fontSize: '14px', 
-        fontWeight: '500', 
-        cursor: 'pointer' 
-    },
-    pageBtnDisabled: { 
-        opacity: 0.5, 
-        cursor: 'not-allowed' 
-    },
+    container: { padding: '0', width: '100%', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif', position: 'relative' },
+    errorBanner: { backgroundColor: '#fee2e2', color:  '#991b1b', padding:  '12px 16px', borderRadius: '8px', marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '14px' },
+    errorClose: { background: 'none', border: 'none', fontSize: '24px', color: '#991b1b', cursor: 'pointer', padding: '0 8px' },
+    loadingOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(255, 255, 255, 0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10, fontSize: '16px', fontWeight: '600', color: '#3b82f6' },
+    controlsRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', gap: '16px', flexWrap: 'wrap' },
+    searchWrapper: { display: 'flex', alignItems: 'center', gap: '12px', backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '10px 16px', flex: 1, minWidth: '250px', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' },
+    searchInput: { border: 'none', outline: 'none', fontSize: '14px', width: '100%', color: '#1e293b', background: 'transparent' },
+    filtersGroup: { display: 'flex', gap: '12px', flexWrap: 'wrap' },
+    selectWrapper: { position: 'relative', minWidth: '150px' },
+    select: { appearance: 'none', backgroundColor: '#ffffff', border: '1px solid #e2e8f0', color: '#64748b', padding: '10px 40px 10px 16px', borderRadius:  '8px', fontSize: '14px', fontWeight: '500', cursor: 'pointer', width: '100%', outline: 'none' },
+    selectArrow: { position:  'absolute', right: '12px', top: '50%', transform:  'translateY(-50%)', pointerEvents: 'none', color: '#64748b' },
+    addBtn: { display: 'flex', alignItems: 'center', gap: '8px', backgroundColor: '#3b82f6', color: '#ffffff', border: 'none', padding: '10px 20px', borderRadius:  '8px', fontSize: '14px', fontWeight: '600', cursor: 'pointer', boxShadow: '0 1px 2px rgba(0,0,0,0.05)', whiteSpace: 'nowrap' },
+    tableCard: { backgroundColor: '#ffffff', borderRadius: '12px', border: '1px solid #e2e8f0', overflow: 'visible', boxShadow: '0 1px 3px rgba(0,0,0,0.02)', position: 'relative' },
+    tableWrapper: { overflowX: 'auto', overflowY: 'visible' },
+    table:  { width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '800px' },
+    trHead: { backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0' },
+    th: { padding: '16px 24px', fontSize: '12px', fontWeight:  '600', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px', whiteSpace: 'nowrap' },
+    trBody: { borderBottom: '1px solid #f1f5f9' },
+    td: { padding: '16px 24px', fontSize: '14px', color:  '#334155', position: 'relative' },
+    profileCell: { display: 'flex', alignItems: 'center', gap: '12px' },
+    avatar: { width:  '40px', height: '40px', borderRadius: '50%', backgroundColor: '#e0e7ff', color: '#4f46e5', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '700', fontSize: '16px', flexShrink: 0 },
+    nameText:  { fontWeight: '600', color: '#0f172a' },
+    idText: { fontSize: '12px', color: '#94a3b8', marginTop: '2px' },
+    deptText: { fontWeight: '500', color: '#1e293b' },
+    roleText: { fontSize: '12px', color: '#64748b', marginTop: '2px' },
+    contactRow: { display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: '#475569' },
+    statusActive: { backgroundColor: '#16A34A', color:  'white', padding:  '4px 12px', borderRadius:  '20px', fontSize: '12px', fontWeight:  '600', display: 'inline-block' },
+    statusOnLeave: { backgroundColor:  '#F59E0B', color: 'black', padding: '4px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: '600', display: 'inline-block' },
+    statusInactive: { backgroundColor: '#f1f5f9', color: '#475569', padding: '4px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: '600', display: 'inline-block' },
+    actionBtnsGroup: { position: 'relative', display: 'flex', gap: '8px', alignItems: 'center' },
+    actionBtn: { background: 'none', border:  'none', cursor: 'pointer', padding: '4px', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center' },
+    actionMenuPortal: { position: 'fixed', backgroundColor: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '8px', boxShadow: '0 8px 20px rgba(2,6,23,0.2)', zIndex: 3000, minWidth: '140px', overflow: 'hidden' },
+    menuItem: { display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '10px 16px', border: 'none', background: 'transparent', cursor: 'pointer', fontSize: '14px', color: '#334155' },
+    menuItemDelete: { display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '10px 16px', border: 'none', background: 'transparent', cursor: 'pointer', fontSize: '14px', color: '#ef4444', borderTop: '1px solid #f1f5f9' },
+    inlineInput: { width: '100%', padding: '6px 10px', border: '1px solid #e2e8f0', borderRadius:  '6px', fontSize: '14px', outline: 'none' },
+    inlineSelect: { width:  '100%', padding:  '6px 10px', border: '1px solid #e2e8f0', borderRadius: '6px', fontSize: '14px', outline: 'none' },
+    saveBtn: { backgroundColor: '#10b981', color: '#ffffff', border: 'none', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer' },
+    cancelBtnInline: { backgroundColor: '#ef4444', color:  '#ffffff', border: 'none', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer' },
+    paginationWrapper: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px', borderTop: '1px solid #e2e8f0', backgroundColor: '#fafafa', flexWrap: 'wrap', gap: '12px' },
+    showingText: { fontSize: '14px', color: '#64748b' },
+    paginationControls: { display: 'flex', gap: '12px' },
+    pageBtn: { backgroundColor: '#ffffff', border: '1px solid #e2e8f0', color: '#334155', padding: '8px 16px', borderRadius: '6px', fontSize: '14px', fontWeight: '500', cursor: 'pointer' },
+    pageBtnDisabled: { opacity: 0.5, cursor: 'not-allowed' },
     
-    // Modal Styles
-    modalOverlay: { 
-        position: 'fixed', 
-        top: 0, 
-        left: 0, 
-        right: 0, 
-        bottom: 0, 
-        backgroundColor: 'rgba(0, 0, 0, 0.5)', 
-        display: 'flex', 
-        alignItems: 'center', 
-        justifyContent: 'center', 
-        zIndex: 1000, 
-        padding: '20px' 
-    },
-    modalContent: { 
-        backgroundColor: '#ffffff', 
-        borderRadius: '12px', 
-        width: '100%', 
-        maxWidth:  '600px', 
-        maxHeight:  '90vh', 
-        overflowY: 'auto', 
-        boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)' 
-    },
-    modalHeader: { 
-        display:  'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center', 
-        padding: '24px', 
-        borderBottom: '1px solid #e2e8f0' 
-    },
-    modalTitle: { 
-        fontSize: '20px', 
-        fontWeight:  '700', 
-        color: '#0f172a', 
-        margin: 0 
-    },
-    closeBtn: { 
-        background:  'none', 
-        border: 'none', 
-        cursor: 'pointer', 
-        padding: '4px', 
-        borderRadius: '4px', 
-        display: 'flex', 
-        alignItems: 'center', 
-        justifyContent: 'center' 
-    },
-    form: { 
-        padding: '24px' 
-    },
+    // Updated Responsive Modal Styles
+    modalOverlay: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0, 0, 0, 0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '12px' },
+    modalContent: { backgroundColor: '#ffffff', borderRadius: '12px', width: '100%', maxWidth:  '600px', maxHeight:  '95vh', overflowY: 'auto', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)' },
+    modalHeader: { display:  'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 24px', borderBottom: '1px solid #e2e8f0' },
+    modalTitle: { fontSize: '18px', fontWeight:  '700', color: '#0f172a', margin: 0 },
+    closeBtn: { background:  'none', border: 'none', cursor: 'pointer', padding: '4px' },
+    form: { padding: '24px' },
     formGrid: { 
         display: 'grid', 
-        gridTemplateColumns: '1fr 1fr', 
-        gap: '20px', 
-        marginBottom: '20px' 
+        // Logic: Switch from 2 columns to 1 column if width is under ~500px
+        gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', 
+        gap: '0 20px', 
+        marginBottom: '0' 
     },
-    formGroup: { 
-        display: 'flex', 
-        flexDirection: 'column', 
-        gap: '8px', 
-        marginBottom: '20px' 
-    },
-    label: { 
-        fontSize:  '14px', 
-        fontWeight: '600', 
-        color: '#334155' 
-    },
-    input: { 
-        padding:  '10px 16px', 
-        border: '1px solid #e2e8f0', 
-        borderRadius: '8px', 
-        fontSize: '14px', 
-        color: '#1e293b', 
-        outline: 'none', 
-        transition: 'border-color 0.2s' 
-    },
-    selectModal: { 
-        appearance: 'none', 
-        backgroundColor: '#ffffff', 
-        border: '1px solid #e2e8f0', 
-        color: '#1e293b', 
-        padding: '10px 40px 10px 16px', 
-        borderRadius: '8px', 
-        fontSize: '14px', 
-        cursor: 'pointer', 
-        width: '100%', 
-        outline: 'none' 
-    },
-    uploadArea: { 
-        border: '2px dashed #e2e8f0', 
-        borderRadius: '8px', 
-        padding: '24px', 
-        textAlign:  'center', 
-        backgroundColor: '#f8fafc', 
-        transition: 'border-color 0.2s' 
-    },
-    fileInput: { 
-        display:  'none' 
-    },
-    uploadLabel: { 
-        display: 'flex', 
-        flexDirection: 'column', 
-        alignItems: 'center', 
-        cursor: 'pointer' 
-    },
-    uploadText: { 
-        fontSize: '14px', 
-        color:  '#64748b', 
-        fontWeight: '500', 
-        marginBottom: '4px' 
-    },
-    uploadSubtext: { 
-        fontSize: '12px', 
-        color:  '#94a3b8' 
-    },
-    modalFooter: { 
-        display:  'flex', 
-        justifyContent: 'flex-end', 
-        gap:  '12px', 
-        marginTop: '24px', 
-        paddingTop: '24px', 
-        borderTop:  '1px solid #e2e8f0' 
-    },
-    cancelBtnModal: { 
-        padding: '10px 20px', 
-        border: '1px solid #e2e8f0', 
-        borderRadius: '8px', 
-        fontSize: '14px', 
-        fontWeight: '600', 
-        color: '#64748b', 
-        backgroundColor: '#ffffff', 
-        cursor: 'pointer' 
-    },
-    submitBtn: { 
-        padding: '10px 20px', 
-        border: 'none', 
-        borderRadius: '8px', 
-        fontSize: '14px', 
-        fontWeight: '600', 
-        color: '#ffffff', 
-        backgroundColor: '#3b82f6', 
-        cursor: 'pointer' 
-    }
+    formGroup: { display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '20px' },
+    label: { fontSize:  '13px', fontWeight: '600', color: '#334155' },
+    input: { padding:  '10px 16px', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '14px', outline: 'none' },
+    selectModal: { appearance: 'none', backgroundColor: '#ffffff', border: '1px solid #e2e8f0', color: '#1e293b', padding: '10px 40px 10px 16px', borderRadius: '8px', fontSize: '14px', cursor: 'pointer', width: '100%', outline: 'none' },
+    modalFooter: { display:  'flex', justifyContent: 'flex-end', gap:  '12px', marginTop: '10px', paddingTop: '20px', borderTop:  '1px solid #e2e8f0' },
+    cancelBtnModal: { padding: '10px 20px', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '14px', fontWeight: '600', color: '#64748b', backgroundColor: '#ffffff', cursor: 'pointer' },
+    submitBtn: { padding: '10px 20px', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: '600', color: '#ffffff', backgroundColor: '#3b82f6', cursor: 'pointer' }
 };
 
 export default FacultyAccounts;

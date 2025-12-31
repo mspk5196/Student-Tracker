@@ -97,19 +97,19 @@ const Ranking = ({ studentId }) => {
     page: {
       fontFamily: 'Inter, system-ui, sans-serif',
       backgroundColor: '#F8FAFF',
-      padding: isMobile ? '10px' : '20px',
+      padding: '15px',
       display: 'flex',
       flexDirection: isMobile ? 'column' : 'row',
-      gap: isMobile ? '20px' : '35px',
+      gap: '35px',
       minHeight: '100vh',
       color: '#1e293b',
-      borderRadius: '10px'
+      borderRadius:'10px'
     },
     leftSection: {
       flex: 2,
       backgroundColor: '#fff',
       borderRadius: '16px',
-      padding: isMobile ? '15px' : '32px',
+      padding: isMobile ? '20px' : '32px',
       boxShadow: '0 4px 20px rgba(0,0,0,0.03)',
       border: '1px solid #f1f5f9',
     },
@@ -122,30 +122,28 @@ const Ranking = ({ studentId }) => {
     workshopScroll: {
       overflowY: 'auto',
       maxHeight: isMobile ? 'none' : '85vh',
-      paddingRight: isMobile ? '0' : '10px',
+      paddingRight: '10px',
     },
     headerRow: {
       display: 'flex',
       justifyContent: 'space-between',
       alignItems: 'center',
-      marginBottom: isMobile ? '20px' : '30px',
-      gap: '10px'
+      marginBottom: '30px',
     },
-    title: { fontSize: isMobile ? '18px' : '22px', fontWeight: '800', color: '#1e3a8a', margin: 0, lineHeight: 1.2 },
-    subtitle: { fontSize: isMobile ? '12px' : '13px', color: '#94a3b8', marginTop: '6px' },
+    title: { fontSize: isMobile ? '18px' : '22px', fontWeight: '800', color: '#1e3a8a', margin: 0 },
+    subtitle: { fontSize: '13px', color: '#94a3b8', marginTop: '6px' },
     globalToggle: {
-      minWidth: '40px',
+      width: '40px',
       height: '20px',
       backgroundColor: '#2563eb',
       borderRadius: '20px',
       border: 'none',
       cursor: 'pointer',
-      flexShrink: 0
     },
     tableHead: {
       display: 'grid',
-      gridTemplateColumns: isMobile ? '40px 1fr 80px' : '50px 1fr 100px',
-      padding: '0 10px',
+      gridTemplateColumns: '50px 1fr 100px',
+      padding: '0 15px',
       marginBottom: '15px',
       fontSize: '11px',
       fontWeight: '800',
@@ -154,9 +152,9 @@ const Ranking = ({ studentId }) => {
     },
     listRow: (isMe) => ({
       display: 'grid',
-      gridTemplateColumns: isMobile ? '40px 1fr 80px' : '50px 1fr 100px',
+      gridTemplateColumns: '50px 1fr 100px',
       alignItems: 'center',
-      padding: isMobile ? '10px' : '12px 15px',
+      padding: '12px 15px',
       borderRadius: '12px',
       backgroundColor: isMe ? '#2563eb' : 'transparent',
       color: isMe ? '#fff' : '#1e293b',
@@ -164,24 +162,24 @@ const Ranking = ({ studentId }) => {
       transition: 'background 0.2s',
     }),
     rankNum: (rank) => ({
-      width: isMobile ? '24px' : '28px',
-      height: isMobile ? '24px' : '28px',
+      width: '28px',
+      height: '28px',
       borderRadius: '50%',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      fontSize: '11px',
+      fontSize: '12px',
       fontWeight: '800',
       backgroundColor: 
         rank === 1 ? '#fef3c7' : rank === 2 ? '#f1f5f9' : rank === 3 ? '#ffedd5' : 'transparent',
       color: rank === 1 ? '#a16207' : rank === 2 ? '#475569' : rank === 3 ? '#9a3412' : 'inherit',
     }),
     avatarWrapper: {
-      width: isMobile ? '26px' : '30px',
-      height: isMobile ? '26px' : '30px',
+      width: '30px',
+      height: '30px',
       borderRadius: '50%',
       overflow: 'hidden',
-      marginRight: isMobile ? '8px' : '12px',
+      marginRight: '12px',
       flexShrink: 0,
     },
     avatarImg: { width: '100%', height: '100%', objectFit: 'cover' },
@@ -193,7 +191,7 @@ const Ranking = ({ studentId }) => {
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      fontSize: '10px',
+      fontSize: '11px',
       fontWeight: '700',
     },
     card: (active) => ({
@@ -211,7 +209,6 @@ const Ranking = ({ studentId }) => {
       fontWeight: '800',
       color: active ? '#fff' : '#2563eb',
       margin: '0 0 4px 0',
-      paddingRight: '20px'
     }),
     cardStatus: (active) => ({
       fontSize: '11px',
@@ -248,7 +245,7 @@ const Ranking = ({ studentId }) => {
         <div style={styles.headerRow}>
           <div>
             <h2 style={styles.title}>{currentTitle}</h2>
-            <p style={styles.subtitle}>Activity points for this category</p>
+            <p style={styles.subtitle}>Accumulated activity points for this category</p>
           </div>
           {selectedSkill !== 'global' && (
             <button
@@ -265,7 +262,7 @@ const Ranking = ({ studentId }) => {
           <span style={{ textAlign: 'right' }}>POINTS</span>
         </div>
 
-        <div style={{ minWidth: 0 }}>
+        <div>
           {leaderboardData.map((student) => {
             const isMe = student.id === studentId;
             const pointsValue = student.points[selectedSkill] || 0;
@@ -285,7 +282,7 @@ const Ranking = ({ studentId }) => {
                   <span
                     style={{
                       fontWeight: '600',
-                      fontSize: isMobile ? '12px' : '13px',
+                      fontSize: '13px',
                       whiteSpace: 'nowrap',
                       textOverflow: 'ellipsis',
                       overflow: 'hidden',
@@ -294,7 +291,7 @@ const Ranking = ({ studentId }) => {
                     {student.name}
                   </span>
                 </div>
-                <div style={{ textAlign: 'right', fontWeight: '800', fontSize: isMobile ? '13px' : '14px' }}>
+                <div style={{ textAlign: 'right', fontWeight: '800', fontSize: '14px' }}>
                   {pointsValue.toLocaleString()}
                 </div>
               </div>
@@ -305,7 +302,7 @@ const Ranking = ({ studentId }) => {
 
       {/* RIGHT: Standings Sidebar */}
       <div style={styles.rightSection}>
-        <h3 style={{ fontSize: '15px', fontWeight: '800', margin: isMobile ? '10px 0 5px 0' : '0 0 10px 0' }}>
+        <h3 style={{ fontSize: '15px', fontWeight: '800', margin: isMobile ? '10px 0' : '0 0 10px 0' }}>
           Workshop Standings
         </h3>
         <div style={styles.workshopScroll} className="custom-scrollbar">
@@ -338,7 +335,7 @@ const Ranking = ({ studentId }) => {
                   <StarIcon color={isAct ? '#fff' : '#94a3b8'} />
                   {myPts} Pts
                 </div>
-                {isAct && !isMobile && (
+                {isAct && (
                   <div style={{ position: 'absolute', top: '15px', right: '15px', opacity: 0.4 }}>
                     <GraphIcon />
                   </div>

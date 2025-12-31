@@ -107,14 +107,22 @@ import SideTab from "../components/TabRouter/SideTab";
 // Pages
 import Login from "../pages/LoginPage/Login";
 
+
 // Super Admin Pages
+//Super Admin -> Dashboard
 import AdminDashboard from "../pages/SuperAdmin/DashboardPanal/Dashboard";
+//Super Admin -> Faculty & Accounts
 import FacultyAccounts from "../pages/SuperAdmin/Faculty&Accounts/Faculty&Accounts";
+//Super Admin -> Attendance
 import Attendance from "../pages/SuperAdmin/AttendancePage/Attendance";
+//Super Admin -> Classes & Groups
 import GroupsClasses from "../pages/SuperAdmin/Classes&Groups/Classes&Groups";
+//Super Admin -> Reports & Analytics
 import ReportsAnalytics from "../pages/SuperAdmin/Reports&Analytics/Reporst&analytics";
+//Super Admin -> Students
 import StudentHeader from "../pages/SuperAdmin/studentsPage/studentHeader/StudentHeader";
 import StudentPage from "../pages/SuperAdmin/studentsPage/AllStudents/studentsPage";
+//Super Admin -> Task & Assignments
 import TaskHeader from "../pages/SuperAdmin/Task&Assignments/TaskHeader/TaskHeader";
 
 // Faculty Pages
@@ -124,6 +132,8 @@ import MyClasses from "../pages/Faculty/Class&Group/MyClasses/MyClasses";
 import AllClasses from "../pages/Faculty/Class&Group/AllClasses/AllClasses";
 import StudentsPage from "../pages/SuperAdmin/studentsPage/AllStudents/studentsPage";
 import Reports from "../pages/Faculty/Reports&Analytics/Reporst&analytics";
+import ClassDetails from "../pages/SuperAdmin/Classes&Groups/ClassDetails/ClassDetails";
+
 
 const AppNavigator = () => {
   const user = useAuthStore((s) => s.user);
@@ -142,7 +152,7 @@ const AppNavigator = () => {
           <Route path="/" element={<SideTab />}>
             <Route index element={<AdminDashboard />} />
             <Route path="faculty" element={<FacultyAccounts />} />
-            <Route path="classes" element={<GroupsClasses />} />
+            <Route path="classes" element={<GroupsClasses />} />  {/* change to  GroupsClasses */}
             <Route path="students">
               <Route index element={<StudentsPage />} />
               <Route path=":studentId" element={<StudentHeader />} />
@@ -158,6 +168,10 @@ const AppNavigator = () => {
         {user?.role === "faculty" && (
           <Route path="/" element={<SideTab />}>
             <Route index element={<FacultyDashboard />} />
+            <Route path="students">
+              <Route index element={<StudentsPage />} />
+              <Route path=":studentId" element={<StudentHeader />} />
+            </Route>
             <Route path="classes" element={<ClassHeader />}>
               <Route index element={<MyClasses />} />
               <Route path="all" element={<AllClasses />} />

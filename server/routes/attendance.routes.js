@@ -29,7 +29,7 @@ import {
   saveAttendance,
   getLateStudents,
   getStudentAttendanceHistory,
-  getStudentAttendanceDashboard  // NEW
+  getStudentAttendanceDashboard
 } from '../controllers/attendance.controller.js';
 import { authenticate } from '../middleware/auth.middleware.js';
 
@@ -42,6 +42,6 @@ router.post('/session', authenticate, getOrCreateSession);
 router.post('/save', authenticate, saveAttendance);
 router.get('/late-students/:facultyId', authenticate, getLateStudents);
 router.get('/history/:studentId', authenticate, getStudentAttendanceHistory);
-router.get('/dashboard/:studentId', authenticate, getStudentAttendanceDashboard);  // NEW
+router.get('/dashboard/:studentId', authenticate, getStudentAttendanceDashboard);
 
 export default router;

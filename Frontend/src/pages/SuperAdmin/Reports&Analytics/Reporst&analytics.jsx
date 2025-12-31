@@ -785,7 +785,6 @@ const ReportsAnalytics = () => {
             font-family: 'Inter', sans-serif;
             background-color: #f8fafc;
             min-height: 100vh;
-            padding: 2px;
             color: #1e293b;
             }
 
@@ -797,8 +796,21 @@ const ReportsAnalytics = () => {
             margin-bottom: 32px;
             }
 
-            . stat-card {
-            background:  white;
+            @media (max-width: 1024px) {
+            .stats-grid {
+            grid-template-columns: repeat(2, 1fr);
+            }
+            }
+
+            @media (max-width: 640px) {
+            .stats-grid {
+            grid-template-columns: 1fr;
+            gap: 16px;
+            }
+            }
+
+            .stat-card {
+            background: white;
             padding: 24px;
             border-radius: 12px;
             border: 1px solid #e2e8f0;
@@ -831,6 +843,12 @@ const ReportsAnalytics = () => {
             gap: 16px;
             }
 
+            @media (max-width: 768px) {
+            .toolbar {
+            flex-direction: column;
+            }
+            }
+
             .filters { display: flex; gap: 12px; flex-wrap: wrap; }
 
             .btn-ui {
@@ -856,12 +874,20 @@ const ReportsAnalytics = () => {
              width: 320px;
             }
 
-           .search-box input {
-           width: 100%;
-             padding: 10px 10px 10px 42px;
-             border: 1px solid #e2e8f0;
-             border-radius: 8px;
-            font-size: 14px;             outline: none;             }
+            @media (max-width: 768px) {
+            .search-box {
+            width: 100%;
+            }
+            }
+
+            .search-box input {
+            width: 100%;
+            padding: 10px 10px 10px 42px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+            outline: none;
+            }
 
              .search-box input:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
 
@@ -882,7 +908,18 @@ const ReportsAnalytics = () => {
             overflow: hidden;
             }
 
+            @media (max-width: 768px) {
+            .table-wrap {
+            overflow-x: auto;
+            }
+            }
+
             table { width: 100%; border-collapse: collapse; }
+
+            @media (max-width: 768px) {
+            table { min-width: 800px; }
+            }
+
             th { 
             background: #fcfdfe; 
             padding: 16px 24px; 
@@ -969,6 +1006,13 @@ const ReportsAnalytics = () => {
             padding: 20px 24px;
             background: #fcfdfe;
             border-top: 1px solid #e2e8f0;
+            }
+
+            @media (max-width: 640px) {
+            .pagination-bar {
+            flex-direction: column;
+            gap: 16px;
+            }
             }
         `}</style>
 

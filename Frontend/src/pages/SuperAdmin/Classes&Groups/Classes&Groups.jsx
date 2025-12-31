@@ -893,18 +893,13 @@ const GroupsClasses = () => {
     setShowResultModal(true);
   };
 
-  // Fetch venues
   const fetchVenues = async () => {
     setLoading(true);
     setError('');
     try {
       const response = await fetch(`${API_URL}/groups/venues`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
       });
-
       const data = await response.json();
       if (data.success) {
         setVenues(data. data);
@@ -994,7 +989,7 @@ const GroupsClasses = () => {
 
   useEffect(() => {
     const handleClickOutside = (e) => {
-      if (menuRef.current && !menuRef. current.contains(e.target)) setActiveMenu(null);
+      if (menuRef.current && !menuRef.current.contains(e.target)) setActiveMenu(null);
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
@@ -1026,7 +1021,6 @@ const GroupsClasses = () => {
           'Content-Type': 'application/json'
         }
       });
-
       const data = await response.json();
       if (data.success) {
         await fetchVenues();
@@ -1054,7 +1048,6 @@ const GroupsClasses = () => {
         },
         body: JSON.stringify(editingVenue)
       });
-
       const data = await response.json();
       if (data.success) {
         await fetchVenues();
@@ -1124,16 +1117,12 @@ const GroupsClasses = () => {
     setLoading(true);
     const formData = new FormData();
     formData.append('file', selectedFile);
-
     try {
       const response = await fetch(`${API_URL}/groups/venues/${selectedVenue.venue_id}/bulk-upload`, {
         method: 'POST',
-        headers:  {
-          'Authorization': `Bearer ${token}`
-        },
+        headers: { 'Authorization': `Bearer ${token}` },
         body: formData
       });
-
       const data = await response.json();
       if (data.success) {
         setShowBulkUploadModal(false);
@@ -1202,7 +1191,6 @@ const GroupsClasses = () => {
           'Content-Type': 'application/json'
         }
       });
-
       const data = await response.json();
       if (data.success) {
         setVenueStudents(data.data);
@@ -1351,7 +1339,6 @@ const GroupsClasses = () => {
 
       <div style={s.tableCard}>
         {loading && <div style={s.loadingOverlay}>Loading...</div>}
-        
         <div style={s.tableWrapper}>
           <table style={s.table}>
             <thead>
@@ -1485,26 +1472,13 @@ const GroupsClasses = () => {
             </tbody>
           </table>
         </div>
-
         <div style={s.pagination}>
           <div style={s.paginationText}>
             Showing {startIdx + 1}-{Math.min(startIdx + itemsPerPage, filteredData. length)} of {filteredData.length} venues
           </div>
           <div style={s.paginationBtns}>
-            <button 
-              style={{... s.pageBtn, ...(currentPage === 1 ?  s.pageBtnDisabled : {})}} 
-              onClick={() => setCurrentPage(p => Math.max(1, p - 1))} 
-              disabled={currentPage === 1}
-            >
-              Previous
-            </button>
-            <button 
-              style={{...s.pageBtn, ...(currentPage === totalPages ? s.pageBtnDisabled : {})}} 
-              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} 
-              disabled={currentPage === totalPages}
-            >
-              Next
-            </button>
+            <button style={{...s.pageBtn, ...(currentPage === 1 ? s.pageBtnDisabled : {})}} onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}>Prev</button>
+            <button style={{...s.pageBtn, ...(currentPage === totalPages ? s.pageBtnDisabled : {})}} onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}>Next</button>
           </div>
         </div>
       </div>
@@ -1995,7 +1969,7 @@ const s = {
   tableWrapper: { overflowX: 'auto' },
   table: { width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '800px' },
   trHead: { backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0' },
-  th: { padding: '16px 24px', fontSize: '12px', fontWeight: '600', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px', whiteSpace: 'nowrap' },
+  th: { padding: '16px', fontSize: '12px', color: '#64748b', textAlign: 'left', textTransform: 'uppercase' },
   trBody: { borderBottom: '1px solid #f1f5f9' },
   td: { padding:  '16px 24px', fontSize: '14px', color: '#334155' },
   venueCell: { display: 'flex', flexDirection: 'column', gap:  '4px' },

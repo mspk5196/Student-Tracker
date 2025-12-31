@@ -565,16 +565,16 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import {
-  PlusCircle,
-  Search,
-  Filter,
-  RotateCw,
-  MoreHorizontal,
-  CloudUpload,
-  Send,
-  Calendar,
-  ChevronDown,
-  Link as LinkIcon
+    PlusCircle,
+    Search,
+    RotateCw,
+    MoreHorizontal,
+    CloudUpload,
+    Send,
+    Calendar,
+    ChevronDown,
+    Link as LinkIcon,
+    Filter // Assuming Filter icon exists or removing if not used
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import useAuthStore from '../../../../../store/useAuthStore';
@@ -582,16 +582,16 @@ import useAuthStore from '../../../../../store/useAuthStore';
 const AssignmentDashboard = ({ selectedVenueId, venueName, venues }) => {
   const navigate = useNavigate();
   const { token, user } = useAuthStore();
-  const API_URL = import. meta.env.VITE_API_URL;
+  const API_URL = import.meta.env.VITE_API_URL;
 
   const [assignments, setAssignments] = useState([]);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('Active');
   const [loading, setLoading] = useState(false);
-  
+
   /* -------- FORM STATE -------- */
   const [title, setTitle] = useState('');
-  const [group, setGroup] = useState('');
+  const [group, setGroup] = useState(''); // This will store venue_id for creation
   const [dueDate, setDueDate] = useState('');
   const [score, setScore] = useState(100);
   const [day, setDay] = useState(1);
@@ -607,11 +607,11 @@ const AssignmentDashboard = ({ selectedVenueId, venueName, venues }) => {
       if (!selectedVenueId) return;
 
       setLoading(true);
-      
+
       try {
         console.log('📋 Fetching assignments for venue:', selectedVenueId);
         const response = await fetch(
-          `${API_URL}/tasks/venue/${selectedVenueId}? status=${statusFilter}`,
+          `${API_URL}/tasks/venue/${selectedVenueId}?status=${statusFilter}`,
           {
             headers: {
               'Authorization': `Bearer ${token}`,
@@ -628,9 +628,9 @@ const AssignmentDashboard = ({ selectedVenueId, venueName, venues }) => {
             id: task.task_id,
             title: task.title,
             score: task.max_score,
-            group: task.venue_name,
+            group: task.venue_name, // Displaying venue_name here
             day: task.day,
-            dueDate: task.due_date ?  new Date(task.due_date).toISOString().split('T')[0] : '',
+            dueDate: task.due_date ? new Date(task.due_date).toISOString().split('T')[0] : '',
             status: task.status,
             totalSubmissions: task.total_submissions || 0,
             pendingSubmissions: task.pending_submissions || 0
@@ -662,7 +662,7 @@ const AssignmentDashboard = ({ selectedVenueId, venueName, venues }) => {
   /* -------- FORM ACTIONS -------- */
   const resetForm = () => {
     setTitle('');
-    setGroup('');
+    setGroup(''); // Reset group to empty
     setDueDate('');
     setScore(100);
     setDay(1);
@@ -673,8 +673,8 @@ const AssignmentDashboard = ({ selectedVenueId, venueName, venues }) => {
   };
 
   const publishAssignment = async () => {
-    if (!title || !group || !score) {
-      alert('Please fill required fields:  Title, Venue, and Max Score');
+    if (!title || !group || !score) { // 'group' now holds venue_id for creation
+      alert('Please fill required fields: Title, Venue, and Max Score');
       return;
     }
 
@@ -691,23 +691,23 @@ const AssignmentDashboard = ({ selectedVenueId, venueName, venues }) => {
     setLoading(true);
 
     const formData = new FormData();
-    formData.append('title', title. trim());
+    formData.append('title', title.trim());
     formData.append('description', description.trim());
-    formData.append('venue_id', group);
+    formData.append('venue_id', group); // Use 'group' (venue_id) for the API
     formData.append('faculty_id', user.user_id);
     formData.append('day', day);
     formData.append('due_date', dueDate);
     formData.append('max_score', score);
     formData.append('material_type', materialType);
-    
+
     if (materialType === 'link') {
       formData.append('external_url', externalUrl);
     } else {
-      files.forEach(file => formData. append('files', file));
+      files.forEach(file => formData.append('files', file));
     }
 
     try {
-      console.log('📤 Publishing assignment.. .');
+      console.log('📤 Publishing assignment...');
       const response = await fetch(`${API_URL}/tasks/create`, {
         method: 'POST',
         headers: {
@@ -720,9 +720,9 @@ const AssignmentDashboard = ({ selectedVenueId, venueName, venues }) => {
       console.log('✅ Publish response:', data);
 
       if (data.success) {
-        alert(`✅ Assignment Published!  ${data.data.students_count} students added.`);
+        alert(`✅ Assignment Published! ${data.data.students_count} students added.`);
         resetForm();
-        
+
         // Refresh assignments list
         const refreshResponse = await fetch(
           `${API_URL}/tasks/venue/${selectedVenueId}?status=${statusFilter}`,
@@ -733,17 +733,17 @@ const AssignmentDashboard = ({ selectedVenueId, venueName, venues }) => {
             }
           }
         );
-        
+
         const refreshData = await refreshResponse.json();
         if (refreshData.success) {
           const transformed = refreshData.data.map(task => ({
-            id:  task.task_id,
+            id: task.task_id,
             title: task.title,
             score: task.max_score,
             group: task.venue_name,
-            day: task. day,
-            dueDate:  task.due_date ? new Date(task.due_date).toISOString().split('T')[0] : '',
-            status:  task.status,
+            day: task.day,
+            dueDate: task.due_date ? new Date(task.due_date).toISOString().split('T')[0] : '',
+            status: task.status,
             totalSubmissions: task.total_submissions || 0,
             pendingSubmissions: task.pending_submissions || 0
           }));
@@ -763,7 +763,7 @@ const AssignmentDashboard = ({ selectedVenueId, venueName, venues }) => {
   /* -------- STATUS ACTION -------- */
   const toggleTaskStatus = async (id, currentStatus) => {
     const newStatus = currentStatus === 'Active' ? 'Inactive' : 'Active';
-    
+
     try {
       const response = await fetch(`${API_URL}/tasks/status/${id}`, {
         method: 'PUT',
@@ -775,7 +775,7 @@ const AssignmentDashboard = ({ selectedVenueId, venueName, venues }) => {
       });
 
       const data = await response.json();
-      
+
       if (data.success) {
         setAssignments(prev =>
           prev.map(a => a.id === id ? { ...a, status: newStatus } : a)
@@ -788,17 +788,17 @@ const AssignmentDashboard = ({ selectedVenueId, venueName, venues }) => {
       console.error('Error toggling status:', err);
       alert('Failed to update status');
     }
-    
+
     setOpenMenuId(null);
   };
 
   const handleRowClick = (assignment) => {
-    navigate('/reports', { 
-      state: { 
+    navigate('/reports', {
+      state: {
         taskId: assignment.id,
         taskTitle: assignment.title,
         venueId: selectedVenueId
-      } 
+      }
     });
   };
 
@@ -815,9 +815,9 @@ const AssignmentDashboard = ({ selectedVenueId, venueName, venues }) => {
           <div style={styles.formBody}>
             <div style={styles.fieldGroup}>
               <label style={styles.fieldLabel}>Assignment Title *</label>
-              <input 
-                style={styles.textInput} 
-                value={title} 
+              <input
+                style={styles.textInput}
+                value={title}
                 onChange={e => setTitle(e.target.value)}
                 placeholder="Enter assignment title"
                 disabled={loading}
@@ -828,14 +828,14 @@ const AssignmentDashboard = ({ selectedVenueId, venueName, venues }) => {
               <div style={{ flex: 1 }}>
                 <label style={styles.fieldLabel}>Target Venue / Class *</label>
                 <div style={styles.relativeWrapper}>
-                  <select 
-                    style={styles.selectInput} 
-                    value={group} 
+                  <select
+                    style={styles.selectInput}
+                    value={group}
                     onChange={e => setGroup(e.target.value)}
                     disabled={loading}
                   >
                     <option value="" hidden>Select a venue... </option>
-                    {venues. map(venue => (
+                    {venues.map(venue => (
                       <option key={venue.venue_id} value={venue.venue_id}>
                         {venue.venue_name} ({venue.student_count} students)
                       </option>
@@ -846,20 +846,20 @@ const AssignmentDashboard = ({ selectedVenueId, venueName, venues }) => {
               </div>
               <div style={{ flex: 1 }}>
                 <label style={styles.fieldLabel}>Select Day *</label>
-                <input 
-                  type="number" 
-                  style={styles.textInput} 
-                  value={day} 
-                  onChange={e => setDay(e.target.value)} 
+                <input
+                  type="number"
+                  style={styles.textInput}
+                  value={day}
+                  onChange={e => setDay(e.target.value)}
                   min="1"
                   disabled={loading}
                 />
               </div>
             </div>
 
-            <div style={styles. splitRow}>
+            <div style={styles.splitRow}>
               <div style={{ flex: 1 }}>
-                <label style={styles. fieldLabel}>Due Date</label>
+                <label style={styles.fieldLabel}>Due Date</label>
                 <div style={styles.relativeWrapper}>
                   <input
                     type="date"
@@ -868,15 +868,15 @@ const AssignmentDashboard = ({ selectedVenueId, venueName, venues }) => {
                     onChange={e => setDueDate(e.target.value)}
                     disabled={loading}
                   />
-                  <Calendar size={16} style={styles. dateIcon} />
+                  <Calendar size={16} style={styles.dateIcon} />
                 </div>
               </div>
               <div style={{ flex: 1 }}>
                 <label style={styles.fieldLabel}>Max Score *</label>
-                <input 
-                  type="number" 
-                  style={styles.textInput} 
-                  value={score} 
+                <input
+                  type="number"
+                  style={styles.textInput}
+                  value={score}
                   onChange={e => setScore(e.target.value)}
                   min="1"
                   max="100"
@@ -887,10 +887,10 @@ const AssignmentDashboard = ({ selectedVenueId, venueName, venues }) => {
 
             <div style={styles.fieldGroup}>
               <label style={styles.fieldLabel}>Description</label>
-              <textarea 
-                style={styles.textareaInput} 
-                value={description} 
-                onChange={e => setDescription(e.target. value)}
+              <textarea
+                style={styles.textareaInput}
+                value={description}
+                onChange={e => setDescription(e.target.value)}
                 placeholder="Describe the assignment requirements..."
                 disabled={loading}
               />
@@ -912,7 +912,7 @@ const AssignmentDashboard = ({ selectedVenueId, venueName, venues }) => {
                   External Link
                 </button>
                 <button
-                  style={materialType === 'file' ? styles. toggleBtnActive : styles.toggleBtn}
+                  style={materialType === 'file' ? styles.toggleBtnActive : styles.toggleBtn}
                   onClick={() => {
                     setMaterialType('file');
                     setExternalUrl('');
@@ -924,11 +924,11 @@ const AssignmentDashboard = ({ selectedVenueId, venueName, venues }) => {
                 </button>
               </div>
 
-              {materialType === 'link' ?  (
+              {materialType === 'link' ? (
                 <div style={styles.relativeWrapper}>
                   <input
                     style={styles.textInput}
-                    placeholder="e.g.  https://resource.link"
+                    placeholder="e.g. https://resource.link"
                     value={externalUrl}
                     onChange={e => setExternalUrl(e.target.value)}
                     disabled={loading}
@@ -936,8 +936,8 @@ const AssignmentDashboard = ({ selectedVenueId, venueName, venues }) => {
                   <LinkIcon size={16} style={styles.dateIcon} />
                 </div>
               ) : (
-                <div 
-                  style={{... styles.uploadBox, cursor: loading ? 'not-allowed' : 'pointer'}} 
+                <div
+                  style={{ ...styles.uploadBox, cursor: loading ? 'not-allowed' : 'pointer' }}
                   onClick={() => !loading && document.getElementById('fileUpload').click()}
                 >
                   <CloudUpload size={28} style={styles.cloudIcon} />
@@ -945,7 +945,7 @@ const AssignmentDashboard = ({ selectedVenueId, venueName, venues }) => {
                     id="fileUpload"
                     type="file"
                     multiple
-                    accept=".pdf,. svg,.png,.jpg,.jpeg,.mp4,.webm,.zip,. cpp,.c,.py,.js,.java"
+                    accept=".pdf,.svg,.png,.jpg,.jpeg,.mp4,.webm,.zip,.cpp,.c,.py,.js,.java"
                     hidden
                     onChange={(e) => setFiles([...e.target.files])}
                     disabled={loading}
@@ -956,7 +956,7 @@ const AssignmentDashboard = ({ selectedVenueId, venueName, venues }) => {
                   {files.length > 0 && (
                     <div style={{ marginTop: '10px', width: '100%' }}>
                       {files.map((f, i) => (
-                        <div key={i} style={styles.uploadSubtext}>{f.name} ({(f.size/1024/1024).toFixed(2)} MB)</div>
+                        <div key={i} style={styles.uploadSubtext}>{f.name} ({(f.size / 1024 / 1024).toFixed(2)} MB)</div>
                       ))}
                     </div>
                   )}
@@ -966,12 +966,12 @@ const AssignmentDashboard = ({ selectedVenueId, venueName, venues }) => {
           </div>
 
           <div style={styles.formFooter}>
-            <button 
-              style={{... styles.primaryBtn, opacity: loading ? 0.6 : 1}} 
+            <button
+              style={{ ...styles.primaryBtn, opacity: loading ? 0.6 : 1 }}
               onClick={publishAssignment}
               disabled={loading}
             >
-              <Send size={16} style={{ marginRight: 8 }} /> 
+              <Send size={16} style={{ marginRight: 8 }} />
               {loading ? 'Publishing...' : 'Publish Assignment'}
             </button>
           </div>
@@ -982,30 +982,31 @@ const AssignmentDashboard = ({ selectedVenueId, venueName, venues }) => {
           <div style={styles.listHeader}>
             <h3 style={styles.title}>Recent Assignments ({venueName})</h3>
             <div style={styles.utilActions}>
+              {/* Assuming Filter is a component or icon. If not defined, remove it. */}
               <Filter size={18} style={styles.grayAction} />
-              <RotateCw 
-                size={18} 
-                style={{... styles.grayAction, cursor: 'pointer'}} 
-                onClick={() => { setSearch(''); setStatusFilter('Active'); }} 
+              <RotateCw
+                size={18}
+                style={{ ...styles.grayAction, cursor: 'pointer' }}
+                onClick={() => { setSearch(''); setStatusFilter('Active'); }}
               />
             </div>
           </div>
 
-          <div style={styles. filterBar}>
-            <div style={{ ... styles.relativeWrapper, flex: 1 }}>
+          <div style={styles.filterBar}>
+            <div style={{ ...styles.relativeWrapper, flex: 1 }}>
               <Search size={16} style={styles.searchInsideIcon} />
-              <input 
-                style={styles.searchField} 
-                value={search} 
+              <input
+                style={styles.searchField}
+                value={search}
                 onChange={e => setSearch(e.target.value)}
                 placeholder="Search assignments..."
               />
             </div>
 
-            <div style={{ ...styles. relativeWrapper, width: '130px' }}>
-              <select 
-                style={styles.filterSelect} 
-                value={statusFilter} 
+            <div style={{ ...styles.relativeWrapper, width: '130px' }}>
+              <select
+                style={styles.filterSelect}
+                value={statusFilter}
                 onChange={e => setStatusFilter(e.target.value)}
               >
                 <option>Active</option>
@@ -1026,18 +1027,18 @@ const AssignmentDashboard = ({ selectedVenueId, venueName, venues }) => {
             </div>
 
             {loading && assignments.length === 0 ? (
-              <div style={styles. emptyState}>Loading assignments...</div>
+              <div style={styles.emptyState}>Loading assignments...</div>
             ) : filteredAssignments.length > 0 ? (
               filteredAssignments.map(row => (
-                <div 
-                  key={row.id} 
-                  style={{... styles.tableRow, cursor: 'pointer'}}
+                <div
+                  key={row.id}
+                  style={{ ...styles.tableRow, cursor: 'pointer' }}
                   onClick={() => handleRowClick(row)}
                 >
-                  <div style={{ flex:  2.5 }}>
+                  <div style={{ flex: 2.5 }}>
                     <div style={styles.boldText}>{row.title}</div>
                     <div style={styles.subtitleText}>
-                      Day {row.day} | Max Score:  {row.score}
+                      Day {row.day} | Max Score: {row.score}
                       {row.totalSubmissions > 0 && (
                         <span style={{ marginLeft: '10px', color: '#3b82f6' }}>
                           • {row.totalSubmissions} submissions
@@ -1046,7 +1047,7 @@ const AssignmentDashboard = ({ selectedVenueId, venueName, venues }) => {
                     </div>
                   </div>
                   <div style={{ flex: 1 }}>{row.group}</div>
-                  <div style={{ flex:  1 }}>{row. dueDate || '--'}</div>
+                  <div style={{ flex: 1 }}>{row.dueDate || '--'}</div>
                   <div style={{ flex: 1 }}>
                     <span style={getStatusBadge(row.status)}>{row.status}</span>
                   </div>
@@ -1056,21 +1057,22 @@ const AssignmentDashboard = ({ selectedVenueId, venueName, venues }) => {
                       color="#94A3B8"
                       style={{ cursor: 'pointer' }}
                       onClick={(e) => {
-                        e.stopPropagation();
+                        e.stopPropagation(); // Prevents row click from triggering
                         setOpenMenuId(openMenuId === row.id ? null : row.id);
                       }}
                     />
                     {openMenuId === row.id && (
                       <div style={{ position: 'absolute', right: 0, top: '22px', background: '#fff', border: '1px solid #E5E7EB', borderRadius: '6px', zIndex: 10, minWidth: '140px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
-                        <div 
-                          style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '13px' }} 
+                        <div
+                          style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '13px', color: '#1F2937', '&:hover': { backgroundColor: '#F3F4F6' } }}
                           onClick={(e) => {
-                            e.stopPropagation();
+                            e.stopPropagation(); // Prevents menu item click from closing menu early
                             toggleTaskStatus(row.id, row.status);
                           }}
                         >
-                          {row.status === 'Active' ?  'Set as Inactive' : 'Set as Active'}
+                          {row.status === 'Active' ? 'Set as Inactive' : 'Set as Active'}
                         </div>
+                        {/* More options can be added here if needed, e.g., 'Edit Assignment', 'Delete Assignment' */}
                       </div>
                     )}
                   </div>
@@ -1078,18 +1080,18 @@ const AssignmentDashboard = ({ selectedVenueId, venueName, venues }) => {
               ))
             ) : (
               <div style={styles.emptyState}>
-                {search ?  'No matching assignments found.' : `No assignments yet for ${venueName}.  Create your first assignment!`}
+                {search ? 'No matching assignments found.' : `No assignments yet for ${venueName}. Create your first assignment!`}
               </div>
             )}
           </div>
         </div>
-      </div>
-    </div>
+      </div> {/* Close layoutGrid div */}
+    </div> // Close container div
   );
 };
 
 const getStatusBadge = (status) => {
-  const base = { padding: '3px 12px', borderRadius: '16px', fontSize: '11px', fontWeight: '700' };
+  const base = { padding: '4px 14px', borderRadius: '16px', fontSize: '12px', fontWeight: '700' };
   if (status === 'Active') return { ...base, backgroundColor: '#E1F5FE', color: '#0288D1' };
   return { ...base, backgroundColor: '#FFEBEE', color: '#D32F2F' };
 };
@@ -1108,7 +1110,7 @@ const styles = {
   },
   formCard: {
     flex: 1,
-    backgroundColor:  '#FFFFFF',
+    backgroundColor: '#FFFFFF',
     borderRadius: '12px',
     border: '1px solid #E9EDF2',
     display: 'flex',
@@ -1139,8 +1141,8 @@ const styles = {
     flexDirection: 'column',
     gap: '20px',
   },
-  fieldGroup: { display: 'flex', flexDirection: 'column', gap:  '8px' },
-  fieldLabel:  { fontSize: '12px', fontWeight: '700', color: '#4B5563' },
+  fieldGroup: { display: 'flex', flexDirection: 'column', gap: '8px' },
+  fieldLabel: { fontSize: '12px', fontWeight: '700', color: '#4B5563' },
   tabToggleGroup: {
     display: 'flex',
     backgroundColor: '#F3F4F6',
@@ -1150,24 +1152,24 @@ const styles = {
   },
   toggleBtn: {
     flex: 1,
-    padding:  '8px',
+    padding: '8px',
     border: 'none',
     backgroundColor: 'transparent',
     fontSize: '12px',
     fontWeight: '600',
     color: '#6B7280',
-    cursor:  'pointer',
+    cursor: 'pointer',
     borderRadius: '6px'
   },
   toggleBtnActive: {
     flex: 1,
-    padding:  '8px',
-    border:  'none',
-    backgroundColor:  '#FFFFFF',
+    padding: '8px',
+    border: 'none',
+    backgroundColor: '#FFFFFF',
     fontSize: '12px',
     fontWeight: '700',
     color: '#2563EB',
-    cursor:  'pointer',
+    cursor: 'pointer',
     borderRadius: '6px',
     boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
   },
@@ -1201,10 +1203,10 @@ const styles = {
     outline: 'none',
     color: '#6B7280'
   },
-  splitRow: { display: 'flex', gap:  '16px' },
+  splitRow: { display: 'flex', gap: '16px' },
   relativeWrapper: { position: 'relative', display: 'flex', alignItems: 'center' },
   dropdownIcon: { position: 'absolute', right: '12px', color: '#94A3B8', pointerEvents: 'none' },
-  dateIcon: { position:  'absolute', right: '12px', color: '#4B5563', pointerEvents:  'none' },
+  dateIcon: { position: 'absolute', right: '12px', color: '#4B5563', pointerEvents: 'none' },
   uploadBox: {
     padding: '28px',
     borderRadius: '8px',
@@ -1217,22 +1219,22 @@ const styles = {
   },
   cloudIcon: { color: '#94A3B8' },
   uploadText: { fontSize: '13px', color: '#4B5563', fontWeight: '500' },
-  blueLink:  { color: '#2563EB', fontWeight: '700' },
+  blueLink: { color: '#2563EB', fontWeight: '700' },
   uploadSubtext: { fontSize: '11px', color: '#94A3B8' },
   formFooter: {
-    padding:  '20px 24px',
-    borderTop:  '1px solid #F3F4F6',
+    padding: '20px 24px',
+    borderTop: '1px solid #F3F4F6',
     display: 'flex',
     gap: '12px',
     backgroundColor: '#FAFBFC'
   },
-  primaryBtn:  {
+  primaryBtn: {
     flex: 1.5,
     padding: '12px',
     borderRadius: '8px',
     border: 'none',
     backgroundColor: '#2563EB',
-    color:  'white',
+    color: 'white',
     fontWeight: '700',
     fontSize: '13px',
     display: 'flex',
@@ -1243,7 +1245,7 @@ const styles = {
   listHeader: { padding: '24px 30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
   utilActions: { display: 'flex', gap: '15px' },
   grayAction: { color: '#94A3B8' },
-  filterBar: { padding: '0 30px 20px 30px', display: 'flex', gap:  '12px' },
+  filterBar: { padding: '0 30px 20px 30px', display: 'flex', gap: '12px' },
   searchInsideIcon: { position: 'absolute', left: '12px', color: '#94A3B8' },
   searchField: {
     width: '100%',
@@ -1251,7 +1253,7 @@ const styles = {
     borderRadius: '6px',
     border: '1px solid #F1F5F9',
     backgroundColor: '#F8FAFC',
-    fontSize:  '13px',
+    fontSize: '13px',
     outline: 'none'
   },
   filterSelect: {
@@ -1267,7 +1269,7 @@ const styles = {
   },
   table: { display: 'flex', flexDirection: 'column', flex: 1 },
   tableHeaderRow: {
-    display:  'flex',
+    display: 'flex',
     padding: '14px 30px',
     backgroundColor: '#F8F9FB',
     borderBottom: '1px solid #E9EDF2',
@@ -1283,9 +1285,9 @@ const styles = {
     alignItems: 'center',
     fontSize: '13px'
   },
-  boldText:  { fontWeight: '800', color: '#1F2937', marginBottom: '2px' },
+  boldText: { fontWeight: '800', color: '#1F2937', marginBottom: '2px' },
   subtitleText: { color: '#94A3B8', fontSize: '11px', fontWeight: '500' },
-  emptyState:  {
+  emptyState: {
     padding: '40px 30px',
     textAlign: 'center',
     color: '#94A3B8',
