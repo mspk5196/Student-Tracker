@@ -135,6 +135,13 @@ import Reports from "../pages/Faculty/Reports&Analytics/Reporst&analytics";
 import ClassDetails from "../pages/SuperAdmin/Classes&Groups/ClassDetails/ClassDetails";
 
 
+import StudentDashboard from "../pages/Student/Dashboard/StudentDashboard";
+import MyClassRoom from "../pages/Student/MyClassRoom/MyClassRoom";
+import StudentAttendance from "../pages/Student/StudentAttendance/Attendance";
+import TasksAssignments from "../pages/Student/Tasks&Assignments/Tasks&Assignment"
+import StudentRoadmap from "../pages/Student/RoadMap&Material/RoadMap&Material";
+
+import Performance from "../pages/Student/Performance/Performance";
 const AppNavigator = () => {
   const user = useAuthStore((s) => s.user);
 
@@ -187,10 +194,12 @@ const AppNavigator = () => {
         {/* STUDENT (role === "student") */}
         {user?.role === "student" && (
           <Route path="/" element={<SideTab />}>
-            <Route index element={<div style={{padding: '40px'}}>Student Dashboard</div>} />
-            <Route path="classes" element={<div style={{padding: '40px'}}>My Classes</div>} />
-            <Route path="attendance" element={<div style={{padding: '40px'}}>My Attendance</div>} />
-            <Route path="tasks" element={<div style={{padding: '40px'}}>My Tasks</div>} />
+            <Route index element={<StudentDashboard/>} />
+            <Route path="classes" element={<MyClassRoom/>}/>
+            <Route path="attendance" element={<StudentAttendance/>}/>
+            <Route path="roadmap" element={<StudentRoadmap/>}/>
+            <Route path="tasks" element={<TasksAssignments/>} />
+            <Route path="performance" element={<Performance/>} />
           </Route>
         )}
 

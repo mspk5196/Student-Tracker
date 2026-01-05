@@ -9,67 +9,309 @@ import {
     CloudUpload,
     FileText,
     X,
-    BookOpen,
+    ChevronLeft,
     ExternalLink
 } from 'lucide-react';
 
 const TasksAssignments = () => {
     // --- MOCK DATA FOR STUDENT TASKS ---
-    const INITIAL_TASKS = [
-        {
-            id: 1,
-            title: 'React Hooks Implementation',
-            subject: 'React Mastery Workshop',
-            day: 1,
-            dueDate: '2024-10-30',
-            status: 'pending',
-            score: 50,
-            description: 'Implement useState and useEffect hooks in a simple counter application.'
+    const TASKS_DATA = {
+        'REACT-101': {
+            title: "React Mastery Workshop",
+            instructor: "Prof. Sarah Johnson",
+            tasks: [
+                {
+                    id: 1,
+                    day: 1,
+                    title: 'React Hooks Implementation',
+                    description: 'Implement useState and useEffect hooks in a simple counter application.',
+                    dueDate: '2024-10-30',
+                    status: 'completed',
+                    score: 50,
+                    submittedDate: '2024-10-29',
+                    grade: '45/50'
+                },
+                {
+                    id: 2,
+                    day: 3,
+                    title: 'Component Lifecycle Quiz',
+                    description: 'Complete a comprehensive quiz on React component lifecycle and hooks.',
+                    dueDate: '2024-11-05',
+                    status: 'pending',
+                    score: 100,
+                    submittedDate: null
+                },
+                {
+                    id: 3,
+                    day: 5,
+                    title: 'Advanced Patterns Project',
+                    description: 'Build a reusable component library with advanced patterns.',
+                    dueDate: '2024-11-12',
+                    status: 'pending',
+                    score: 75
+                },
+                {
+                    id: 11,
+                    day: 7,
+                    title: 'State Management with Context API',
+                    description: 'Implement global state management using React Context API.',
+                    dueDate: '2024-11-15',
+                    status: 'pending',
+                    score: 60
+                },
+                {
+                    id: 12,
+                    day: 9,
+                    title: 'Custom Hooks Development',
+                    description: 'Create custom React hooks for common functionality.',
+                    dueDate: '2024-11-18',
+                    status: 'pending',
+                    score: 70
+                },
+                {
+                    id: 13,
+                    day: 11,
+                    title: 'React Router Integration',
+                    description: 'Build a multi-page application using React Router.',
+                    dueDate: '2024-11-22',
+                    status: 'pending',
+                    score: 85
+                }
+            ]
         },
-        {
-            id: 2,
-            title: 'Component Lifecycle Quiz',
-            subject: 'React Mastery Workshop',
-            day: 3,
-            dueDate: '2024-11-05',
-            status: 'completed',
-            score: 100,
-            submittedDate: '2024-11-04',
-            grade: '95/100'
+        'CSS-201': {
+            title: "HTML & CSS Fundamentals",
+            instructor: "Prof. Michael Chen",
+            tasks: [
+                {
+                    id: 4,
+                    day: 1,
+                    title: 'CSS Grid Layout Project',
+                    description: 'Create a responsive dashboard layout using CSS Grid.',
+                    dueDate: '2024-11-01',
+                    status: 'overdue',
+                    score: 75
+                },
+                {
+                    id: 5,
+                    day: 2,
+                    title: 'Flexbox Challenge',
+                    description: 'Design a flexible card layout using Flexbox.',
+                    dueDate: '2024-11-02',
+                    status: 'completed',
+                    score: 80,
+                    submittedDate: '2024-11-01',
+                    grade: '78/80'
+                },
+                {
+                    id: 14,
+                    day: 4,
+                    title: 'CSS Animations Project',
+                    description: 'Create smooth animations using CSS transitions and keyframes.',
+                    dueDate: '2024-11-08',
+                    status: 'pending',
+                    score: 65
+                },
+                {
+                    id: 15,
+                    day: 6,
+                    title: 'Responsive Design Challenge',
+                    description: 'Build a fully responsive landing page for mobile, tablet, and desktop.',
+                    dueDate: '2024-11-14',
+                    status: 'pending',
+                    score: 90
+                },
+                {
+                    id: 16,
+                    day: 8,
+                    title: 'CSS Variables and Theming',
+                    description: 'Implement a dynamic theme system using CSS custom properties.',
+                    dueDate: '2024-11-20',
+                    status: 'pending',
+                    score: 55
+                }
+            ]
         },
-        {
-            id: 3,
-            title: 'CSS Grid Layout Project',
-            subject: 'HTML & CSS Fundamentals',
-            day: 1,
-            dueDate: '2024-11-01',
-            status: 'overdue',
-            score: 75,
-            description: 'Create a responsive dashboard layout using CSS Grid.'
+        'JS-301': {
+            title: "JavaScript Advanced Concepts",
+            instructor: "Prof. Emily Rodriguez",
+            tasks: [
+                {
+                    id: 6,
+                    day: 1,
+                    title: 'Async/Await Patterns',
+                    description: 'Master asynchronous programming with async/await.',
+                    dueDate: '2024-11-03',
+                    status: 'completed',
+                    score: 70,
+                    submittedDate: '2024-11-02',
+                    grade: '68/70'
+                },
+                {
+                    id: 7,
+                    day: 3,
+                    title: 'ES6+ Features Quiz',
+                    description: 'Test your knowledge of modern JavaScript features.',
+                    dueDate: '2024-11-10',
+                    status: 'pending',
+                    score: 100
+                },
+                {
+                    id: 17,
+                    day: 5,
+                    title: 'Functional Programming',
+                    description: 'Apply functional programming concepts in JavaScript.',
+                    dueDate: '2024-11-17',
+                    status: 'pending',
+                    score: 80
+                },
+                {
+                    id: 18,
+                    day: 7,
+                    title: 'Design Patterns Implementation',
+                    description: 'Implement common design patterns in JavaScript.',
+                    dueDate: '2024-11-24',
+                    status: 'pending',
+                    score: 95
+                }
+            ]
+        },
+        'NODE-401': {
+            title: "Node.js Backend Development",
+            instructor: "Prof. David Kim",
+            tasks: [
+                {
+                    id: 8,
+                    day: 1,
+                    title: 'REST API Development',
+                    description: 'Build a RESTful API with Express.js.',
+                    dueDate: '2024-11-06',
+                    status: 'pending',
+                    score: 100
+                },
+                {
+                    id: 9,
+                    day: 3,
+                    title: 'Database Integration',
+                    description: 'Connect MongoDB to your Node.js application.',
+                    dueDate: '2024-11-13',
+                    status: 'pending',
+                    score: 85
+                },
+                {
+                    id: 19,
+                    day: 5,
+                    title: 'Authentication & Authorization',
+                    description: 'Implement JWT-based authentication system.',
+                    dueDate: '2024-11-19',
+                    status: 'pending',
+                    score: 90
+                }
+            ]
+        },
+        'TS-501': {
+            title: "TypeScript Fundamentals",
+            instructor: "Prof. Lisa Wang",
+            tasks: [
+                {
+                    id: 10,
+                    day: 1,
+                    title: 'Type Annotations Exercise',
+                    description: 'Practice adding type annotations to JavaScript code.',
+                    dueDate: '2024-11-09',
+                    status: 'pending',
+                    score: 60
+                },
+                {
+                    id: 20,
+                    day: 3,
+                    title: 'Interfaces and Types',
+                    description: 'Define complex data structures using interfaces and types.',
+                    dueDate: '2024-11-16',
+                    status: 'pending',
+                    score: 70
+                },
+                {
+                    id: 21,
+                    day: 5,
+                    title: 'Generics Deep Dive',
+                    description: 'Create reusable components using TypeScript generics.',
+                    dueDate: '2024-11-23',
+                    status: 'pending',
+                    score: 80
+                }
+            ]
+        },
+        'NEXT-601': {
+            title: "Next.js Full-Stack Development",
+            instructor: "Prof. Robert Brown",
+            tasks: [
+                {
+                    id: 22,
+                    day: 1,
+                    title: 'Server Components',
+                    description: 'Build a blog using Next.js 14 server components.',
+                    dueDate: '2024-11-11',
+                    status: 'pending',
+                    score: 100
+                },
+                {
+                    id: 23,
+                    day: 3,
+                    title: 'API Routes & Middleware',
+                    description: 'Implement API routes with custom middleware.',
+                    dueDate: '2024-11-18',
+                    status: 'pending',
+                    score: 85
+                }
+            ]
         }
-    ];
+    };
 
-    const [tasks, setTasks] = useState(INITIAL_TASKS);
-    const [activeFilter, setActiveFilter] = useState('all');
+    const [selectedSubject, setSelectedSubject] = useState('REACT-101');
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedTask, setSelectedTask] = useState(null);
-    const [submissionType, setSubmissionType] = useState('file'); // 'file' or 'link'
+    const [submissionType, setSubmissionType] = useState('file');
     const [uploadFile, setUploadFile] = useState(null);
     const [externalLink, setExternalLink] = useState('');
+    const [completedTasks, setCompletedTasks] = useState([1, 5, 6]);
+    const [skillsTab, setSkillsTab] = useState('active');
+    
+    // Pagination states
+    const [currentSubjectPage, setCurrentSubjectPage] = useState(1);
+    const subjectsPerPage = 5;
 
-    const filteredTasks = tasks.filter(task => {
-        const matchesFilter = activeFilter === 'all' || task.status === activeFilter;
-        const matchesSearch = task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            task.subject.toLowerCase().includes(searchQuery.toLowerCase());
-        return matchesFilter && matchesSearch;
+    const subjectData = TASKS_DATA[selectedSubject];
+    const allTasks = subjectData?.tasks || [];
+    
+    const filteredTasks = allTasks.filter(task => {
+        const q = searchQuery.toLowerCase();
+        return task.title.toLowerCase().includes(q) || task.description.toLowerCase().includes(q);
     });
 
-    const getStatusStyle = (status) => {
-        switch (status) {
-            case 'completed': return { bg: '#F0FDF4', color: '#16A34A', icon: <CheckCircle2 size={14} /> };
-            case 'overdue': return { bg: '#FEF2F2', color: '#EF4444', icon: <AlertCircle size={14} /> };
-            default: return { bg: '#EFF6FF', color: '#2563EB', icon: <Clock size={14} /> };
-        }
+    // Pagination calculations for subjects
+    const subjectKeys = Object.keys(TASKS_DATA);
+    
+    // Filter subjects based on skillsTab (active/completed)
+    const filteredSubjectKeys = subjectKeys.filter(key => {
+        const subjectTasks = TASKS_DATA[key].tasks;
+        const allTasksCompleted = subjectTasks.every(task => task.status === 'completed');
+        const hasActiveTasks = subjectTasks.some(task => task.status !== 'completed');
+        
+        if (skillsTab === 'active') return hasActiveTasks;
+        if (skillsTab === 'completed') return allTasksCompleted;
+        return true;
+    });
+    
+    const totalSubjectPages = Math.ceil(filteredSubjectKeys.length / subjectsPerPage);
+    const subjectStartIdx = (currentSubjectPage - 1) * subjectsPerPage;
+    const subjectEndIdx = subjectStartIdx + subjectsPerPage;
+    const paginatedSubjects = filteredSubjectKeys.slice(subjectStartIdx, subjectEndIdx);
+
+    const calculateProgress = () => {
+        if (!allTasks.length) return 0;
+        const completed = allTasks.filter(t => t.status === 'completed').length;
+        return Math.round((completed / allTasks.length) * 100);
     };
 
     const handleFileUpload = (e) => {
@@ -88,16 +330,7 @@ const TasksAssignments = () => {
             return;
         }
 
-        // Mock submit logic
-        setTasks(prev => prev.map(t =>
-            t.id === selectedTask.id ? {
-                ...t,
-                status: 'completed',
-                submittedDate: new Date().toISOString().split('T')[0],
-                submission: submissionType === 'file' ? { type: 'file', name: uploadFile.name } : { type: 'link', url: externalLink }
-            } : t
-        ));
-
+        setCompletedTasks(prev => [...new Set([...prev, selectedTask.id])]);
         closeModal();
         alert("Assignment submitted successfully!");
     };
@@ -109,703 +342,407 @@ const TasksAssignments = () => {
         setSubmissionType('file');
     };
 
+    const handleSubjectChange = (key) => {
+        setSelectedSubject(key);
+        setSearchQuery('');
+    };
+
+    // Pagination component
+    const Pagination = ({ currentPage, totalPages, onPageChange }) => {
+        const getPageNumbers = () => {
+            const pages = [];
+            const maxVisible = 3;
+            
+            if (totalPages <= maxVisible) {
+                for (let i = 1; i <= totalPages; i++) {
+                    pages.push(i);
+                }
+            } else {
+                if (currentPage <= 2) {
+                    pages.push(1, 2, 3);
+                } else if (currentPage >= totalPages - 1) {
+                    pages.push(totalPages - 2, totalPages - 1, totalPages);
+                } else {
+                    pages.push(currentPage - 1, currentPage, currentPage + 1);
+                }
+            }
+            return pages;
+        };
+
+        if (totalPages <= 1) return null;
+
+        return (
+            <div className="pagination-wrapper">
+                <span className="pagination-info">Showing {((currentPage - 1) * subjectsPerPage) + 1}-{Math.min(currentPage * subjectsPerPage, totalPages)} items</span>
+                <div className="pagination">
+                    <button 
+                        className="pagination-btn"
+                        onClick={() => onPageChange(currentPage - 1)}
+                        disabled={currentPage === 1}
+                    >
+                        <ChevronLeft size={16} />
+                    </button>
+                    
+                    {getPageNumbers().map(page => (
+                        <button
+                            key={page}
+                            className={`pagination-number ${currentPage === page ? 'active' : ''}`}
+                            onClick={() => onPageChange(page)}
+                        >
+                            {page}
+                        </button>
+                    ))}
+                    
+                    <button 
+                        className="pagination-btn"
+                        onClick={() => onPageChange(currentPage + 1)}
+                        disabled={currentPage === totalPages}
+                    >
+                        <ChevronRight size={16} />
+                    </button>
+                </div>
+            </div>
+        );
+    };
+
     return (
-        <div style={styles.pageWrapper}>
-            {/* Header Section */}
-            <header style={styles.header}>
-                <div style={styles.headerLeft}>
-                    <div style={styles.iconContainer}>
-                        <ClipboardCheck size={24} color="#2563EB" />
-                    </div>
-                    <div>
-                        <h1 style={styles.pageTitle}>Tasks & Assignments</h1>
-                        <p style={styles.subtext}>Manage your coursework and track submissions</p>
-                    </div>
-                </div>
+        <>
+            <style>{`
+                * { box-sizing: border-box; margin: 0; padding: 0; }
+                body { margin: 0; }
+                .page-wrapper { font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background-color: #F8F9FB; min-height: 100vh; padding: 24px; }
+                .header { background-color: #FFFFFF; padding: 32px; border-radius: 16px; border: 1px solid #E5E7EB; display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+                .header-info { flex: 1; }
+                .breadcrumb { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #6B7280; margin-bottom: 12px; }
+                .page-title { font-size: 28px; font-weight: 800; color: #111827; margin: 0 0 16px 0; }
+                .subtext-header { font-size: 14px; color: #4B5563; margin: 0; }
+                .progress-section { width: 240px; }
+                .progress-text { display: flex; justify-content: space-between; margin-bottom: 10px; }
+                .progress-label { font-size: 13px; font-weight: 600; color: #4B5563; }
+                .progress-percent { font-size: 13px; font-weight: 800; color: #0066FF; }
+                .progress-bar-bg { height: 8px; background-color: #E5E7EB; border-radius: 10px; overflow: hidden; }
+                .progress-bar-fill { height: 100%; background-color: #0066FF; border-radius: 10px; transition: width 0.5s ease-out; }
+                .main-content { display: grid; grid-template-columns: 1fr 340px; gap: 24px; max-width: 1400px; margin: 0 auto; }
+                .task-col { display: flex; flex-direction: column; }
+                .task-card { background-color: #FFFFFF; border-radius: 16px; border: 1px solid #E5E7EB; overflow: hidden; margin-bottom: 16px; transition: box-shadow 0.2s; }
+                .task-card:hover { box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
+                .card-header { padding: 20px 24px; background-color: #F9FAFB; border-bottom: 1px solid #F3F4F6; display: flex; justify-content: space-between; align-items: center; }
+                .card-header-left { display: flex; align-items: center; gap: 16px; }
+                .task-number { width: 45px; height: 45px; background-color: #FFFFFF; border: 2px solid #0066FF; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #0066FF; font-size: 14px; font-weight: 800; cursor: pointer; flex-shrink: 0; }
+                .task-number.completed { background-color: #0066FF; border: none; color: #FFFFFF; }
+                .task-title-group { display: flex; flex-direction: column; }
+                .task-title { font-size: 17px; font-weight: 700; color: #111827; margin: 0; }
+                .task-meta { display: flex; align-items: center; font-size: 12px; color: #6B7280; margin-top: 4px; }
+                .status-badge { font-size: 11px; font-weight: 700; text-transform: uppercase; color: #6B7280; letter-spacing: 0.05em; padding: 6px 12px; background: #F3F4F6; border-radius: 6px; }
+                .card-body { padding: 24px; }
+                .description { font-size: 15px; color: #4B5563; line-height: 1.6; margin: 0 0 24px 0; }
+                .action-footer { display: flex; justify-content: space-between; align-items: center; padding-top: 16px; border-top: 1px solid #F3F4F6; }
+                .action-btn { background: transparent; border: none; color: #0066FF; font-weight: 700; font-size: 14px; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: opacity 0.2s; }
+                .action-btn:hover { opacity: 0.8; }
+                .grade-info { font-size: 13px; color: #16A34A; font-weight: 500; }
+                .empty-state { text-align: center; padding: 60px 40px; background-color: #FFFFFF; border-radius: 14px; border: 1px dashed #CBD5E1; color: #64748B; }
+                .sidebar-col { display: flex; flex-direction: column; gap: 24px; }
+                .search-box { position: relative; display: flex; align-items: center; }
+                .search-icon { position: absolute; left: 12px; color: #9CA3AF; pointer-events: none; }
+                .search-input { width: 100%; padding: 12px 12px 12px 40px; border-radius: 12px; border: 1px solid #E5E7EB; font-size: 14px; outline: none; box-shadow: 0 1px 2px rgba(0,0,0,0.05); transition: border 0.2s; }
+                .search-input:focus { border-color: #0066FF; }
+                .section-heading { font-size: 12px; font-weight: 700; color: #6B7280; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 16px; }
+                .subject-list { display: flex; flex-direction: column; gap: 10px; }
+                .subject-item { padding: 16px; background-color: #FFFFFF; border-radius: 14px; border: 1px solid #E5E7EB; display: flex; align-items: center; gap: 12px; cursor: pointer; transition: all 0.2s; }
+                .subject-item:hover { border-color: #0066FF; transform: translateY(-1px); }
+                .subject-item.active { border-color: #0066FF; box-shadow: 0 4px 6px -1px rgba(0, 102, 255, 0.1); }
+                .subject-icon-box { width: 40px; height: 40px; background-color: #F0F7FF; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 700; color: #0066FF; flex-shrink: 0; }
+                .subject-info { flex: 1; }
+                .subject-name { font-size: 14px; font-weight: 600; color: #111827; }
+                .subject-code { font-size: 12px; color: #6B7280; margin-top: 2px; }
+                .pagination-wrapper { display: flex; justify-content: space-between; align-items: center; margin-top: 24px; padding: 16px 0; }
+                .pagination-info { font-size: 13px; color: #6B7280; }
+                .pagination { display: flex; gap: 8px; align-items: center; }
+                .pagination-btn { width: 36px; height: 36px; border: 1px solid #E5E7EB; background: #FFFFFF; border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; color: #6B7280; }
+                .pagination-btn:hover:not(:disabled) { border-color: #0066FF; color: #0066FF; }
+                .pagination-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+                .pagination-number { width: 36px; height: 36px; border: 1px solid #E5E7EB; background: #FFFFFF; border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; color: #6B7280; font-size: 14px; font-weight: 600; }
+                .pagination-number:hover { border-color: #0066FF; color: #0066FF; }
+                .pagination-number.active { background: #0066FF; color: #FFFFFF; border-color: #0066FF; }
+                .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 20px; }
+                .modal-content { background: #FFFFFF; border-radius: 16px; width: 100%; max-width: 540px; overflow: hidden; max-height: 90vh; overflow-y: auto; }
+                .modal-header { padding: 20px 24px; border-bottom: 1px solid #F1F5F9; display: flex; justify-content: space-between; align-items: center; }
+                .modal-title { font-size: 18px; font-weight: 700; margin: 0; }
+                .close-btn { background: transparent; border: none; color: #64748B; cursor: pointer; padding: 4px; transition: color 0.2s; }
+                .close-btn:hover { color: #0066FF; }
+                .modal-body { padding: 24px; display: flex; flex-direction: column; gap: 20px; }
+                .task-info { margin-bottom: 8px; }
+                .task-info-name { font-size: 16px; font-weight: 700; margin: 0 0 8px 0; }
+                .task-info-desc { font-size: 14px; color: #64748B; line-height: 1.5; margin: 0; }
+                .type-toggle { display: flex; gap: 10px; background-color: #F1F5F9; padding: 4px; border-radius: 10px; }
+                .toggle-btn { flex: 1; padding: 10px; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; color: #64748B; background: transparent; cursor: pointer; transition: all 0.2s; }
+                .toggle-btn.active { background: #FFFFFF; color: #0066FF; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+                .upload-box { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 32px; border: 2px dashed #E2E8F0; border-radius: 12px; cursor: pointer; transition: border-color 0.2s; }
+                .upload-box:hover { border-color: #0066FF; }
+                .file-selected { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+                .file-name { font-size: 14px; font-weight: 600; color: #1E293B; text-align: center; word-break: break-word; }
+                .file-size { font-size: 12px; color: #94A3B8; }
+                .upload-prompt { font-size: 14px; font-weight: 600; color: #1E293B; margin-top: 12px; text-align: center; }
+                .upload-sub { font-size: 12px; color: #94A3B8; margin-top: 4px; text-align: center; }
+                .link-section { display: flex; flex-direction: column; gap: 10px; }
+                .input-label { font-size: 13px; font-weight: 600; color: #334155; }
+                .link-input-wrapper { position: relative; display: flex; align-items: center; }
+                .link-icon { position: absolute; left: 12px; color: #94A3B8; pointer-events: none; }
+                .link-input { width: 100%; padding: 12px 12px 12px 40px; border-radius: 10px; border: 1px solid #E2E8F0; font-size: 14px; outline: none; transition: border 0.2s; }
+                .link-input:focus { border-color: #0066FF; }
+                .submit-btn { width: 100%; padding: 14px; background: #0066FF; color: #FFFFFF; border: none; border-radius: 10px; font-weight: 700; font-size: 15px; cursor: pointer; transition: opacity 0.2s; }
+                .submit-btn:hover { opacity: 0.9; }
+                @media (max-width: 1024px) {
+                    .main-content { grid-template-columns: 1fr; }
+                    .pagination-wrapper { flex-direction: column; gap: 12px; align-items: flex-start; }
+                }
+                @media (max-width: 768px) {
+                    .page-wrapper { padding: 16px; }
+                    .header { flex-direction: column; padding: 20px; gap: 20px; align-items: flex-start; }
+                    .progress-section { width: 100%; }
+                    .page-title { font-size: 22px; }
+                    .main-content { gap: 16px; }
+                    .subject-list { flex-direction: row; overflow-x: auto; padding-bottom: 8px; }
+                    .subject-item { min-width: 200px; }
+                    .modal-content { border-radius: 16px 16px 0 0; max-height: 85vh; }
+                    .card-header { flex-direction: column; align-items: flex-start; gap: 12px; }
+                    .status-badge { align-self: flex-start; }
+                }
+                @media (max-width: 480px) {
+                    .pagination { flex-wrap: wrap; }
+                    .pagination-info { font-size: 12px; }
+                    .action-footer { flex-direction: column; gap: 12px; align-items: flex-start; }
+                }
+            `}</style>
 
-                <div style={styles.filterGroup}>
-                    <button
-                        style={{ ...styles.filterBtn, ...(activeFilter === 'all' ? styles.filterBtnActive : {}) }}
-                        onClick={() => setActiveFilter('all')}
-                    >All Tasks</button>
-                    <button
-                        style={{ ...styles.filterBtn, ...(activeFilter === 'pending' ? styles.filterBtnActive : {}) }}
-                        onClick={() => setActiveFilter('pending')}
-                    >Pending</button>
-                    <button
-                        style={{ ...styles.filterBtn, ...(activeFilter === 'completed' ? styles.filterBtnActive : {}) }}
-                        onClick={() => setActiveFilter('completed')}
-                    >Completed</button>
-                </div>
-            </header>
-
-            {/* Main Layout */}
-            <div style={styles.mainLayout}>
-                <div style={styles.contentCol}>
-                    {/* Search Bar */}
-                    <div style={styles.searchBar}>
-                        <Search size={18} style={styles.searchIcon} />
-                        <input
-                            style={styles.searchInput}
-                            placeholder="Search by task title or subject..."
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                        />
+            <div className="page-wrapper">
+                <header className="header">
+                    <div className="header-info">
+                        <div className="breadcrumb">
+                            <ClipboardCheck size={16} /> Tasks & Assignments / {selectedSubject}
+                        </div>
+                        <h1 className="page-title">{subjectData?.title}</h1>
+                        <p className="subtext-header">Manage your assignments and track submissions</p>
                     </div>
+                    <div className="progress-section">
+                        <div className="progress-text">
+                            <span className="progress-label">Completion</span>
+                            <span className="progress-percent">{calculateProgress()}%</span>
+                        </div>
+                        <div className="progress-bar-bg">
+                            <div className="progress-bar-fill" style={{ width: `${calculateProgress()}%` }} />
+                        </div>
+                    </div>
+                </header>
 
-                    {/* Task List */}
-                    <div style={styles.taskList}>
+                <div className="main-content">
+                    <div className="task-col">
                         {filteredTasks.length > 0 ? (
-                            filteredTasks.map(task => {
-                                const status = getStatusStyle(task.status);
-                                return (
-                                    <div key={task.id} style={styles.taskCard}>
-                                        <div style={styles.taskHeader}>
-                                            <div style={styles.subjectTag}>{task.subject}</div>
-                                            <div style={{ ...styles.statusBadge, backgroundColor: status.bg, color: status.color }}>
-                                                {status.icon}
-                                                <span style={{ marginLeft: 6 }}>{task.status.toUpperCase()}</span>
-                                            </div>
-                                        </div>
-
-                                        <h3 style={styles.taskTitle}>{task.title}</h3>
-                                        <div style={styles.taskInfoRow}>
-                                            <div style={styles.infoItem}>
-                                                <Clock size={14} style={{ marginRight: 6 }} />
-                                                Due: {task.dueDate}
-                                            </div>
-                                            <div style={styles.infoItem}>
-                                                <BookOpen size={14} style={{ marginRight: 6 }} />
-                                                Day {task.day}
-                                            </div>
-                                            <div style={styles.infoItem}>
-                                                Max Score: {task.score}
-                                            </div>
-                                        </div>
-
-                                        <div style={styles.cardFooter}>
-                                            {task.status === 'completed' ? (
-                                                <div style={styles.gradeInfo}>
-                                                    Submitted on {task.submittedDate} • <strong>Grade: {task.grade || 'Pending'}</strong>
+                            <>
+                                {filteredTasks.map(task => {
+                                    const isCompleted = task.status === 'completed';
+                                    return (
+                                        <div key={task.id} className="task-card">
+                                            <div className="card-header">
+                                                <div className="card-header-left">
+                                                    <div className={`task-number ${isCompleted ? 'completed' : ''}`}>
+                                                        {isCompleted ? <CheckCircle2 size={24} /> : `D${task.day}`}
+                                                    </div>
+                                                    <div className="task-title-group">
+                                                        <h3 className="task-title">{task.title}</h3>
+                                                        <div className="task-meta">
+                                                            <Clock size={12} style={{ marginRight: 4 }} /> Due {task.dueDate}
+                                                        </div>
+                                                    </div>
                                                 </div>
-                                            ) : (
-                                                <button
-                                                    style={styles.actionBtn}
-                                                    onClick={() => setSelectedTask(task)}
-                                                >
-                                                    View Details & Submit <ChevronRight size={16} />
-                                                </button>
-                                            )}
+                                                <div className="status-badge">
+                                                    {isCompleted ? 'Completed' : task.status === 'overdue' ? 'Overdue' : 'Pending'}
+                                                </div>
+                                            </div>
+
+                                            <div className="card-body">
+                                                <p className="description">{task.description}</p>
+                                                <div className="action-footer">
+                                                    <div style={{ color: '#64748B', fontSize: 13 }}>{task.score ? `Max Score: ${task.score}` : ''}</div>
+                                                    <div>
+                                                        {task.status === 'completed' ? (
+                                                            <div className="grade-info">Submitted • Grade: {task.grade || 'Pending'}</div>
+                                                        ) : (
+                                                            <button className="action-btn" onClick={() => setSelectedTask(task)}>
+                                                                View & Submit <ChevronRight size={14} />
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </div>
-                                    </div>
-                                );
-                            })
+                                    );
+                                })}
+                            </>
                         ) : (
-                            <div style={styles.emptyState}>
+                            <div className="empty-state">
                                 <AlertCircle size={48} color="#94A3B8" />
-                                <p>No tasks found matching your criteria.</p>
+                                <p>No tasks found.</p>
                             </div>
                         )}
                     </div>
-                </div>
 
-                {/* Info Sidebar - REMOVED AS REQUESTED */}
-            </div>
-
-            {/* Submission Modal */}
-            {selectedTask && (
-                <div style={styles.modalOverlay}>
-                    <div style={styles.modalContent}>
-                        <div style={styles.modalHeader}>
-                            <h2 style={styles.modalTitle}>Submit Assignment</h2>
-                            <button
-                                style={styles.closeBtn}
-                                onClick={closeModal}
-                            >
-                                <X size={20} />
-                            </button>
+                    <div className="sidebar-col">
+                        <div className="search-box">
+                            <Search size={18} className="search-icon" />
+                            <input
+                                className="search-input"
+                                placeholder="Search assignments..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                            />
                         </div>
 
-                        <div style={styles.modalBody}>
-                            <div style={styles.modalTaskInfo}>
-                                <h4 style={styles.modalTaskName}>{selectedTask.title}</h4>
-                                <p style={styles.modalTaskDesc}>{selectedTask.description || 'No additional instructions provided.'}</p>
-                            </div>
-
-                            {/* Submission Type Toggle */}
-                            <div style={styles.typeToggle}>
+                        <div>
+                            <div style={{ display: 'flex', gap: '12px', marginBottom: '16px' }}>
                                 <button
-                                    style={{ ...styles.toggleBtn, ...(submissionType === 'file' ? styles.toggleBtnActive : {}) }}
-                                    onClick={() => setSubmissionType('file')}
+                                    onClick={() => {
+                                        setSkillsTab('active');
+                                        setCurrentSubjectPage(1);
+                                    }}
+                                    style={{
+                                        flex: 1,
+                                        padding: '10px 12px',
+                                        border: 'none',
+                                        borderRadius: '8px',
+                                        backgroundColor: skillsTab === 'active' ? '#0066FF' : '#F3F4F6',
+                                        color: skillsTab === 'active' ? '#FFFFFF' : '#6B7280',
+                                        fontSize: '14px',
+                                        fontWeight: '600',
+                                        cursor: 'pointer',
+                                        transition: 'all 0.2s'
+                                    }}
                                 >
-                                    File Upload
+                                    Active
                                 </button>
                                 <button
-                                    style={{ ...styles.toggleBtn, ...(submissionType === 'link' ? styles.toggleBtnActive : {}) }}
-                                    onClick={() => setSubmissionType('link')}
+                                    onClick={() => {
+                                        setSkillsTab('completed');
+                                        setCurrentSubjectPage(1);
+                                    }}
+                                    style={{
+                                        flex: 1,
+                                        padding: '10px 12px',
+                                        border: 'none',
+                                        borderRadius: '8px',
+                                        backgroundColor: skillsTab === 'completed' ? '#0066FF' : '#F3F4F6',
+                                        color: skillsTab === 'completed' ? '#FFFFFF' : '#6B7280',
+                                        fontSize: '14px',
+                                        fontWeight: '600',
+                                        cursor: 'pointer',
+                                        transition: 'all 0.2s'
+                                    }}
                                 >
-                                    Link Submission
+                                    Completed
                                 </button>
                             </div>
-
-                            {submissionType === 'file' ? (
-                                <div style={styles.uploadSection}>
-                                    <input
-                                        type="file"
-                                        id="task-upload"
-                                        hidden
-                                        accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
-                                        onChange={handleFileUpload}
-                                    />
-                                    <label htmlFor="task-upload" style={styles.uploadBox}>
-                                        {uploadFile ? (
-                                            <div style={styles.fileSelected}>
-                                                <FileText size={32} color="#2563EB" />
-                                                <span style={styles.fileName}>{uploadFile.name}</span>
-                                                <span style={styles.fileSize}>{(uploadFile.size / 1024 / 1024).toFixed(2)} MB</span>
-                                            </div>
-                                        ) : (
-                                            <>
-                                                <CloudUpload size={32} color="#94A3B8" />
-                                                <div style={styles.uploadPrompt}>Click to upload or drag and drop</div>
-                                                <div style={styles.uploadSub}>PDF, Word Docs or Images (Max 10MB)</div>
-                                            </>
-                                        )}
-                                    </label>
-                                </div>
-                            ) : (
-                                <div style={styles.linkSection}>
-                                    <label style={styles.inputLabel}>External URL (GitHub, Drive, etc)</label>
-                                    <div style={styles.linkInputWrapper}>
-                                        <ExternalLink size={18} style={styles.linkIcon} />
-                                        <input
-                                            style={styles.linkInput}
-                                            placeholder="Place your link."
-                                            value={externalLink}
-                                            onChange={(e) => setExternalLink(e.target.value)}
-                                        />
+                            <div className="section-heading">Skills</div>
+                            <div className="subject-list">
+                                {paginatedSubjects.map(key => (
+                                    <div
+                                        key={key}
+                                        className={`subject-item ${selectedSubject === key ? 'active' : ''}`}
+                                        onClick={() => handleSubjectChange(key)}
+                                    >
+                                        <div className="subject-icon-box">{key.charAt(0)}</div>
+                                        <div className="subject-info">
+                                            <div className="subject-name">{TASKS_DATA[key].title}</div>
+                                            <div className="subject-code">{key}</div>
+                                        </div>
+                                        {selectedSubject === key && <ChevronRight size={16} color="#0066FF" />}
                                     </div>
-                                </div>
-                            )}
-
-                            <button
-                                style={{ ...styles.submitBtn, opacity: (uploadFile || externalLink) ? 1 : 0.6 }}
-                                onClick={submitAssignment}
-                            >
-                                Submit Assignment
-                            </button>
+                                ))}
+                            </div>
+                            <Pagination 
+                                currentPage={currentSubjectPage}
+                                totalPages={totalSubjectPages}
+                                onPageChange={setCurrentSubjectPage}
+                            />
                         </div>
                     </div>
                 </div>
-            )}
-        </div>
+
+                {/* Submission Modal */}
+                {selectedTask && (
+                    <div className="modal-overlay" onClick={closeModal}>
+                        <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+                            <div className="modal-header">
+                                <h3 className="modal-title">Submit Assignment</h3>
+                                <button className="close-btn" onClick={closeModal}>
+                                    <X size={20} />
+                                </button>
+                            </div>
+
+                            <div className="modal-body">
+                                <div className="task-info">
+                                    <h4 className="task-info-name">{selectedTask.title}</h4>
+                                    <p className="task-info-desc">{selectedTask.description || 'No additional instructions provided.'}</p>
+                                </div>
+
+                                <div className="type-toggle">
+                                    <button
+                                        className={`toggle-btn ${submissionType === 'file' ? 'active' : ''}`}
+                                        onClick={() => setSubmissionType('file')}
+                                    >File Upload</button>
+                                    <button
+                                        className={`toggle-btn ${submissionType === 'link' ? 'active' : ''}`}
+                                        onClick={() => setSubmissionType('link')}
+                                    >Link Submission</button>
+                                </div>
+
+                                {submissionType === 'file' ? (
+                                    <div>
+                                        <input type="file" id="task-upload" hidden accept=".pdf,.doc,.docx,.png,.jpg,.jpeg" onChange={handleFileUpload} />
+                                        <label htmlFor="task-upload" className="upload-box">
+                                            {uploadFile ? (
+                                                <div className="file-selected">
+                                                    <FileText size={32} color="#0066FF" />
+                                                    <span className="file-name">{uploadFile.name}</span>
+                                                    <span className="file-size">{(uploadFile.size / 1024 / 1024).toFixed(2)} MB</span>
+                                                </div>
+                                            ) : (
+                                                <>
+                                                    <CloudUpload size={32} color="#94A3B8" />
+                                                    <div className="upload-prompt">Click to upload or drag and drop</div>
+                                                    <div className="upload-sub">PDF, Word Docs or Images (Max 10MB)</div>
+                                                </>
+                                            )}
+                                        </label>
+                                    </div>
+                                ) : (
+                                    <div className="link-section">
+                                        <label className="input-label">External URL (GitHub, Drive, etc)</label>
+                                        <div className="link-input-wrapper">
+                                            <ExternalLink size={18} className="link-icon" />
+                                            <input
+                                                className="link-input"
+                                                placeholder="Paste your link here..."
+                                                value={externalLink}
+                                                onChange={(e) => setExternalLink(e.target.value)}
+                                            />
+                                        </div>
+                                    </div>
+                                )}
+
+                                <button
+                                    className="submit-btn"
+                                    onClick={submitAssignment}
+                                    style={{ opacity: (uploadFile || externalLink) ? 1 : 0.6 }}
+                                >
+                                    Submit Assignment
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </div>
+        </>
     );
 };
-
-const styles = {
-    pageWrapper: {
-        fontFamily: '"Inter", sans-serif',
-        backgroundColor: '#F8F9FB',
-        minHeight: '100vh',
-        '@media (max-width: 768px)': {
-            padding: '16px'
-        }
-    },
-    header: {
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: '32px',
-        flexWrap: 'wrap',
-        gap: '16px',
-        '@media (max-width: 768px)': {
-            flexDirection: 'column',
-            alignItems: 'stretch',
-            marginBottom: '24px'
-        }
-    },
-    headerLeft: {
-        display: 'flex',
-        alignItems: 'center',
-        gap: '16px',
-        '@media (max-width: 768px)': {
-            gap: '12px'
-        }
-    },
-    iconContainer: {
-        width: '48px',
-        height: '48px',
-        backgroundColor: '#EFF6FF',
-        borderRadius: '12px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        '@media (max-width: 768px)': {
-            width: '40px',
-            height: '40px',
-            minWidth: '40px'
-        }
-    },
-    pageTitle: {
-        fontSize: '24px',
-        fontWeight: '800',
-        color: '#1E293B',
-        margin: 0,
-        '@media (max-width: 768px)': {
-            fontSize: '20px'
-        }
-    },
-    subtext: {
-        fontSize: '14px',
-        color: '#64748B',
-        margin: '4px 0 0 0',
-        '@media (max-width: 768px)': {
-            fontSize: '13px'
-        }
-    },
-    filterGroup: {
-        display: 'flex',
-        backgroundColor: '#FFFFFF',
-        padding: '4px',
-        borderRadius: '10px',
-        border: '1px solid #E2E8F0',
-        boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
-        '@media (max-width: 768px)': {
-            width: '100%',
-            justifyContent: 'center',
-            marginTop: '8px'
-        }
-    },
-    filterBtn: {
-        padding: '8px 16px',
-        border: 'none',
-        backgroundColor: 'transparent',
-        fontSize: '13px',
-        fontWeight: '600',
-        color: '#64748B',
-        cursor: 'pointer',
-        borderRadius: '8px',
-        transition: 'all 0.2s',
-        whiteSpace: 'nowrap',
-        '@media (max-width: 768px)': {
-            padding: '8px 12px',
-            fontSize: '12px',
-            flex: 1
-        }
-    },
-    filterBtnActive: {
-        backgroundColor: '#2563EB',
-        color: '#FFFFFF'
-    },
-    mainLayout: {
-        display: 'block',
-        maxWidth: '1200px',
-        margin: '0 auto'
-    },
-    contentCol: {
-        width: '100%'
-    },
-    searchBar: {
-        position: 'relative',
-        display: 'flex',
-        alignItems: 'center',
-        marginBottom: '20px'
-    },
-    searchIcon: {
-        position: 'absolute',
-        left: '12px',
-        color: '#94A3B8'
-    },
-    searchInput: {
-        width: '100%',
-        padding: '12px 12px 12px 40px',
-        borderRadius: '10px',
-        border: '1px solid #E2E8F0',
-        fontSize: '14px',
-        outline: 'none',
-        backgroundColor: '#FFFFFF',
-        '@media (max-width: 768px)': {
-            fontSize: '16px', // Prevents zoom on iOS
-            padding: '14px 14px 14px 40px'
-        }
-    },
-    taskList: {
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '16px'
-    },
-    taskCard: {
-        backgroundColor: '#FFFFFF',
-        borderRadius: '14px',
-        padding: '20px',
-        border: '1px solid #E2E8F0',
-        transition: 'transform 0.2s, box-shadow 0.2s',
-        '@media (max-width: 768px)': {
-            padding: '16px',
-            borderRadius: '12px'
-        }
-    },
-    taskHeader: {
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'flex-start',
-        marginBottom: '12px',
-        flexWrap: 'wrap',
-        gap: '8px'
-    },
-    subjectTag: {
-        fontSize: '12px',
-        fontWeight: '700',
-        color: '#2563EB',
-        backgroundColor: '#EFF6FF',
-        padding: '4px 10px',
-        borderRadius: '6px',
-        whiteSpace: 'nowrap',
-        '@media (max-width: 768px)': {
-            fontSize: '11px'
-        }
-    },
-    statusBadge: {
-        display: 'flex',
-        alignItems: 'center',
-        padding: '4px 10px',
-        borderRadius: '6px',
-        fontSize: '11px',
-        fontWeight: '700',
-        whiteSpace: 'nowrap',
-        '@media (max-width: 768px)': {
-            fontSize: '10px',
-            padding: '4px 8px'
-        }
-    },
-    taskTitle: {
-        fontSize: '18px',
-        fontWeight: '700',
-        color: '#1E293B',
-        margin: '0 0 12px 0',
-        '@media (max-width: 768px)': {
-            fontSize: '16px',
-            lineHeight: '1.4'
-        }
-    },
-    taskInfoRow: {
-        display: 'flex',
-        gap: '20px',
-        fontSize: '13px',
-        color: '#64748B',
-        marginBottom: '20px',
-        flexWrap: 'wrap',
-        rowGap: '12px',
-        '@media (max-width: 768px)': {
-            gap: '16px',
-            fontSize: '12px'
-        }
-    },
-    infoItem: {
-        display: 'flex',
-        alignItems: 'center',
-        whiteSpace: 'nowrap',
-        '@media (max-width: 768px)': {
-            flex: '1 0 calc(50% - 8px)',
-            minWidth: '140px'
-        }
-    },
-    cardFooter: {
-        borderTop: '1px solid #F1F5F9',
-        paddingTop: '16px',
-        display: 'flex',
-        justifyContent: 'flex-end',
-        '@media (max-width: 768px)': {
-            paddingTop: '12px'
-        }
-    },
-    actionBtn: {
-        display: 'flex',
-        alignItems: 'center',
-        gap: '6px',
-        backgroundColor: 'transparent',
-        border: 'none',
-        color: '#2563EB',
-        fontWeight: '700',
-        fontSize: '14px',
-        cursor: 'pointer',
-        whiteSpace: 'nowrap',
-        '@media (max-width: 768px)': {
-            fontSize: '13px'
-        }
-    },
-    gradeInfo: {
-        fontSize: '13px',
-        color: '#16A34A',
-        fontWeight: '500',
-        textAlign: 'right',
-        '@media (max-width: 768px)': {
-            fontSize: '12px',
-            lineHeight: '1.4'
-        }
-    },
-    emptyState: {
-        textAlign: 'center',
-        padding: '60px 40px',
-        backgroundColor: '#FFFFFF',
-        borderRadius: '14px',
-        border: '1px dashed #CBD5E1',
-        color: '#64748B',
-        '@media (max-width: 768px)': {
-            padding: '40px 20px'
-        }
-    },
-    modalOverlay: {
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: 'rgba(0,0,0,0.5)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 1000,
-        padding: '20px',
-        '@media (max-width: 768px)': {
-            padding: '12px',
-            alignItems: 'flex-end'
-        }
-    },
-    modalContent: {
-        backgroundColor: '#FFFFFF',
-        borderRadius: '16px',
-        width: '100%',
-        maxWidth: '500px',
-        overflow: 'hidden',
-        maxHeight: '90vh',
-        overflowY: 'auto',
-        '@media (max-width: 768px)': {
-            borderRadius: '16px 16px 0 0',
-            maxHeight: '85vh',
-            maxWidth: '100%'
-        }
-    },
-    modalHeader: {
-        padding: '20px 24px',
-        borderBottom: '1px solid #F1F5F9',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        '@media (max-width: 768px)': {
-            padding: '16px 20px',
-            position: 'sticky',
-            top: 0,
-            backgroundColor: '#FFFFFF',
-            zIndex: 1
-        }
-    },
-    modalTitle: {
-        fontSize: '18px',
-        fontWeight: '700',
-        margin: 0,
-        '@media (max-width: 768px)': {
-            fontSize: '16px'
-        }
-    },
-    closeBtn: {
-        backgroundColor: 'transparent',
-        border: 'none',
-        color: '#64748B',
-        cursor: 'pointer',
-        padding: '4px'
-    },
-    modalBody: {
-        padding: '24px',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '20px',
-        '@media (max-width: 768px)': {
-            padding: '20px',
-            gap: '16px'
-        }
-    },
-    modalTaskInfo: {
-        '@media (max-width: 768px)': {
-            marginBottom: '8px'
-        }
-    },
-    modalTaskName: {
-        fontSize: '16px',
-        fontWeight: '700',
-        margin: '0 0 8px 0',
-        '@media (max-width: 768px)': {
-            fontSize: '15px'
-        }
-    },
-    modalTaskDesc: {
-        fontSize: '14px',
-        color: '#64748B',
-        lineHeight: '1.5',
-        margin: 0,
-        '@media (max-width: 768px)': {
-            fontSize: '13px'
-        }
-    },
-    uploadSection: {
-        width: '100%'
-    },
-    uploadBox: {
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '32px',
-        border: '2px dashed #E2E8F0',
-        borderRadius: '12px',
-        cursor: 'pointer',
-        transition: 'border-color 0.2s',
-        '@media (max-width: 768px)': {
-            padding: '24px 16px'
-        }
-    },
-    uploadPrompt: {
-        fontSize: '14px',
-        fontWeight: '600',
-        color: '#1E293B',
-        marginTop: '12px',
-        textAlign: 'center',
-        '@media (max-width: 768px)': {
-            fontSize: '13px'
-        }
-    },
-    uploadSub: {
-        fontSize: '12px',
-        color: '#94A3B8',
-        marginTop: '4px',
-        textAlign: 'center',
-        '@media (max-width: 768px)': {
-            fontSize: '11px'
-        }
-    },
-    fileSelected: {
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        gap: '6px',
-        width: '100%'
-    },
-    fileName: {
-        fontSize: '14px',
-        fontWeight: '600',
-        color: '#1E293B',
-        textAlign: 'center',
-        wordBreak: 'break-word',
-        width: '100%',
-        '@media (max-width: 768px)': {
-            fontSize: '13px'
-        }
-    },
-    fileSize: {
-        fontSize: '12px',
-        color: '#94A3B8',
-        '@media (max-width: 768px)': {
-            fontSize: '11px'
-        }
-    },
-    submitBtn: {
-        width: '100%',
-        padding: '14px',
-        backgroundColor: '#2563EB',
-        color: '#FFFFFF',
-        border: 'none',
-        borderRadius: '10px',
-        fontWeight: '700',
-        fontSize: '15px',
-        cursor: 'pointer',
-        '@media (max-width: 768px)': {
-            padding: '16px',
-            fontSize: '16px',
-            marginTop: '8px'
-        }
-    },
-    typeToggle: {
-        display: 'flex',
-        gap: '10px',
-        backgroundColor: '#F1F5F9',
-        padding: '4px',
-        borderRadius: '10px',
-        '@media (max-width: 768px)': {
-            gap: '8px'
-        }
-    },
-    toggleBtn: {
-        flex: 1,
-        padding: '10px',
-        border: 'none',
-        borderRadius: '8px',
-        fontSize: '13px',
-        fontWeight: '600',
-        color: '#64748B',
-        backgroundColor: 'transparent',
-        cursor: 'pointer',
-        transition: 'all 0.2s',
-        whiteSpace: 'nowrap',
-        '@media (max-width: 768px)': {
-            padding: '12px 8px',
-            fontSize: '14px'
-        }
-    },
-    toggleBtnActive: {
-        backgroundColor: '#FFFFFF',
-        color: '#2563EB',
-        boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
-    },
-    linkSection: {
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '10px'
-    },
-    inputLabel: {
-        fontSize: '13px',
-        fontWeight: '600',
-        color: '#334155',
-        '@media (max-width: 768px)': {
-            fontSize: '14px'
-        }
-    },
-    linkInputWrapper: {
-        position: 'relative',
-        display: 'flex',
-        alignItems: 'center'
-    },
-    linkIcon: {
-        position: 'absolute',
-        left: '12px',
-        color: '#94A3B8'
-    },
-    linkInput: {
-        width: '100%',
-        padding: '12px 12px 12px 40px',
-        borderRadius: '10px',
-        border: '1px solid #E2E8F0',
-        fontSize: '14px',
-        outline: 'none',
-        '@media (max-width: 768px)': {
-            fontSize: '16px',
-            padding: '14px 14px 14px 40px'
-        }
-    }
-};
-
-// Convert media queries to inline styles for React
-const responsiveStyles = {};
-Object.keys(styles).forEach(key => {
-    if (typeof styles[key] === 'object' && styles[key]['@media (max-width: 768px)']) {
-        const mobileStyles = styles[key]['@media (max-width: 768px)'];
-        responsiveStyles[key] = {
-            ...styles[key],
-            '@media (max-width: 768px)': undefined
-        };
-        // We'll apply mobile styles through CSS classes instead
-    } else {
-        responsiveStyles[key] = styles[key];
-    }
-});
 
 export default TasksAssignments;

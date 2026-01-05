@@ -56,7 +56,7 @@ const SideTab = () => {
     ],
     "student": [
       { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, section: 'main' },
-      { id: 'classroom', label: 'My Class Room', icon: Home, section: 'main' },
+      { id: 'classes', label: 'My Class Room', icon: Home, section: 'main' },
       { id: 'roadmap', label: 'Roadmap & Material', icon: Map, section: 'academic' },
       { id: 'tasks', label: 'Tasks & Assignments', icon: ClipboardCheck, section: 'academic' },
       { id: 'attendance', label: 'Attendance', icon: CalendarCheck, section: 'academic' },
