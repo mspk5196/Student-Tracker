@@ -46,7 +46,6 @@ const SideTab = () => {
       { id: 'settings', label: 'Settings', icon: Settings, section: 'system' },
     ],
     "faculty": [
-      { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, section: 'main' },
       { id: 'classes', label: 'My Classes / Groups', icon: Layers, section: 'main' },
       { id: 'students', label: 'Students', icon: Users, section: 'main' },
       { id: 'attendance', label: 'Attendance', icon: CalendarCheck, section: 'academic' },
@@ -55,12 +54,9 @@ const SideTab = () => {
       { id: 'settings', label: 'Settings', icon: Settings, section: 'system' },
     ],
     "student": [
-      { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, section: 'main' },
-      { id: 'classes', label: 'My Class Room', icon: Home, section: 'main' },
       { id: 'roadmap', label: 'Roadmap & Material', icon: Map, section: 'academic' },
       { id: 'tasks', label: 'Tasks & Assignments', icon: ClipboardCheck, section: 'academic' },
       { id: 'attendance', label: 'Attendance', icon: CalendarCheck, section: 'academic' },
-      { id: 'performance', label: 'Performance', icon: BarChart3, section: 'system' },
     ],
   };
 

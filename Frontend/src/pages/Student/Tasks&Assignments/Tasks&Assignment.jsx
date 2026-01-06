@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   ClipboardCheck,
   Search,
@@ -13,9 +13,14 @@ import {
   ExternalLink,
   BookOpen,
   Download,
+  Loader,
 } from "lucide-react";
+import useAuthStore from "../../../store/useAuthStore";
 
 const TasksAssignments = () => {
+  const { token, user } = useAuthStore();
+  const API_URL = import.meta.env.VITE_API_URL;
+
   const MATERIALS_BY_TASK = {
     1: [
       {
@@ -441,6 +446,12 @@ const TasksAssignments = () => {
     },
   };
 
+  // State management
+  const [tasksData, setTasksData] = useState({});
+  const [venueInfo, setVenueInfo] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
   const [selectedSubject, setSelectedSubject] = useState("REACT-101");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedTask, setSelectedTask] = useState(null);
@@ -454,7 +465,66 @@ const TasksAssignments = () => {
   const [currentSubjectPage, setCurrentSubjectPage] = useState(1);
   const subjectsPerPage = 5;
 
-  const subjectData = TASKS_DATA[selectedSubject];
+  // Fetch tasks from backend
+  useEffect(() => {
+    if (token) {
+      fetchTasks();
+    }
+  }, [token]);
+
+  const fetchTasks = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const response = await fetch(`${API_URL}/tasks/student`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      const data = await response.json();
+      
+      console.log('API Response:', data);
+      
+      if (data.success) {
+        setTasksData(data.data.groupedTasks || {});
+        setVenueInfo({
+          venue_name: data.data.venue_name,
+          venue_id: data.data.venue_id,
+          student_id: data.data.student_id
+        });
+        
+        // Set first subject as selected
+        const firstKey = Object.keys(data.data.groupedTasks || {})[0];
+        if (firstKey) {
+          setSelectedSubject(firstKey);
+        }
+
+        // Extract completed task IDs
+        const completedIds = [];
+        Object.values(data.data.groupedTasks || {}).forEach(subject => {
+          subject.tasks.forEach(task => {
+            if (task.status === 'completed') {
+              completedIds.push(task.id);
+            }
+          });
+        });
+        setCompletedTasks(completedIds);
+      } else {
+        setError(data.message || 'Failed to fetch tasks');
+      }
+    } catch (err) {
+      console.error('Error fetching student tasks:', err);
+      setError(`Failed to load tasks: ${err.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Use real data from backend
+  const DISPLAY_TASKS_DATA = tasksData;
+  const subjectData = DISPLAY_TASKS_DATA[selectedSubject];
   const allTasks = subjectData?.tasks || [];
 
   const filteredTasks = allTasks.filter((task) => {
@@ -466,11 +536,11 @@ const TasksAssignments = () => {
   });
 
   // Pagination calculations for subjects
-  const subjectKeys = Object.keys(TASKS_DATA);
+  const subjectKeys = Object.keys(DISPLAY_TASKS_DATA);
 
   // Filter subjects based on skillsTab (active/completed)
   const filteredSubjectKeys = subjectKeys.filter((key) => {
-    const subjectTasks = TASKS_DATA[key].tasks;
+    const subjectTasks = DISPLAY_TASKS_DATA[key].tasks;
     const allTasksCompleted = subjectTasks.every(
       (task) => task.status === "completed"
     );
@@ -505,7 +575,7 @@ const TasksAssignments = () => {
     }
   };
 
-  const submitAssignment = () => {
+  const submitAssignment = async () => {
     if (submissionType === "file" && !uploadFile) {
       alert("Please upload a file before submitting.");
       return;
@@ -515,9 +585,41 @@ const TasksAssignments = () => {
       return;
     }
 
-    setCompletedTasks((prev) => [...new Set([...prev, selectedTask.id])]);
-    closeModal();
-    alert("Assignment submitted successfully!");
+    setSubmitting(true);
+    const formData = new FormData();
+    formData.append('submission_type', submissionType);
+    
+    if (submissionType === 'file' && uploadFile) {
+      formData.append('file', uploadFile);
+    } else if (submissionType === 'link') {
+      formData.append('link_url', externalLink);
+    }
+
+    try {
+      const response = await fetch(`${API_URL}/tasks/${selectedTask.id}/submit`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: formData
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        alert(data.message || 'Assignment submitted successfully!');
+        setCompletedTasks((prev) => [...new Set([...prev, selectedTask.id])]);
+        closeModal();
+        fetchTasks(); // Refresh tasks
+      } else {
+        alert(data.message || 'Failed to submit assignment');
+      }
+    } catch (err) {
+      console.error('Error submitting assignment:', err);
+      alert('Failed to submit assignment. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const closeModal = () => {
@@ -538,7 +640,13 @@ const TasksAssignments = () => {
       alert("No reference link available yet.");
       return;
     }
-    window.open(link, "_blank");
+    
+    // If it's a download link from backend, add API_URL prefix
+    if (material.fileUrl && material.fileUrl.includes('/api/roadmap/resources/download/')) {
+      window.open(`${API_URL}${material.fileUrl}`, '_blank');
+    } else {
+      window.open(link, "_blank");
+    }
   };
 
   // Pagination component
@@ -727,7 +835,56 @@ const TasksAssignments = () => {
                 }
             `}</style>
 
-      <div className="page-wrapper">
+      {loading ? (
+        <div className="page-wrapper">
+          <div style={{ 
+            display: 'flex', 
+            flexDirection: 'column',
+            justifyContent: 'center', 
+            alignItems: 'center', 
+            height: '400px',
+            gap: '16px'
+          }}>
+            <Loader size={48} color="#0066FF" style={{ animation: 'spin 1s linear infinite' }} />
+            <p style={{ fontSize: '16px', color: '#6B7280' }}>Loading assignments...</p>
+          </div>
+          <style>{`
+            @keyframes spin {
+              from { transform: rotate(0deg); }
+              to { transform: rotate(360deg); }
+            }
+          `}</style>
+        </div>
+      ) : error && Object.keys(DISPLAY_TASKS_DATA).length === 0 ? (
+        <div className="page-wrapper">
+          <div style={{ 
+            display: 'flex', 
+            flexDirection: 'column',
+            justifyContent: 'center', 
+            alignItems: 'center', 
+            height: '400px',
+            gap: '16px'
+          }}>
+            <AlertCircle size={48} color="#EF4444" />
+            <p style={{ fontSize: '16px', color: '#6B7280', textAlign: 'center', maxWidth: '400px' }}>{error}</p>
+            <button 
+              onClick={fetchTasks}
+              style={{
+                padding: '10px 24px',
+                background: '#0066FF',
+                color: '#FFFFFF',
+                border: 'none',
+                borderRadius: '8px',
+                fontWeight: '600',
+                cursor: 'pointer'
+              }}
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="page-wrapper">
         <header className="header">
           <div className="header-info">
             <div className="breadcrumb">
@@ -736,7 +893,8 @@ const TasksAssignments = () => {
             </div>
             <h1 className="page-title">{subjectData?.title}</h1>
             <p className="subtext-header">
-              Manage your assignments and track submissions
+              {subjectData?.instructor ? `Instructor: ${subjectData.instructor}` : 'Manage your assignments and track submissions'}
+              {venueInfo && ` • Venue: ${venueInfo.venue_name}`}
             </p>
           </div>
           <div className="progress-section">
@@ -945,7 +1103,7 @@ const TasksAssignments = () => {
                     <div className="subject-icon-box">{key.charAt(0)}</div>
                     <div className="subject-info">
                       <div className="subject-name">
-                        {TASKS_DATA[key].title}
+                        {DISPLAY_TASKS_DATA[key].title}
                       </div>
                       <div className="subject-code">{key}</div>
                     </div>
@@ -1054,15 +1212,20 @@ const TasksAssignments = () => {
                 <button
                   className="submit-btn"
                   onClick={submitAssignment}
-                  style={{ opacity: uploadFile || externalLink ? 1 : 0.6 }}
+                  disabled={submitting || (!uploadFile && !externalLink)}
+                  style={{ 
+                    opacity: (uploadFile || externalLink) && !submitting ? 1 : 0.6,
+                    cursor: submitting ? 'not-allowed' : 'pointer'
+                  }}
                 >
-                  Submit Assignment
+                  {submitting ? 'Submitting...' : 'Submit Assignment'}
                 </button>
               </div>
             </div>
           </div>
         )}
       </div>
+      )}
     </>
   );
 };

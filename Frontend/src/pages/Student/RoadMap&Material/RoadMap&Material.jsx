@@ -10,114 +10,77 @@ import {
     Clock,
     ChevronRight,
     Search,
-    Book
+    Book,
+    ChevronLeft,
+    Loader
 } from 'lucide-react';
+import useAuthStore from '../../../store/useAuthStore';
 
 const StudentRoadmap = () => {
-    // --- MOCK DATA FOR STUDENT ROADMAPS ---
-    const ROADMAP_DATA = {
-        'REACT-101': {
-            title: "React Mastery Workshop",
-            instructor: "Prof. Sarah Johnson",
-            modules: [
-                {
-                    id: 1,
-                    day: 1,
-                    title: "React Fundamentals & JSX",
-                    description: "Introduction to React, understanding JSX, and creating your first components. We'll cover why React is used and how to set up a basic project environment.",
-                    status: "completed",
-                    resources: [
-                        { id: 101, name: "React_Official_Docs.pdf", type: "PDF Document", kind: "pdf", url: "https://react.dev/learn" },
-                        { id: 102, name: "JSX Tutorial Video", type: "Video Link", kind: "video", url: "https://www.youtube.com/watch?v=7fPXI_MnBOY" }
-                    ]
-                },
-                {
-                    id: 2,
-                    day: 2,
-                    title: "Components & Props",
-                    description: "Learn about React components, props, and component composition. Understanding how to pass data between components and build reusable UI elements.",
-                    status: "current",
-                    resources: [
-                        { id: 103, name: "Components_Guide.pdf", type: "PDF Document", kind: "pdf", url: "https://react.dev/learn/your-first-component" },
-                        { id: 104, name: "Props Deep Dive", type: "Web Resource", kind: "link", url: "https://react.dev/learn/passing-props-to-a-component" }
-                    ]
-                },
-                {
-                    id: 3,
-                    day: 3,
-                    title: "State & Lifecycle",
-                    description: "Introduction to hooks, specifically useState, and understanding the lifecycle of a React component.",
-                    status: "locked",
-                    resources: [
-                        { id: 105, name: "State_Management.pdf", type: "PDF Document", kind: "pdf", url: "https://react.dev/learn/state-a-components-memory" }
-                    ]
+    const { token, user } = useAuthStore();
+    const API_URL = import.meta.env.VITE_API_URL;
+
+    const [roadmapData, setRoadmapData] = useState([]);
+    const [venue, setVenue] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
+    const [searchQuery, setSearchQuery] = useState('');
+    const [completedModules, setCompletedModules] = useState([]);
+    const [currentPage, setCurrentPage] = useState(1);
+    const modulesPerPage = 10;
+
+    // Fetch roadmap data from backend
+    useEffect(() => {
+        fetchRoadmapData();
+    }, []);
+
+    const fetchRoadmapData = async () => {
+        setLoading(true);
+        setError('');
+        try {
+            const response = await fetch(`${API_URL}/roadmap/student`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
                 }
-            ]
-        },
-        'JS-301': {
-            title: "JavaScript Deep Dive",
-            instructor: "Prof. Michael Chen",
-            modules: [
-                {
-                    id: 4,
-                    day: 1,
-                    title: "JavaScript ES6+ Features",
-                    description: "Modern JavaScript features including arrow functions, destructuring, and modules.",
-                    status: "completed",
-                    resources: [
-                        { id: 106, name: "ES6_Features.pdf", type: "PDF Document", kind: "pdf", url: "https://javascript.info/es-mod" },
-                        { id: 107, name: "Async JavaScript Video", type: "Video Link", kind: "video", url: "https://www.youtube.com/watch?v=vn3tkfPZf8w" }
-                    ]
-                }
-            ]
+            });
+
+            const data = await response.json();
+            
+            if (data.success) {
+                setRoadmapData(data.data || []);
+                setVenue(data.venue);
+            } else {
+                setError(data.message || 'Failed to fetch roadmap');
+            }
+        } catch (err) {
+            console.error('Error fetching roadmap:', err);
+            setError('Failed to load roadmap. Please try again.');
+        } finally {
+            setLoading(false);
         }
     };
 
-    const [selectedSkill, setSelectedSkill] = useState('REACT-101');
-    const [searchQuery, setSearchQuery] = useState('');
-    const [completedModules, setCompletedModules] = useState([1]);
-    const [skillsTab, setSkillsTab] = useState('active');
-    const [currentSkillPage, setCurrentSkillPage] = useState(1);
-    const skillsPerPage = 5;
+    // Filter modules based on search query
+    const filteredModules = roadmapData.filter(module => 
+        module.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        module.description?.toLowerCase().includes(searchQuery.toLowerCase())
+    );
 
-    const skillData = ROADMAP_DATA[selectedSkill];
-    const modules = skillData?.modules || [];
+    // Pagination
+    const totalPages = Math.ceil(filteredModules.length / modulesPerPage) || 1;
+    const startIdx = (currentPage - 1) * modulesPerPage;
+    const endIdx = startIdx + modulesPerPage;
+    const paginatedModules = filteredModules.slice(startIdx, endIdx);
 
-    const skillKeys = Object.keys(ROADMAP_DATA);
-    const filteredSkillKeys = skillKeys.filter((key) => {
-        const skillModules = ROADMAP_DATA[key].modules || [];
-        const allCompleted = skillModules.every(
-            (m) => m.status === 'completed' || completedModules.includes(m.id)
-        );
-        const hasActive = skillModules.some(
-            (m) => !(m.status === 'completed' || completedModules.includes(m.id))
-        );
-
-        if (skillsTab === 'active') return hasActive;
-        if (skillsTab === 'completed') return allCompleted;
-        return true;
-    });
-
-    const totalSkillPages = Math.ceil(filteredSkillKeys.length / skillsPerPage) || 1;
-    const skillStartIdx = (currentSkillPage - 1) * skillsPerPage;
-    const skillEndIdx = skillStartIdx + skillsPerPage;
-    const paginatedSkillKeys = filteredSkillKeys.slice(skillStartIdx, skillEndIdx);
-
+    // Reset page if current page exceeds new total after filtering
     useEffect(() => {
-        if (!filteredSkillKeys.length) return;
-        if (!filteredSkillKeys.includes(selectedSkill)) {
-            setSelectedSkill(filteredSkillKeys[0]);
+        if (currentPage > totalPages) {
+            setCurrentPage(1);
         }
-    }, [filteredSkillKeys, selectedSkill]);
+    }, [currentPage, totalPages]);
 
-    useEffect(() => {
-        // Reset page if current page exceeds new total after filtering
-        if (currentSkillPage > totalSkillPages) {
-            setCurrentSkillPage(1);
-        }
-    }, [currentSkillPage, totalSkillPages]);
-
-    const SkillsPagination = ({ currentPage, totalPages, onPageChange }) => {
+    const Pagination = ({ currentPage, totalPages, onPageChange }) => {
         const getPageNumbers = () => {
             const pages = [];
             const maxVisible = 3;
@@ -136,13 +99,13 @@ const StudentRoadmap = () => {
 
         if (totalPages <= 1) return null;
 
-        const start = (currentPage - 1) * skillsPerPage + 1;
-        const end = Math.min(currentPage * skillsPerPage, filteredSkillKeys.length);
+        const start = (currentPage - 1) * modulesPerPage + 1;
+        const end = Math.min(currentPage * modulesPerPage, filteredModules.length);
 
         return (
             <div className="pagination-wrapper">
                 <span className="pagination-info">
-                    Showing {start}-{end} items
+                    Showing {start}-{end} of {filteredModules.length} modules
                 </span>
                 <div className="pagination">
                     <button
@@ -175,12 +138,16 @@ const StudentRoadmap = () => {
         );
     };
 
-    const handleResourceAction = (res) => {
-        if (!res.url) {
+    const handleResourceAction = (resource) => {
+        if (resource.resource_type === 'pdf' && resource.resource_id) {
+            // Download PDF
+            window.open(`${API_URL}/roadmap/resources/download/${resource.resource_id}`, '_blank');
+        } else if (resource.resource_url) {
+            // Open link or video
+            window.open(resource.resource_url, '_blank');
+        } else {
             alert("No link available.");
-            return;
         }
-        window.open(res.url, '_blank');
     };
 
     const toggleComplete = (id) => {
@@ -190,9 +157,35 @@ const StudentRoadmap = () => {
     };
 
     const calculateProgress = () => {
-        if (!modules.length) return 0;
-        const completed = modules.filter(m => completedModules.includes(m.id)).length;
-        return Math.round((completed / modules.length) * 100);
+        if (!roadmapData.length) return 0;
+        const completed = roadmapData.filter(m => completedModules.includes(m.roadmap_id)).length;
+        return Math.round((completed / roadmapData.length) * 100);
+    };
+
+    const getResourceIcon = (type) => {
+        switch(type) {
+            case 'pdf':
+                return <FileText size={16} />;
+            case 'video':
+                return <Youtube size={16} />;
+            case 'link':
+                return <ExternalLink size={16} />;
+            default:
+                return <FileText size={16} />;
+        }
+    };
+
+    const getResourceTypeLabel = (type) => {
+        switch(type) {
+            case 'pdf':
+                return 'PDF Document';
+            case 'video':
+                return 'Video Link';
+            case 'link':
+                return 'Web Resource';
+            default:
+                return 'Resource';
+        }
     };
 
     return (
@@ -434,6 +427,7 @@ const StudentRoadmap = () => {
                 .resource-item {
                     display: flex;
                     align-items: center;
+                    gap: 12px;
                     padding: 14px;
                     background-color: #F9FAFB;
                     border-radius: 10px;
@@ -444,26 +438,48 @@ const StudentRoadmap = () => {
                 
                 .resource-item:hover {
                     background-color: #F3F4F6;
+                    border-color: #E5E7EB;
+                    transform: translateY(-1px);
                 }
                 
                 .resource-icon {
-                    margin-right: 12px;
                     flex-shrink: 0;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                }
+                
+                .resource-info {
+                    flex: 1;
+                    min-width: 0;
                 }
                 
                 .resource-name {
-                    flex: 1;
                     font-size: 13px;
                     font-weight: 600;
                     color: #374151;
                     white-space: nowrap;
                     overflow: hidden;
                     text-overflow: ellipsis;
+                    margin-bottom: 2px;
+                }
+                
+                .resource-type {
+                    font-size: 11px;
+                    color: #9CA3AF;
+                    font-weight: 500;
                 }
                 
                 .resource-action {
                     color: #9CA3AF;
                     flex-shrink: 0;
+                    display: flex;
+                    align-items: center;
+                }
+
+                @keyframes spin {
+                    from { transform: rotate(0deg); }
+                    to { transform: rotate(360deg); }
                 }
                 
                 .sidebar-col {
@@ -771,13 +787,17 @@ const StudentRoadmap = () => {
                 <header className="header">
                     <div className="header-info">
                         <div className="breadcrumb">
-                            <Book size={16} /> Roadmap & Material / {selectedSkill}
+                            <Book size={16} /> Roadmap & Material {venue && `/ ${venue.venue_name}`}
                         </div>
-                        <h1 className="page-title">{skillData?.title}</h1>
-                        <div className="instructor-info">
-                            <div className="avatar">IN</div>
-                            <span>{skillData?.instructor}</span>
-                        </div>
+                        <h1 className="page-title">
+                            {venue ? `Learning Roadmap - ${venue.venue_name}` : 'My Learning Roadmap'}
+                        </h1>
+                        {venue && (
+                            <div className="instructor-info">
+                                <div className="avatar">{venue.venue_name.charAt(0)}</div>
+                                <span>{venue.venue_name}</span>
+                            </div>
+                        )}
                     </div>
                     <div className="progress-section">
                         <div className="progress-text">
@@ -792,68 +812,99 @@ const StudentRoadmap = () => {
 
                 <div className="main-content">
                     <div className="roadmap-col">
-                        <div className="module-list">
-                            {modules.map((module, index) => {
-                                const isCompleted = completedModules.includes(module.id);
-                                const isLocked = module.status === 'locked' && !isCompleted;
+                        {loading ? (
+                            <div style={{ textAlign: 'center', padding: '60px 20px', color: '#64748b' }}>
+                                <Loader size={40} style={{ margin: '0 auto 16px', animation: 'spin 1s linear infinite' }} />
+                                <p>Loading roadmap...</p>
+                            </div>
+                        ) : error ? (
+                            <div style={{ textAlign: 'center', padding: '60px 20px', color: '#ef4444' }}>
+                                <p>{error}</p>
+                            </div>
+                        ) : filteredModules.length === 0 ? (
+                            <div style={{ textAlign: 'center', padding: '60px 20px', color: '#64748b' }}>
+                                <BookOpen size={48} style={{ margin: '0 auto 16px', opacity: 0.5 }} />
+                                <p>No roadmap modules available yet.</p>
+                                {!venue && <p style={{ fontSize: '14px', marginTop: '8px' }}>You haven't been assigned to a venue.</p>}
+                            </div>
+                        ) : (
+                            <>
+                                <div className="module-list">
+                                    {paginatedModules.map((module, index) => {
+                                        const isCompleted = completedModules.includes(module.roadmap_id);
 
-                                return (
-                                    <div key={module.id}>
-                                        {index !== 0 && <div className="timeline-connector" />}
-                                        <div className={`module-card ${isLocked ? 'locked-card' : ''}`}>
-                                            <div className="card-header">
-                                                <div className="card-header-left">
-                                                    <div
-                                                        className={`module-number ${isCompleted ? 'completed' : ''}`}
-                                                        onClick={() => toggleComplete(module.id)}
-                                                    >
-                                                        {isCompleted ? <CheckCircle2 size={24} /> : `D${module.day}`}
-                                                    </div>
-                                                    <div className="module-title-group">
-                                                        <h3 className="module-title">{module.title}</h3>
-                                                        <div className="module-meta">
-                                                            <Clock size={12} style={{ marginRight: 4 }} /> Estimated 2-3 hours
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                <div className="status-badge">
-                                                    {isCompleted ? 'Completed' : module.status === 'current' ? 'In Progress' : 'Pending'}
-                                                </div>
-                                            </div>
-
-                                            <div className="card-body">
-                                                <p className="description">{module.description}</p>
-
-                                                <div className="resource-header">
-                                                    <BookOpen size={16} style={{ marginRight: 8 }} />
-                                                    Learning Resources
-                                                </div>
-
-                                                <div className="resource-grid">
-                                                    {module.resources.map(res => (
-                                                        <div
-                                                            key={res.id}
-                                                            className="resource-item"
-                                                            onClick={() => handleResourceAction(res)}
-                                                        >
-                                                            <div className="resource-icon">
-                                                                {res.kind === 'pdf' ? <FileText size={18} color="#ef4444" /> :
-                                                                    res.kind === 'video' ? <Youtube size={18} color="#FF0000" /> :
-                                                                        <ExternalLink size={18} color="#3B82F6" />}
+                                        return (
+                                            <div key={module.roadmap_id}>
+                                                {index !== 0 && <div className="timeline-connector" />}
+                                                <div className="module-card">
+                                                    <div className="card-header">
+                                                        <div className="card-header-left">
+                                                            <div
+                                                                className={`module-number ${isCompleted ? 'completed' : ''}`}
+                                                                onClick={() => toggleComplete(module.roadmap_id)}
+                                                                style={{ cursor: 'pointer' }}
+                                                            >
+                                                                {isCompleted ? <CheckCircle2 size={24} /> : `D${module.day}`}
                                                             </div>
-                                                            <div className="resource-name">{res.name}</div>
-                                                            <div className="resource-action">
-                                                                {res.kind === 'pdf' ? <Download size={14} /> : <ChevronRight size={14} />}
+                                                            <div className="module-title-group">
+                                                                <h3 className="module-title">{module.title}</h3>
+                                                                <div className="module-meta">
+                                                                    <Clock size={12} style={{ marginRight: 4 }} /> 
+                                                                    {module.faculty_name ? `Instructor: ${module.faculty_name}` : 'Estimated 2-3 hours'}
+                                                                </div>
                                                             </div>
                                                         </div>
-                                                    ))}
+                                                        <div className="status-badge">
+                                                            {isCompleted ? 'Completed' : module.status === 'published' ? 'Available' : 'Draft'}
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="card-body">
+                                                        <p className="description">{module.description || 'No description provided.'}</p>
+
+                                                        {module.resources && module.resources.length > 0 && (
+                                                            <>
+                                                                <div className="resource-header">
+                                                                    <BookOpen size={16} style={{ marginRight: 8 }} />
+                                                                    Learning Resources ({module.resources.length})
+                                                                </div>
+
+                                                                <div className="resource-grid">
+                                                                    {module.resources.map(res => (
+                                                                        <div
+                                                                            key={res.resource_id}
+                                                                            className="resource-item"
+                                                                            onClick={() => handleResourceAction(res)}
+                                                                        >
+                                                                            <div className="resource-icon">
+                                                                                {getResourceIcon(res.resource_type)}
+                                                                            </div>
+                                                                            <div className="resource-info">
+                                                                                <div className="resource-name">{res.resource_name}</div>
+                                                                                <div className="resource-type">{getResourceTypeLabel(res.resource_type)}</div>
+                                                                            </div>
+                                                                            <div className="resource-action">
+                                                                                {res.resource_type === 'pdf' ? <Download size={14} /> : <ChevronRight size={14} />}
+                                                                            </div>
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            </>
+                                                        )}
+                                                    </div>
                                                 </div>
                                             </div>
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
+                                        );
+                                    })}
+                                </div>
+
+                                <Pagination
+                                    currentPage={currentPage}
+                                    totalPages={totalPages}
+                                    onPageChange={setCurrentPage}
+                                />
+                            </>
+                        )}
                     </div>
 
                     <div className="sidebar-col">
@@ -861,51 +912,39 @@ const StudentRoadmap = () => {
                             <Search size={18} className="search-icon" />
                             <input
                                 className="search-input"
-                                placeholder="Search subjects..."
+                                placeholder="Search modules..."
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
                             />
                         </div>
 
-                        <div className="skills-toggle">
-                            <button
-                                className={`skills-tab-btn ${skillsTab === 'active' ? 'active' : ''}`}
-                                onClick={() => setSkillsTab('active')}
-                            >
-                                Active
-                            </button>
-                            <button
-                                className={`skills-tab-btn ${skillsTab === 'completed' ? 'active' : ''}`}
-                                onClick={() => setSkillsTab('completed')}
-                            >
-                                Completed
-                            </button>
-                        </div>
-                        <div className="section-heading">Courses</div>
+                        <div className="section-heading">All Modules ({roadmapData.length})</div>
                         <div className="skill-list">
-                            {paginatedSkillKeys.map(key => (
-                                <div
-                                    key={key}
-                                    className={`skill-item ${selectedSkill === key ? 'active' : ''}`}
-                                    onClick={() => setSelectedSkill(key)}
-                                >
-                                    <div className="skill-icon-box">
-                                        {key.charAt(0)}
-                                    </div>
-                                    <div className="skill-info">
-                                        <div className="skill-name">{ROADMAP_DATA[key].title}</div>
-                                        <div className="skill-code">{key}</div>
-                                    </div>
-                                    {selectedSkill === key && <ChevronRight size={16} color="#0066FF" />}
+                            {roadmapData.length === 0 && !loading ? (
+                                <div style={{ padding: '20px', textAlign: 'center', color: '#94a3b8', fontSize: '14px' }}>
+                                    No modules available
                                 </div>
-                            ))}
+                            ) : (
+                                roadmapData.map((module, index) => {
+                                    const isCompleted = completedModules.includes(module.roadmap_id);
+                                    return (
+                                        <div
+                                            key={module.roadmap_id}
+                                            className="skill-item"
+                                            style={{ cursor: 'default' }}
+                                        >
+                                            <div className="skill-icon-box" style={{ backgroundColor: isCompleted ? '#10b981' : '#3b82f6' }}>
+                                                {isCompleted ? '✓' : `D${module.day}`}
+                                            </div>
+                                            <div className="skill-info">
+                                                <div className="skill-name">{module.title}</div>
+                                                <div className="skill-code">Day {module.day} • {module.resources?.length || 0} resources</div>
+                                            </div>
+                                        </div>
+                                    );
+                                })
+                            )}
                         </div>
-
-                        <SkillsPagination
-                            currentPage={currentSkillPage}
-                            totalPages={totalSkillPages}
-                            onPageChange={setCurrentSkillPage}
-                        />
                     </div>
                 </div>
             </div>

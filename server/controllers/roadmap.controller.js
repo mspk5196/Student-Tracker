@@ -227,15 +227,8 @@ export const createRoadmapModule = async (req, res) => {
         });
       }
 
+      // Always use the faculty's own faculty_id, ignore what's sent from frontend
       actual_faculty_id = faculty[0].faculty_id;
-      
-      // Faculty can only use their own faculty_id
-      if (faculty_id && faculty_id != actual_faculty_id) {
-        return res.status(403).json({
-          success: false,
-          message: 'Faculty can only create modules for themselves'
-        });
-      }
     } else {
       return res.status(403).json({
         success: false,
@@ -710,6 +703,108 @@ export const deleteResourceFromModule = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to delete resource'
+    });
+  }
+};
+
+// Get roadmap for students (by their venue)
+export const getStudentRoadmap = async (req, res) => {
+  try {
+    const user_id = req.user.user_id;
+
+    console.log('Fetching roadmap for student user:', user_id);
+
+    // Get student info and their venue
+    const [student] = await db.query(`
+      SELECT 
+        s.student_id,
+        u.name,
+        u.ID as roll_number,
+        g.venue_id,
+        v.venue_name
+      FROM students s
+      INNER JOIN users u ON s.user_id = u.user_id
+      LEFT JOIN group_students gs ON s.student_id = gs.student_id AND gs.status = 'Active'
+      LEFT JOIN \`groups\` g ON gs.group_id = g.group_id
+      LEFT JOIN venue v ON g.venue_id = v.venue_id
+      WHERE s.user_id = ?
+      LIMIT 1
+    `, [user_id]);
+
+    if (student.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Student not found'
+      });
+    }
+
+    const venue_id = student[0].venue_id;
+
+    if (!venue_id) {
+      return res.status(200).json({
+        success: true,
+        message: 'No venue assigned yet',
+        data: [],
+        venue: null
+      });
+    }
+
+    // Get all roadmap modules for the student's venue
+    const [modules] = await db.query(`
+      SELECT 
+        r.roadmap_id,
+        r.day,
+        r.title,
+        r.description,
+        r.status,
+        r.created_at,
+        r.updated_at,
+        r.faculty_id,
+        u.name as faculty_name,
+        v.venue_name,
+        v.venue_id
+      FROM roadmap r
+      LEFT JOIN faculties f ON r.faculty_id = f.faculty_id
+      LEFT JOIN users u ON f.user_id = u.user_id
+      LEFT JOIN venue v ON r.venue_id = v.venue_id
+      WHERE r.venue_id = ?
+      ORDER BY r.day ASC
+    `, [venue_id]);
+
+    console.log('Found modules for student:', modules.length);
+
+    // Get resources for each module
+    for (let module of modules) {
+      const [resources] = await db.query(`
+        SELECT 
+          resource_id,
+          resource_name,
+          resource_type,
+          resource_url,
+          file_path,
+          file_size,
+          uploaded_at
+        FROM roadmap_resources
+        WHERE roadmap_id = ?
+        ORDER BY uploaded_at ASC
+      `, [module.roadmap_id]);
+
+      module.resources = resources || [];
+    }
+
+    res.status(200).json({
+      success: true,
+      data: modules,
+      venue: {
+        venue_id: venue_id,
+        venue_name: student[0].venue_name
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching student roadmap:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch roadmap'
     });
   }
 };

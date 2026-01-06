@@ -1205,7 +1205,7 @@ const StudyRoadmap = ({
 
             setLoading(true);
             try {
-                const response = await fetch(`${API_URL}/roadmap/${selectedVenueId}`, {
+                const response = await fetch(`${API_URL}/roadmap/venue/${selectedVenueId}`, {
                     headers: {
                         'Authorization': `Bearer ${token}`,
                         'Content-Type': 'application/json'
@@ -1575,7 +1575,7 @@ const StudyRoadmap = ({
         if (res.resource_type === 'pdf' && res.file_path) {
             // Download PDF file
             try {
-                const response = await fetch(`${API_URL}/roadmap/resources/${res.resource_id}/download`, {
+                const response = await fetch(`${API_URL}/roadmap/resources/download/${res.resource_id}`, {
                     headers: {
                         'Authorization': `Bearer ${token}`
                     }
