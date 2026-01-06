@@ -10,7 +10,8 @@ import {
     ChevronRight,
     Search,
     TrendingUp,
-    Info
+    Info,
+    ChevronLeft
 } from 'lucide-react';
 
 const StudentAttendance = () => {
@@ -37,17 +38,30 @@ const StudentAttendance = () => {
         { id: 103, date: '2024-10-23', subject: 'JavaScript Deep Dive', time: '01:30 PM - 03:00 PM', status: 'present' },
         { id: 104, date: '2024-10-23', subject: 'UI/UX Design Principles', time: '03:00 PM - 04:30 PM', status: 'late' },
         { id: 105, date: '2024-10-22', subject: 'React Mastery Workshop', time: '09:00 AM - 10:30 AM', status: 'present' },
-        { id: 106, date: '2024-10-22', subject: 'HTML & CSS Fundamentals', time: '10:30 AM - 12:00 PM', status: 'present' }
+        { id: 106, date: '2024-10-22', subject: 'HTML & CSS Fundamentals', time: '10:30 AM - 12:00 PM', status: 'present' },
+        { id: 107, date: '2024-10-21', subject: 'JavaScript Deep Dive', time: '01:30 PM - 03:00 PM', status: 'present' },
+        { id: 108, date: '2024-10-21', subject: 'UI/UX Design Principles', time: '03:00 PM - 04:30 PM', status: 'absent' },
+        { id: 109, date: '2024-10-20', subject: 'React Mastery Workshop', time: '09:00 AM - 10:30 AM', status: 'present' },
+        { id: 110, date: '2024-10-20', subject: 'HTML & CSS Fundamentals', time: '10:30 AM - 12:00 PM', status: 'late' }
     ];
 
     const [searchQuery, setSearchQuery] = useState('');
     const [filter, setFilter] = useState('all');
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 5;
 
+    // Filter history based on search and filter
     const filteredHistory = ATTENDANCE_HISTORY.filter(record => {
         const matchesSearch = record.subject.toLowerCase().includes(searchQuery.toLowerCase());
         const matchesFilter = filter === 'all' || record.status === filter;
         return matchesSearch && matchesFilter;
     });
+
+    // Pagination calculations
+    const totalPages = Math.ceil(filteredHistory.length / itemsPerPage);
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = Math.min(startIndex + itemsPerPage, filteredHistory.length);
+    const currentItems = filteredHistory.slice(startIndex, endIndex);
 
     const getStatusStyle = (status) => {
         switch (status) {
@@ -58,22 +72,135 @@ const StudentAttendance = () => {
         }
     };
 
+    // Generate page numbers to display
+    const getPageNumbers = () => {
+        const pages = [];
+        const maxVisiblePages = 3;
+        
+        if (totalPages <= maxVisiblePages) {
+            for (let i = 1; i <= totalPages; i++) {
+                pages.push(i);
+            }
+        } else {
+            if (currentPage <= 2) {
+                pages.push(1, 2, 3);
+            } else if (currentPage >= totalPages - 1) {
+                pages.push(totalPages - 2, totalPages - 1, totalPages);
+            } else {
+                pages.push(currentPage - 1, currentPage, currentPage + 1);
+            }
+        }
+        return pages;
+    };
+
     return (
         <div style={styles.container}>
+            {/* Responsive Styles Injection */}
+            <style>{`
+                @media (max-width: 768px) {
+                    .header {
+                        flex-direction: column !important;
+                        align-items: flex-start !important;
+                        gap: 16px;
+                    }
+                    .standing-badge {
+                        align-self: flex-start !important;
+                    }
+                    .stats-grid {
+                        grid-template-columns: repeat(2, 1fr) !important;
+                        gap: 12px !important;
+                    }
+                    .main-layout {
+                        grid-template-columns: 1fr !important;
+                        gap: 24px !important;
+                    }
+                    .subject-card {
+                        flex-direction: column !important;
+                        align-items: flex-start !important;
+                        gap: 16px;
+                    }
+                    .percent-group {
+                        flex-direction: row !important;
+                        width: 100%;
+                        justify-content: space-between !important;
+                        align-items: center;
+                    }
+                    .filter-group {
+                        flex-direction: column !important;
+                        gap: 12px;
+                    }
+                    .search-box {
+                        width: 100% !important;
+                    }
+                    .history-item {
+                        flex-direction: column !important;
+                        align-items: flex-start !important;
+                        gap: 12px;
+                    }
+                    .history-left {
+                        width: 100%;
+                    }
+                    .history-status-text {
+                        align-self: flex-end;
+                    }
+                    .pagination-container {
+                        flex-direction: column !important;
+                        align-items: center !important;
+                        gap: 16px !important;
+                        padding: 16px !important;
+                    }
+                    .pagination-info {
+                        width: 100%;
+                        text-align: center !important;
+                    }
+                    .pagination-controls {
+                        width: 100%;
+                        justify-content: center !important;
+                    }
+                }
+                
+                @media (max-width: 480px) {
+                    .stats-grid {
+                        grid-template-columns: 1fr !important;
+                    }
+                    .stat-card {
+                        padding: 20px !important;
+                    }
+                    .container {
+                        padding: 16px !important;
+                    }
+                    .section-title {
+                        font-size: 16px !important;
+                    }
+                    .subject-name {
+                        font-size: 14px !important;
+                    }
+                    .pagination-buttons {
+                        flex-wrap: wrap !important;
+                        justify-content: center !important;
+                        gap: 8px !important;
+                    }
+                    .page-number {
+                        min-width: 36px !important;
+                        height: 36px !important;
+                    }
+                }
+            `}</style>
+
             {/* Header Section */}
-            <header style={styles.header}>
+            <header style={styles.header} className="header">
                 <div style={styles.headerLeft}>
                     <h1 style={styles.title}>My Attendance</h1>
                     <p style={styles.subtitle}>Track your presence and maintain your academic standing</p>
                 </div>
-                <div style={styles.standingBadge}>
+                <div style={styles.standingBadge} className="standing-badge">
                     <TrendingUp size={16} style={{ marginRight: 8 }} />
                     {ATTENDANCE_SUMMARY.standing}
                 </div>
             </header>
 
             {/* Quick Stats Grid */}
-            <div style={styles.statsGrid}>
+            <div style={styles.statsGrid} className="stats-grid">
                 <div style={styles.statCard}>
                     <div style={styles.statIconBox}><CheckCircle2 color="#10B981" /></div>
                     <div style={styles.statInfo}>
@@ -104,23 +231,23 @@ const StudentAttendance = () => {
                 </div>
             </div>
 
-            <div style={styles.mainLayout}>
+            <div style={styles.mainLayout} className="main-layout">
                 {/* Left Side: Subject-wise Breakdown */}
                 <div style={styles.leftCol}>
                     <div style={styles.sectionHeader}>
-                        <h2 style={styles.sectionTitle}>Course-wise Breakdown</h2>
+                        <h2 style={styles.sectionTitle} className="section-title">Course-wise Breakdown</h2>
                     </div>
                     <div style={styles.subjectList}>
                         {SUBJECT_ATTENDANCE.map(subject => (
-                            <div key={subject.id} style={styles.subjectCard}>
+                            <div key={subject.id} style={styles.subjectCard} className="subject-card">
                                 <div style={styles.subjectInfo}>
                                     <div style={styles.subjectCode}>{subject.code}</div>
-                                    <h3 style={styles.subjectName}>{subject.name}</h3>
+                                    <h3 style={styles.subjectName} className="subject-name">{subject.name}</h3>
                                     <div style={styles.classCounts}>
                                         {subject.present} of {subject.total} classes attended
                                     </div>
                                 </div>
-                                <div style={styles.percentGroup}>
+                                <div style={styles.percentGroup} className="percent-group">
                                     <div style={{
                                         ...styles.percentCircle,
                                         borderColor: subject.status === 'safe' ? '#10B981' : '#F59E0B'
@@ -143,9 +270,9 @@ const StudentAttendance = () => {
                 <div style={styles.rightCol}>
                     <div style={styles.card}>
                         <div style={styles.cardHeader}>
-                            <h2 style={styles.sectionTitle}>Recent History</h2>
-                            <div style={styles.filterGroup}>
-                                <div style={styles.searchBox}>
+                            <h2 style={styles.sectionTitle} className="section-title">Recent History</h2>
+                            <div style={styles.filterGroup} className="filter-group">
+                                <div style={styles.searchBox} className="search-box">
                                     <Search size={14} style={styles.searchIcon} />
                                     <input
                                         style={styles.searchInput}
@@ -168,11 +295,11 @@ const StudentAttendance = () => {
                         </div>
 
                         <div style={styles.historyList}>
-                            {filteredHistory.map(record => {
+                            {currentItems.map(record => {
                                 const status = getStatusStyle(record.status);
                                 return (
-                                    <div key={record.id} style={styles.historyItem}>
-                                        <div style={styles.historyLeft}>
+                                    <div key={record.id} style={styles.historyItem} className="history-item">
+                                        <div style={styles.historyLeft} className="history-left">
                                             <div style={{ ...styles.statusIndicator, backgroundColor: status.bg, color: status.color }}>
                                                 {status.icon}
                                             </div>
@@ -185,16 +312,62 @@ const StudentAttendance = () => {
                                                 </div>
                                             </div>
                                         </div>
-                                        <div style={{ ...styles.historyStatusText, color: status.color }}>
+                                        <div style={{ ...styles.historyStatusText, color: status.color }} className="history-status-text">
                                             {record.status.toUpperCase()}
                                         </div>
                                     </div>
                                 );
                             })}
                         </div>
-                        <button style={styles.viewMoreBtn}>
-                            View Full History <ChevronRight size={16} />
-                        </button>
+                        
+                        {/* Pagination Component */}
+                        <div style={styles.paginationContainer} className="pagination-container">
+                            <div style={styles.paginationInfo} className="pagination-info">
+                                Showing {startIndex + 1}-{endIndex} of {filteredHistory.length} records
+                            </div>
+                            <div style={styles.paginationControls} className="pagination-controls">
+                                <div style={styles.paginationButtons} className="pagination-buttons">
+                                    <button
+                                        style={{
+                                            ...styles.paginationButton,
+                                            ...styles.prevButton,
+                                            opacity: currentPage === 1 ? 0.5 : 1
+                                        }}
+                                        onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                                        disabled={currentPage === 1}
+                                    >
+                                        <ChevronLeft size={16} /> Prev
+                                    </button>
+                                    
+                                    {getPageNumbers().map(page => (
+                                        <button
+                                            key={page}
+                                            style={{
+                                                ...styles.paginationButton,
+                                                ...styles.pageNumber,
+                                                backgroundColor: currentPage === page ? '#2563EB' : 'transparent',
+                                                color: currentPage === page ? '#FFFFFF' : '#374151'
+                                            }}
+                                            onClick={() => setCurrentPage(page)}
+                                        >
+                                            {page}
+                                        </button>
+                                    ))}
+                                    
+                                    <button
+                                        style={{
+                                            ...styles.paginationButton,
+                                            ...styles.nextButton,
+                                            opacity: currentPage === totalPages ? 0.5 : 1
+                                        }}
+                                        onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                                        disabled={currentPage === totalPages}
+                                    >
+                                        Next <ChevronRight size={16} />
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -204,10 +377,9 @@ const StudentAttendance = () => {
 
 const styles = {
     container: {
-        padding: '24px',
         backgroundColor: '#F8F9FA',
         minHeight: '100vh',
-        fontFamily: '"Inter", sans-serif'
+        fontFamily: '"Inter", sans-serif',
     },
     header: {
         display: 'flex',
@@ -442,18 +614,59 @@ const styles = {
         fontSize: '11px',
         fontWeight: '700'
     },
-    viewMoreBtn: {
-        padding: '16px',
-        border: 'none',
-        backgroundColor: 'transparent',
-        color: '#2563EB',
+    // Pagination Styles
+    paginationContainer: {
+        padding: '20px 24px',
+        borderTop: '1px solid #F3F4F6',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        backgroundColor: '#F9FAFB'
+    },
+    paginationInfo: {
+        fontSize: '14px',
+        color: '#6B7280',
+        fontWeight: '500'
+    },
+    paginationControls: {
+        display: 'flex',
+        alignItems: 'center'
+    },
+    paginationButtons: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: '8px'
+    },
+    paginationButton: {
+        padding: '8px 16px',
+        border: '1px solid #E5E7EB',
+        borderRadius: '8px',
+        backgroundColor: '#FFFFFF',
+        color: '#374151',
         fontSize: '14px',
         fontWeight: '600',
         cursor: 'pointer',
         display: 'flex',
         alignItems: 'center',
+        gap: '6px',
+        transition: 'all 0.2s'
+    },
+    prevButton: {
+        backgroundColor: '#FFFFFF',
+        color: '#374151'
+    },
+    nextButton: {
+        backgroundColor: '#FFFFFF',
+        color: '#374151'
+    },
+    pageNumber: {
+        minWidth: '40px',
+        height: '40px',
+        padding: '8px',
+        display: 'flex',
+        alignItems: 'center',
         justifyContent: 'center',
-        gap: '8px'
+        border: '1px solid #E5E7EB'
     }
 };
 

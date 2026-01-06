@@ -68,7 +68,7 @@ const Login = () => {
             style={styles.button}
             onClick={() => {
               login(
-                { name: "Student", email: "student@test.com", role: "student" },
+                { user_id: 999,  name: "Student", email: "student@test.com", role: "student" },
                 "dummy"
               );
               navigate("/");
@@ -81,7 +81,7 @@ const Login = () => {
             style={styles.button}
             onClick={() => {
               login(
-                { name: "Faculty", email: "faculty@test.com", role: "faculty" },
+                {  user_id: 998, name: "Faculty", email: "faculty@test.com", role: "faculty" },
                 "dummy"
               );
               navigate("/");
@@ -94,7 +94,7 @@ const Login = () => {
             style={styles.button}
             onClick={() => {
               login(
-                { name: "Admin", email: "admin@test.com", role: "admin" },
+                { user_id: 997, name: "Admin", email: "admin@test.com", role: "admin" },
                 "dummy"
               );
               navigate("/");

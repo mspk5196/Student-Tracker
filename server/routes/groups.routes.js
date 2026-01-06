@@ -1,41 +1,53 @@
 import express from 'express';
 import multer from 'multer';
 import { 
-  getAllGroups,
-  createGroup,
-  updateGroup,
-  deleteGroup,
   getAllVenues,
+  createVenue,
+  updateVenue,
+  deleteVenue,
+  assignFacultyToVenue,
+  bulkUploadStudentsToVenue,
+  allocateStudentsByRollRange,
+  getVenueStudents,
+  removeStudentFromVenue,
   getAllFacultiesForGroups,
-  bulkUploadStudents,
-  autoAllocateStudents,
-  getGroupStudents,
-  removeStudentFromGroup,
-  getAllSkills,
-  assignSkillsToVenue
+    getAvailableFaculties,
+  searchVenues
 } from '../controllers/groups.controller.js';
 import { authenticate } from '../middleware/auth.middleware.js';
 
 const router = express.Router();
 
-// Multer configuration for file uploads
+// Multer configuration for Excel uploads
 const storage = multer.memoryStorage();
-const upload = multer({ storage: storage });
+const upload = multer({ 
+  storage: storage,
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' || 
+        file.mimetype === 'application/vnd. ms-excel') {
+      cb(null, true);
+    } else {
+      cb(new Error('Only Excel files are allowed'));
+    }
+  }
+});
 
-// All routes are protected
-router.get('/', authenticate, getAllGroups);
-router.post('/', authenticate, createGroup);
-router.put('/:groupId', authenticate, updateGroup);
-router.delete('/:groupId', authenticate, deleteGroup);
-
+// Venue routes
 router.get('/venues', authenticate, getAllVenues);
-router.get('/faculties', authenticate, getAllFacultiesForGroups);
-router.get('/skills', authenticate, getAllSkills);
-router.post('/venues/:venueId/skills', authenticate, assignSkillsToVenue);
+router.get('/venues/search', authenticate, searchVenues);
+router.post('/venues', authenticate, createVenue);
+router.put('/venues/:venueId', authenticate, updateVenue);
+router.delete('/venues/:venueId', authenticate, deleteVenue);
+router.put('/venues/:venueId/assign-faculty', authenticate, assignFacultyToVenue);
 
-router.post('/bulk-upload', authenticate, upload. single('file'), bulkUploadStudents);
-router.post('/:groupId/auto-allocate', authenticate, autoAllocateStudents);
-router.get('/:groupId/students', authenticate, getGroupStudents);
-router.delete('/:groupId/students/:studentId', authenticate, removeStudentFromGroup);
+// Student allocation routes
+router.post('/venues/:venueId/bulk-upload', authenticate, upload.single('file'), bulkUploadStudentsToVenue);
+router.post('/venues/:venueId/allocate-range', authenticate, allocateStudentsByRollRange);
+router.get('/venues/:venueId/students', authenticate, getVenueStudents);
+router.delete('/venues/:venueId/students/:studentId', authenticate, removeStudentFromVenue);
+
+// Faculty routes
+router.get('/faculties', authenticate, getAllFacultiesForGroups);
+router.get('/faculties/available', authenticate, getAvailableFaculties);
 
 export default router;

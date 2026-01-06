@@ -1,9 +1,13 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+
 import {
   PeopleAltOutlined,
   LayersOutlined,
   TimelineOutlined,
-  ErrorOutline
+  ErrorOutline,
+  ChevronLeft,
+  ChevronRight
 } from '@mui/icons-material';
 
 // --- Custom Hook for Responsive Logic ---
@@ -28,7 +32,6 @@ const AnimatedGauge = ({ percentage }) => {
   const circumference = 2 * Math.PI * radius; // Approx 471.24
 
   useEffect(() => {
-    // Small delay ensures the browser has rendered the SVG before animating
     const timeout = setTimeout(() => {
       const progressOffset = circumference - (percentage / 100) * circumference;
       setOffset(progressOffset);
@@ -39,14 +42,12 @@ const AnimatedGauge = ({ percentage }) => {
   return (
     <div style={styles.donutWrapper}>
       <svg width="180" height="180" viewBox="0 0 180 180">
-        {/* Track (Background Circle) */}
         <circle
           cx="90" cy="90" r={radius}
           fill="transparent"
           stroke="#eff6ff"
           strokeWidth="15"
         />
-        {/* Animated Progress Circle */}
         <circle
           cx="90" cy="90" r={radius}
           fill="transparent"
@@ -100,10 +101,26 @@ const DASHBOARD_DATA = {
 const EducationDashboard = () => {
   const { width } = useWindowSize();
   const [viewType, setViewType] = useState('Weekly');
+  const navigate = useNavigate();
+
+  // --- Pagination Logic ---
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 3;
+  const totalPages = Math.ceil(DASHBOARD_DATA.alerts.length / itemsPerPage);
+  
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentAlerts = DASHBOARD_DATA.alerts.slice(indexOfFirstItem, indexOfLastItem);
 
   const isMobile = width <= 768;
   const isTablet = width <= 1024 && width > 768;
   const currentAttendance = DASHBOARD_DATA.attendance[viewType];
+
+  const handlePageChange = (pageNumber) => {
+    if (pageNumber >= 1 && pageNumber <= totalPages) {
+      setCurrentPage(pageNumber);
+    }
+  };
 
   return (
     <div style={styles.container}>
@@ -131,8 +148,6 @@ const EducationDashboard = () => {
 
         {/* 2. Charts Row */}
         <div style={{ ...styles.chartRow, flexDirection: isTablet || isMobile ? 'column' : 'row' }}>
-
-          {/* Scrollable Bar Chart */}
           <div style={{ ...styles.card, flex: 2, minWidth: 0 }}>
             <div style={styles.cardHeader}>
               <h3 style={styles.sectionTitle}>Attendance by Engineering Dept.</h3>
@@ -156,7 +171,6 @@ const EducationDashboard = () => {
             </div>
           </div>
 
-          {/* Centered Animated Gauge */}
           <div style={{ ...styles.card, flex: 0.85, alignItems: 'center' }}>
             <div style={{ alignSelf: 'flex-start', marginBottom: '8px' }}>
               <h3 style={styles.sectionTitle}>Task Completion</h3>
@@ -167,11 +181,10 @@ const EducationDashboard = () => {
           </div>
         </div>
 
-        {/* 3. Alerts Table */}
+        {/* 3. Alerts Table with Pagination */}
         <div style={{ ...styles.card, padding: 0, marginTop: '24px', overflow: 'hidden' }}>
           <div style={styles.tableHeader}>
             <h3 style={styles.sectionTitle}>Recent Alerts & Attention Needed</h3>
-            <button style={styles.viewAllBtn}>View All</button>
           </div>
           <div style={styles.tableContainer}>
             <table style={styles.table}>
@@ -185,7 +198,7 @@ const EducationDashboard = () => {
                 </tr>
               </thead>
               <tbody>
-                {DASHBOARD_DATA.alerts.map(row => (
+                {currentAlerts.map(row => (
                   <tr key={row.id} style={styles.tableRow}>
                     <td style={styles.td}>
                       <div style={styles.studentName}>{row.name}</div>
@@ -196,11 +209,45 @@ const EducationDashboard = () => {
                       <span style={row.type === 'danger' ? styles.badgeDanger : styles.badgeWarning}>{row.issue}</span>
                     </td>
                     <td style={styles.td}><span style={styles.regularText}>{row.date}</span></td>
-                    <td style={styles.td}><button style={styles.actionBtn}>{row.action}</button></td>
+                    <td style={styles.td}><button onClick={()=>navigate("/students")} style={styles.actionBtn}>{row.action}</button></td>
                   </tr>
                 ))}
               </tbody>
             </table>
+          </div>
+
+          {/* Pagination Footer */}
+          <div style={styles.paginationWrapper}>
+            <div style={styles.paginationInfo}>
+              Showing <span style={{ fontWeight: '600' }}>{indexOfFirstItem + 1}</span> to <span style={{ fontWeight: '600' }}>{Math.min(indexOfLastItem, DASHBOARD_DATA.alerts.length)}</span> of <span style={{ fontWeight: '600' }}>{DASHBOARD_DATA.alerts.length}</span> alerts
+            </div>
+            <div style={styles.paginationControls}>
+              <button 
+                onClick={() => handlePageChange(currentPage - 1)} 
+                disabled={currentPage === 1}
+                style={{ ...styles.pageBtn, opacity: currentPage === 1 ? 0.5 : 1, cursor: currentPage === 1 ? 'not-allowed' : 'pointer' }}
+              >
+                <ChevronLeft sx={{ fontSize: 18 }} />
+              </button>
+
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => (
+                <button
+                  key={pageNum}
+                  onClick={() => handlePageChange(pageNum)}
+                  style={currentPage === pageNum ? styles.pageBtnActive : styles.pageBtn}
+                >
+                  {pageNum}
+                </button>
+              ))}
+
+              <button 
+                onClick={() => handlePageChange(currentPage + 1)} 
+                disabled={currentPage === totalPages}
+                style={{ ...styles.pageBtn, opacity: currentPage === totalPages ? 0.5 : 1, cursor: currentPage === totalPages ? 'not-allowed' : 'pointer' }}
+              >
+                <ChevronRight sx={{ fontSize: 18 }} />
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -210,7 +257,7 @@ const EducationDashboard = () => {
 
 const styles = {
   container: { width: '100%', minHeight: '100vh', backgroundColor: '#f8fafc', fontFamily: '-apple-system, sans-serif', display: 'flex', justifyContent: 'center' },
-  wrapper: { width: '100%', padding: '2px', boxSizing: 'border-box' },
+  wrapper: { width: '100%', boxSizing: 'border-box' },
   metricsGrid: { display: 'grid', gap: '24px', marginBottom: '24px' },
   card: { backgroundColor: '#ffffff', borderRadius: '12px', padding: '24px', border: '1px solid #f1f5f9', display: 'flex', flexDirection: 'column', boxSizing: 'border-box' },
   cardHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' },
@@ -240,7 +287,6 @@ const styles = {
   donutLabel: { fontSize: '12px', color: '#94a3b8', fontWeight: '500' },
 
   tableHeader: { padding: '20px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
-  viewAllBtn: { border: 'none', background: 'none', color: '#94a3b8', fontSize: '13px', fontWeight: '600', cursor: 'pointer' },
   tableContainer: { width: '100%', overflowX: 'auto' },
   table: { width: '100%', borderCollapse: 'collapse' },
   th: { padding: '12px 24px', color: '#94a3b8', fontSize: '12px', textAlign: 'left', borderBottom: '1px solid #f8fafc', backgroundColor: '#fafbfc' },
@@ -250,7 +296,14 @@ const styles = {
   regularText: { color: '#64748b', fontSize: '14px' },
   badgeDanger: { backgroundColor: '#fff1f2', color: '#e11d48', padding: '4px 14px', borderRadius: '20px', fontSize: '11px', fontWeight: '600' },
   badgeWarning: { backgroundColor: '#fffbeb', color: '#d97706', padding: '4px 14px', borderRadius: '20px', fontSize: '11px', fontWeight: '600' },
-  actionBtn: { backgroundColor: '#eff6ff', color: '#3b82f6', border: 'none', padding: '6px 16px', borderRadius: '6px', fontWeight: '600', fontSize: '12px' }
+  actionBtn: { backgroundColor: '#eff6ff', color: '#3b82f6', border: 'none', padding: '6px 16px', borderRadius: '6px', fontWeight: '600', fontSize: '12px', cursor: 'pointer' },
+
+  // Pagination Styles
+  paginationWrapper: { padding: '16px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #f1f5f9', backgroundColor: '#ffffff' },
+  paginationInfo: { fontSize: '13px', color: '#64748b' },
+  paginationControls: { display: 'flex', gap: '8px', alignItems: 'center' },
+  pageBtn: { display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: '32px', height: '32px', padding: '0 6px', border: '1px solid #e2e8f0', borderRadius: '6px', backgroundColor: '#fff', color: '#64748b', fontSize: '13px', fontWeight: '600', cursor: 'pointer', transition: 'all 0.2s' },
+  pageBtnActive: { display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: '32px', height: '32px', padding: '0 6px', border: '1px solid #3b82f6', borderRadius: '6px', backgroundColor: '#3b82f6', color: '#ffffff', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }
 };
 
 export default EducationDashboard;

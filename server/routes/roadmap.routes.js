@@ -10,7 +10,8 @@ import {
   deleteModule,
   addResource,
   deleteResource,
-  getAllRoadmaps
+  getAllRoadmaps,
+  getRoadmapsByGroup
 } from '../controllers/roadmap.controller.js';
 import { authenticate } from '../middleware/auth.middleware.js';
 
@@ -32,6 +33,9 @@ router.put('/modules/:moduleId/progress', authenticate, updateModuleProgress);
 // ============ FACULTY/ADMIN ENDPOINTS ============
 // Get all roadmaps (with optional group filter)
 router.get('/', authenticate, getAllRoadmaps);
+
+// Get roadmaps by group code
+router.get('/group/:groupCode', authenticate, getRoadmapsByGroup);
 
 // Create a new roadmap
 router.post('/', authenticate, createRoadmap);
