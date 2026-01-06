@@ -3,66 +3,24 @@ import {
     Pencil, Trash2, FileText, Youtube, Download,
     ExternalLink, PlusCircle, X, Link as LinkIcon, Upload
 } from 'lucide-react';
+import useAuthStore from '../../../../../store/useAuthStore';
 
-const StudyRoadmap = ({ selectedSkill, isActiveTab, addDayTrigger }) => {
-    // --- ROADMAP DATA WITH MULTIPLE SKILLS ---
-    const ROADMAP_DATA = {
-        'REACT-101': [
-            {
-                id: 1,
-                day: 1,
-                title: "React Fundamentals & JSX",
-                description: "Introduction to React, understanding JSX, and creating your first components.",
-                status: "published",
-                resources: [
-                    { id: 101, name: "React_Official_Docs.pdf", type: "PDF Document", kind: "pdf", url: "https://react.dev/learn" },
-                    { id: 102, name: "JSX Tutorial Video", type: "Video Link", kind: "video", url: "https://www.youtube.com/watch?v=7fPXI_MnBOY" }
-                ]
-            },
-            {
-                id: 2,
-                day: 2,
-                title: "Components & Props",
-                description: "Learn about React components, props, and component composition.",
-                status: "published",
-                resources: [
-                    { id: 103, name: "Components_Guide.pdf", type: "PDF Document", kind: "pdf", url: "https://react.dev/learn/your-first-component" }
-                ]
-            }
-        ],
-        'WEB-201': [
-            {
-                id: 3,
-                day: 1,
-                title: "HTML5 Semantic Elements",
-                description: "Learn about modern HTML5 semantic tags and their importance.",
-                status: "published",
-                resources: [
-                    { id: 104, name: "HTML5_Cheatsheet.pdf", type: "PDF Document", kind: "pdf", url: "https://web.dev/learn/html/semantic-html" }
-                ]
-            }
-        ],
-        'JS-301': [
-            {
-                id: 4,
-                day: 1,
-                title: "JavaScript ES6+ Features",
-                description: "Modern JavaScript features including arrow functions, destructuring, and modules.",
-                status: "published",
-                resources: [
-                    { id: 105, name: "ES6_Features.pdf", type: "PDF Document", kind: "pdf", url: "https://javascript.info/es-mod" },
-                    { id: 106, name: "Async JavaScript Video", type: "Video Link", kind: "video", url: "https://www.youtube.com/watch?v=vn3tkfPZf8w" }
-                ]
-            }
-        ]
-    };
-
-    // State to manage all roadmap data
-    const [allRoadmapData, setAllRoadmapData] = useState(ROADMAP_DATA);
+const StudyRoadmap = ({ 
+    selectedVenueId, 
+    venueName, 
+    venues, 
+    isActiveTab, 
+    addDayTrigger 
+}) => {
+    const API_URL = import.meta.env.VITE_API_URL;
+    const { token, user } = useAuthStore();
+    
     const [roadmap, setRoadmap] = useState([]);
     const [editingId, setEditingId] = useState(null);
     const [editData, setEditData] = useState({ title: '', description: '' });
     const [lastAddDayTrigger, setLastAddDayTrigger] = useState(0);
+    const [loading, setLoading] = useState(false);
+    const [facultyId, setFacultyId] = useState(null);
 
     // Resource Modal State
     const [showResourceModal, setShowResourceModal] = useState(false);
@@ -76,176 +34,228 @@ const StudyRoadmap = ({ selectedSkill, isActiveTab, addDayTrigger }) => {
     const [isDragging, setIsDragging] = useState(false);
     const fileInputRef = useRef(null);
 
-    // Initialize roadmap for selected skill
+    // Get faculty ID from user data
     useEffect(() => {
-        if (selectedSkill) {
-            const skillRoadmap = allRoadmapData[selectedSkill] || [];
-            setRoadmap(skillRoadmap);
+        if (user && user.faculty_id) {
+            setFacultyId(user.faculty_id);
+        } else if (user && user.user_id) {
+            // Fallback to user_id if faculty_id not in store
+            setFacultyId(user.user_id);
+        }
+    }, [user]);
+
+    // Fetch roadmap data for selected venue
+    useEffect(() => {
+        const fetchRoadmapData = async () => {
+            if (!selectedVenueId || !facultyId) return;
+
+            setLoading(true);
+            try {
+                const response = await fetch(`${API_URL}/roadmap/${selectedVenueId}`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+                console.log('Roadmap API Response:', data);
+                
+                if (data.success) {
+                    setRoadmap(data.data);
+                } else {
+                    console.error('Failed to fetch roadmap:', data.message);
+                    setRoadmap([]);
+                }
+            } catch (error) {
+                console.error('Error fetching roadmap:', error);
+                setRoadmap([]);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        if (selectedVenueId && isActiveTab) {
+            fetchRoadmapData();
             setEditingId(null);
         }
-    }, [selectedSkill, allRoadmapData]);
+    }, [selectedVenueId, facultyId, token, API_URL, isActiveTab]);
 
-    // Handle add day trigger from parent - FIXED
+    // Handle add day trigger from parent
     useEffect(() => {
-        console.log("Add day trigger effect running:", { addDayTrigger, lastAddDayTrigger, selectedSkill });
-
-        if (addDayTrigger > lastAddDayTrigger && selectedSkill) {
-            console.log("Triggering addDay...");
+        if (addDayTrigger > lastAddDayTrigger && selectedVenueId && facultyId && isActiveTab) {
             addDay();
             setLastAddDayTrigger(addDayTrigger);
         }
-    }, [addDayTrigger, selectedSkill, lastAddDayTrigger]);
+    }, [addDayTrigger, selectedVenueId, facultyId, lastAddDayTrigger, isActiveTab]);
 
     /* ---------- DAY / MODULE HANDLERS ---------- */
-    const addDay = () => {
-        if (!selectedSkill) {
-            console.error("No skill selected!");
+    const addDay = async () => {
+        if (!selectedVenueId || !facultyId) {
+            console.error("No venue selected or faculty ID missing!");
+            alert('Please select a venue first');
             return;
         }
 
-        console.log("Adding day for skill:", selectedSkill);
+        try {
+            // Calculate next day number
+            let nextDay = 1;
+            if (roadmap.length > 0) {
+                const maxDay = Math.max(...roadmap.map(item => item.day));
+                nextDay = maxDay + 1;
+            }
 
-        // Get current roadmap for this skill from state, not from allRoadmapData
-        console.log("Current roadmap from state:", roadmap);
+            const newDay = {
+                venue_id: selectedVenueId,
+                faculty_id: facultyId,
+                day: nextDay,
+                title: `${venueName} - Day ${nextDay}`,
+                description: 'Enter module description here...',
+                status: 'draft'
+            };
 
-        // Calculate next day number based on existing modules
-        let nextDay;
-        if (roadmap.length === 0) {
-            nextDay = 1;
-        } else {
-            // Find the highest day number in current roadmap
-            const maxDay = Math.max(...roadmap.map(item => item.day));
-            nextDay = maxDay + 1;
+            console.log('Adding day:', newDay);
+
+            // Send to backend
+            const response = await fetch(`${API_URL}/roadmap`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(newDay)
+            });
+
+            const data = await response.json();
+            console.log('Add day response:', data);
+            
+            if (data.success) {
+                // Create local object with the returned ID
+                const newModule = {
+                    ...newDay,
+                    roadmap_id: data.data.roadmap_id,
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString(),
+                    resources: []
+                };
+
+                const updatedRoadmap = [...roadmap, newModule];
+                setRoadmap(updatedRoadmap);
+                console.log("Day added successfully!");
+            } else {
+                alert('Failed to add day: ' + data.message);
+            }
+        } catch (error) {
+            console.error('Error adding day:', error);
+            alert('Failed to add day: ' + error.message);
         }
-
-        console.log("Next day number:", nextDay);
-
-        const newDay = {
-            id: Date.now(),
-            day: nextDay,
-            title: `${selectedSkill} - Day ${nextDay}`,
-            description: 'Enter module description here...',
-            status: 'draft',
-            resources: []
-        };
-
-        console.log("New day object:", newDay);
-
-        // Create updated roadmap
-        const updatedRoadmap = [...roadmap, newDay];
-
-        // Update both states
-        setRoadmap(updatedRoadmap);
-        setAllRoadmapData(prev => ({
-            ...prev,
-            [selectedSkill]: updatedRoadmap
-        }));
-
-        console.log("Day added successfully! Total modules:", updatedRoadmap.length);
     };
 
-    // Also provide a direct addDay function for the "Add First Module" button
     const handleAddDay = () => {
-        console.log("Manual addDay triggered");
         addDay();
     };
 
     const setupDraft = (id) => {
-        console.log("Setting up draft with ID:", id);
-
-        // Find the draft module
-        const draftModule = roadmap.find(r => r.id === id);
+        const draftModule = roadmap.find(r => r.roadmap_id === id);
         if (!draftModule) {
-            console.error("Draft module not found!");
+            alert('Module not found');
             return;
         }
 
-        console.log("Found draft module:", draftModule);
-
-        // Set editing state to show the full edit UI
         setEditingId(id);
         setEditData({
             title: draftModule.title,
             description: draftModule.description || 'Enter module description here...'
         });
 
-        // Change status to 'editing' so it shows the full UI
+        // Update status locally to 'editing'
         const updatedRoadmap = roadmap.map(item =>
-            item.id === id ? { ...item, status: 'editing' } : item
+            item.roadmap_id === id ? { ...item, status: 'editing' } : item
         );
-
         setRoadmap(updatedRoadmap);
-        setAllRoadmapData(prev => ({
-            ...prev,
-            [selectedSkill]: updatedRoadmap
-        }));
-
-        console.log("Draft setup complete!");
     };
 
     const startEdit = (item) => {
-        console.log("Starting edit for:", item.id);
-        setEditingId(item.id);
+        setEditingId(item.roadmap_id);
         setEditData({ title: item.title, description: item.description });
     };
 
-    const saveEdit = (id) => {
-        console.log("Saving edit for:", id);
+    const saveEdit = async (id) => {
+        try {
+            const response = await fetch(`${API_URL}/roadmap/${id}`, {
+                method: 'PUT',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    title: editData.title,
+                    description: editData.description,
+                    status: 'published'
+                })
+            });
 
-        const updatedRoadmap = roadmap.map(item =>
-            item.id === id ? {
-                ...item,
-                title: editData.title,
-                description: editData.description,
-                status: 'published'
-            } : item
-        );
+            const data = await response.json();
+            console.log('Save edit response:', data);
+            
+            if (data.success) {
+                const updatedRoadmap = roadmap.map(item =>
+                    item.roadmap_id === id ? {
+                        ...item,
+                        title: editData.title,
+                        description: editData.description,
+                        status: 'published'
+                    } : item
+                );
 
-        // Update both states
-        setRoadmap(updatedRoadmap);
-        setAllRoadmapData(prev => ({
-            ...prev,
-            [selectedSkill]: updatedRoadmap
-        }));
-
-        setEditingId(null);
-        console.log("Edit saved!");
+                setRoadmap(updatedRoadmap);
+                setEditingId(null);
+                alert('Module saved successfully!');
+            } else {
+                alert('Failed to save: ' + data.message);
+            }
+        } catch (error) {
+            console.error('Error saving edit:', error);
+            alert('Failed to save: ' + error.message);
+        }
     };
 
     const cancelEdit = (id) => {
-        console.log("Canceling edit for:", id);
-
         const updatedRoadmap = roadmap.map(item =>
-            item.id === id ? { ...item, status: 'draft' } : item
+            item.roadmap_id === id ? { ...item, status: 'draft' } : item
         );
-
-        // Update both states
         setRoadmap(updatedRoadmap);
-        setAllRoadmapData(prev => ({
-            ...prev,
-            [selectedSkill]: updatedRoadmap
-        }));
-
         setEditingId(null);
-        console.log("Edit canceled!");
     };
 
-    const deleteDay = (id) => {
-        console.log("Deleting day:", id);
+    const deleteDay = async (id) => {
+        if (!window.confirm('Are you sure you want to delete this module? This will also delete all associated resources.')) return;
 
-        const updatedRoadmap = roadmap.filter(item => item.id !== id);
+        try {
+            const response = await fetch(`${API_URL}/roadmap/${id}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
 
-        // Update both states
-        setRoadmap(updatedRoadmap);
-        setAllRoadmapData(prev => ({
-            ...prev,
-            [selectedSkill]: updatedRoadmap
-        }));
-
-        console.log("Day deleted!");
+            const data = await response.json();
+            console.log('Delete response:', data);
+            
+            if (data.success) {
+                const updatedRoadmap = roadmap.filter(item => item.roadmap_id !== id);
+                setRoadmap(updatedRoadmap);
+                alert('Module deleted successfully!');
+            } else {
+                alert('Failed to delete: ' + data.message);
+            }
+        } catch (error) {
+            console.error('Error deleting day:', error);
+            alert('Failed to delete: ' + error.message);
+        }
     };
 
-    /* ---------- ENHANCED FILE UPLOAD HANDLERS ---------- */
+    /* ---------- FILE UPLOAD HANDLERS ---------- */
     const handleFileSelect = () => {
         fileInputRef.current.click();
     };
@@ -253,10 +263,8 @@ const StudyRoadmap = ({ selectedSkill, isActiveTab, addDayTrigger }) => {
     const handleFileChange = (e) => {
         const file = e.target.files[0];
         if (file) {
-            // Check if file is PDF
             if (file.type === 'application/pdf') {
                 setSelectedFile(file);
-                // Auto-fill resource name from filename
                 const fileNameWithoutExt = file.name.replace('.pdf', '');
                 setNewResource(prev => ({
                     ...prev,
@@ -290,7 +298,6 @@ const StudyRoadmap = ({ selectedSkill, isActiveTab, addDayTrigger }) => {
             const file = files[0];
             if (file.type === 'application/pdf') {
                 setSelectedFile(file);
-                // Auto-fill resource name from filename
                 const fileNameWithoutExt = file.name.replace('.pdf', '');
                 setNewResource(prev => ({
                     ...prev,
@@ -311,17 +318,15 @@ const StudyRoadmap = ({ selectedSkill, isActiveTab, addDayTrigger }) => {
 
     /* ---------- RESOURCE HANDLERS ---------- */
     const handleOpenResourceModal = (moduleId) => {
-        console.log("Opening resource modal for module:", moduleId);
         setCurrentModuleId(moduleId);
         setShowResourceModal(true);
-        // Reset file state when opening modal
         setSelectedFile(null);
         setNewResource({ name: '', kind: 'pdf', url: '' });
     };
 
-    const handleAddResource = () => {
-        if (!newResource.name) {
-            alert("Please enter a name");
+    const handleAddResource = async () => {
+        if (!newResource.name.trim()) {
+            alert("Please enter a resource name");
             return;
         }
 
@@ -330,38 +335,77 @@ const StudyRoadmap = ({ selectedSkill, isActiveTab, addDayTrigger }) => {
             return;
         }
 
-        console.log("Adding resource:", newResource);
+        if (newResource.kind !== 'pdf' && !newResource.url.trim()) {
+            alert("Please enter a URL");
+            return;
+        }
 
-        const resourceObj = {
-            id: Date.now(),
-            name: newResource.name,
-            kind: newResource.kind,
-            type: newResource.kind === 'pdf' ? 'PDF Document' :
-                newResource.kind === 'video' ? 'Video Link' : 'Web Resource',
-            // Create a temporary Blob URL for real file downloading
-            url: newResource.kind === 'pdf' && selectedFile ? URL.createObjectURL(selectedFile) : (newResource.url || ''),
-            filename: selectedFile ? selectedFile.name : null
-        };
+        try {
+            let formData = new FormData();
+            formData.append('roadmap_id', currentModuleId);
+            formData.append('resource_name', newResource.name.trim());
+            formData.append('resource_type', newResource.kind);
+            
+            if (newResource.kind === 'pdf' && selectedFile) {
+                formData.append('file', selectedFile);
+            } else {
+                formData.append('resource_url', newResource.url.trim());
+            }
 
-        const updatedRoadmap = roadmap.map(item =>
-            item.id === currentModuleId
-                ? { ...item, resources: [...(item.resources || []), resourceObj] }
-                : item
-        );
+            console.log('Adding resource:', {
+                roadmap_id: currentModuleId,
+                resource_name: newResource.name,
+                resource_type: newResource.kind,
+                hasFile: !!selectedFile
+            });
 
-        // Update both states
-        setRoadmap(updatedRoadmap);
-        setAllRoadmapData(prev => ({
-            ...prev,
-            [selectedSkill]: updatedRoadmap
-        }));
+            const response = await fetch(`${API_URL}/roadmap/resources`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                },
+                body: formData
+            });
 
-        // Reset modal
-        setShowResourceModal(false);
-        setNewResource({ name: '', kind: 'pdf', url: '' });
-        setSelectedFile(null);
+            const data = await response.json();
+            console.log('Add resource response:', data);
+            
+            if (data.success) {
+                // Find the module and update its resources
+                const updatedRoadmap = roadmap.map(item => {
+                    if (item.roadmap_id === currentModuleId) {
+                        const newResourceObj = {
+                            resource_id: data.data.resource_id,
+                            resource_name: newResource.name.trim(),
+                            resource_type: newResource.kind,
+                            resource_url: newResource.kind === 'pdf' ? null : newResource.url.trim(),
+                            file_path: newResource.kind === 'pdf' ? data.data.file_path : null,
+                            file_size: selectedFile?.size || null,
+                            uploaded_at: new Date().toISOString()
+                        };
+                        return {
+                            ...item,
+                            resources: [...(item.resources || []), newResourceObj]
+                        };
+                    }
+                    return item;
+                });
 
-        console.log("Resource added!");
+                setRoadmap(updatedRoadmap);
+
+                // Reset modal
+                setShowResourceModal(false);
+                setNewResource({ name: '', kind: 'pdf', url: '' });
+                setSelectedFile(null);
+                
+                alert('Resource added successfully!');
+            } else {
+                alert('Failed to add resource: ' + data.message);
+            }
+        } catch (error) {
+            console.error('Error adding resource:', error);
+            alert('Failed to add resource: ' + error.message);
+        }
     };
 
     const getResourceIcon = (kind) => {
@@ -373,46 +417,119 @@ const StudyRoadmap = ({ selectedSkill, isActiveTab, addDayTrigger }) => {
         }
     };
 
-    const handleResourceAction = (res) => {
-        if (!res.url || res.url === '') {
-            alert("No URL available for this resource.");
-            return;
-        }
+    const handleResourceAction = async (res) => {
+        if (res.resource_type === 'pdf' && res.file_path) {
+            // Download PDF file
+            try {
+                const response = await fetch(`${API_URL}/roadmap/resources/${res.resource_id}/download`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
 
-        // Handle PDF downloads specifically
-        if (res.kind === 'pdf') {
-            const link = document.createElement('a');
-            link.href = res.url;
-            link.target = "_blank";
-            // Ensure filename has .pdf extension for the file manager
-            const fileName = res.name.toLowerCase().endsWith('.pdf') ? res.name : `${res.name}.pdf`;
-            link.download = fileName;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-
-            // Optional: Show success feedback
-            console.log(`Downloading ${fileName}...`);
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = res.resource_name.toLowerCase().endsWith('.pdf') 
+                        ? res.resource_name 
+                        : `${res.resource_name}.pdf`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    window.URL.revokeObjectURL(url);
+                } else {
+                    const errorData = await response.json();
+                    alert('Failed to download file: ' + (errorData.message || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('Error downloading file:', error);
+                alert('Failed to download file: ' + error.message);
+            }
+        } else if (res.resource_url) {
+            // Open external URL
+            window.open(res.resource_url, '_blank', 'noopener noreferrer');
         } else {
-            // For videos and links, just opening in new tab is standard
-            window.open(res.url, '_blank');
+            alert("No URL available for this resource.");
         }
     };
+
+    const deleteResource = async (resourceId, roadmapId, e) => {
+        e.stopPropagation();
+        if (!window.confirm('Are you sure you want to delete this resource?')) return;
+
+        try {
+            const response = await fetch(`${API_URL}/roadmap/resources/${resourceId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            const data = await response.json();
+            console.log('Delete resource response:', data);
+            
+            if (data.success) {
+                // Update local state
+                const updatedRoadmap = roadmap.map(item => {
+                    if (item.roadmap_id === roadmapId) {
+                        return {
+                            ...item,
+                            resources: item.resources.filter(r => r.resource_id !== resourceId)
+                        };
+                    }
+                    return item;
+                });
+
+                setRoadmap(updatedRoadmap);
+                alert('Resource deleted successfully!');
+            } else {
+                alert('Failed to delete resource: ' + data.message);
+            }
+        } catch (error) {
+            console.error('Error deleting resource:', error);
+            alert('Failed to delete resource: ' + error.message);
+        }
+    };
+
+    if (!selectedVenueId) {
+        return (
+            <div style={styles.pageWrapper}>
+                <div style={styles.container}>
+                    <div style={styles.emptyState}>
+                        <h3 style={{ color: '#6B7280', marginBottom: '12px' }}>Select a Venue</h3>
+                        <p style={{ color: '#9CA3AF', marginBottom: '20px' }}>
+                            Please select a venue from the dropdown above to view or create a roadmap
+                        </p>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    if (loading) {
+        return (
+            <div style={styles.pageWrapper}>
+                <div style={styles.container}>
+                    <div style={styles.loadingState}>
+                        <p>Loading roadmap...</p>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div style={styles.pageWrapper}>
             <div style={styles.container}>
-                {/* Skill Header */}
+                {/* Venue Header */}
                 <div style={styles.skillHeader}>
                     <h2 style={styles.skillTitle}>
-                        {selectedSkill === 'REACT-101' ? 'React Mastery Workshop' :
-                            selectedSkill === 'WEB-201' ? 'HTML & CSS Fundamentals' :
-                                selectedSkill === 'JS-301' ? 'JavaScript Deep Dive' :
-                                    selectedSkill === 'NODE-401' ? 'Node.js Backend Development' :
-                                        selectedSkill === 'DESIGN-501' ? 'UI/UX Design Principles' : selectedSkill}
+                        {venueName || `Venue ${selectedVenueId}`}
                     </h2>
                     <div style={styles.skillInfo}>
-                        <span style={styles.skillCode}>{selectedSkill}</span>
+                        <span style={styles.skillCode}>Venue ID: {selectedVenueId}</span>
                         <span style={styles.moduleCount}>{roadmap.length} Module{roadmap.length !== 1 ? 's' : ''}</span>
                         <span style={styles.draftCount}>
                             {roadmap.filter(m => m.status === 'draft').length} Draft{roadmap.filter(m => m.status === 'draft').length !== 1 ? 's' : ''}
@@ -425,7 +542,7 @@ const StudyRoadmap = ({ selectedSkill, isActiveTab, addDayTrigger }) => {
                         <div style={styles.emptyState}>
                             <h3 style={{ color: '#6B7280', marginBottom: '12px' }}>No modules yet</h3>
                             <p style={{ color: '#9CA3AF', marginBottom: '20px' }}>
-                                Click "Add Day / Module" to create your first module for {selectedSkill}
+                                Click "Add First Module" to create your first module for {venueName}
                             </p>
                             <button style={styles.addDayBtn} onClick={handleAddDay}>
                                 <PlusCircle size={18} />
@@ -434,7 +551,7 @@ const StudyRoadmap = ({ selectedSkill, isActiveTab, addDayTrigger }) => {
                         </div>
                     ) : (
                         roadmap.map((module, index) => (
-                            <React.Fragment key={module.id}>
+                            <React.Fragment key={module.roadmap_id}>
                                 {index !== 0 && <div style={styles.connector} />}
                                 <div style={styles.card}>
                                     {module.status === 'draft' ? (
@@ -445,7 +562,7 @@ const StudyRoadmap = ({ selectedSkill, isActiveTab, addDayTrigger }) => {
                                             </div>
                                             <button
                                                 style={styles.setupBtn}
-                                                onClick={() => setupDraft(module.id)}
+                                                onClick={() => setupDraft(module.roadmap_id)}
                                             >
                                                 Setup Content
                                             </button>
@@ -455,7 +572,7 @@ const StudyRoadmap = ({ selectedSkill, isActiveTab, addDayTrigger }) => {
                                             <div style={styles.cardHeader}>
                                                 <div style={styles.headerInfo}>
                                                     <div style={styles.dayBadge}>DAY {module.day}</div>
-                                                    {editingId === module.id ? (
+                                                    {editingId === module.roadmap_id ? (
                                                         <input
                                                             style={styles.titleInput}
                                                             value={editData.title}
@@ -467,12 +584,12 @@ const StudyRoadmap = ({ selectedSkill, isActiveTab, addDayTrigger }) => {
                                                     )}
                                                 </div>
                                                 <div style={styles.headerActions}>
-                                                    {editingId === module.id ? (
+                                                    {editingId === module.roadmap_id ? (
                                                         <>
-                                                            <button onClick={() => saveEdit(module.id)} style={styles.saveBtn}>
+                                                            <button onClick={() => saveEdit(module.roadmap_id)} style={styles.saveBtn}>
                                                                 Save
                                                             </button>
-                                                            <button onClick={() => cancelEdit(module.id)} style={styles.cancelBtn}>
+                                                            <button onClick={() => cancelEdit(module.roadmap_id)} style={styles.cancelBtn}>
                                                                 Cancel
                                                             </button>
                                                         </>
@@ -481,14 +598,14 @@ const StudyRoadmap = ({ selectedSkill, isActiveTab, addDayTrigger }) => {
                                                             <Pencil size={18} />
                                                         </button>
                                                     )}
-                                                    <button onClick={() => deleteDay(module.id)} style={styles.iconBtnRed}>
+                                                    <button onClick={() => deleteDay(module.roadmap_id)} style={styles.iconBtnRed}>
                                                         <Trash2 size={18} />
                                                     </button>
                                                 </div>
                                             </div>
 
                                             <div style={styles.cardBody}>
-                                                {editingId === module.id ? (
+                                                {editingId === module.roadmap_id ? (
                                                     <textarea
                                                         style={styles.textArea}
                                                         value={editData.description}
@@ -502,31 +619,40 @@ const StudyRoadmap = ({ selectedSkill, isActiveTab, addDayTrigger }) => {
                                                 {module.resources && module.resources.length > 0 && (
                                                     <div style={styles.resourceList}>
                                                         {module.resources.map(res => (
-                                                            <div key={res.id} style={styles.resourceItem}>
+                                                            <div key={res.resource_id} style={styles.resourceItem}>
                                                                 <div style={styles.resourceLeft}>
                                                                     <div style={styles.resourceIconWrapper}>
-                                                                        {getResourceIcon(res.kind)}
+                                                                        {getResourceIcon(res.resource_type)}
                                                                     </div>
                                                                     <div style={styles.resourceInfo}>
-                                                                        <span style={styles.resName}>{res.name}</span>
-                                                                        <span style={styles.resMeta}>{res.type}</span>
+                                                                        <span style={styles.resName}>{res.resource_name}</span>
+                                                                        <span style={styles.resMeta}>{res.resource_type === 'pdf' ? 'PDF Document' : 
+                                                                             res.resource_type === 'video' ? 'Video Link' : 
+                                                                             'Web Resource'}</span>
                                                                     </div>
                                                                 </div>
-                                                                {res.kind === 'pdf' ? (
-                                                                    <Download
+                                                                <div style={styles.resourceActions}>
+                                                                    {res.resource_type === 'pdf' ? (
+                                                                        <Download
+                                                                            size={18}
+                                                                            style={styles.cursor}
+                                                                            color="#0066FF"
+                                                                            onClick={(e) => { e.stopPropagation(); handleResourceAction(res); }}
+                                                                        />
+                                                                    ) : (
+                                                                        <ExternalLink
+                                                                            size={18}
+                                                                            style={styles.cursor}
+                                                                            color="#0066FF"
+                                                                            onClick={(e) => { e.stopPropagation(); handleResourceAction(res); }}
+                                                                        />
+                                                                    )}
+                                                                    <Trash2
                                                                         size={18}
-                                                                        style={styles.cursor}
-                                                                        color="#0066FF"
-                                                                        onClick={(e) => { e.stopPropagation(); handleResourceAction(res); }}
+                                                                        style={{...styles.cursor, marginLeft: '8px', color: '#EF4444'}}
+                                                                        onClick={(e) => deleteResource(res.resource_id, module.roadmap_id, e)}
                                                                     />
-                                                                ) : (
-                                                                    <ExternalLink
-                                                                        size={18}
-                                                                        style={styles.cursor}
-                                                                        color="#0066FF"
-                                                                        onClick={(e) => { e.stopPropagation(); handleResourceAction(res); }}
-                                                                    />
-                                                                )}
+                                                                </div>
                                                             </div>
                                                         ))}
                                                     </div>
@@ -534,7 +660,7 @@ const StudyRoadmap = ({ selectedSkill, isActiveTab, addDayTrigger }) => {
 
                                                 <button
                                                     style={styles.addResourceBtn}
-                                                    onClick={() => handleOpenResourceModal(module.id)}
+                                                    onClick={() => handleOpenResourceModal(module.roadmap_id)}
                                                 >
                                                     <PlusCircle size={18} />
                                                     <span>Add Resource or File</span>
@@ -714,6 +840,7 @@ const StudyRoadmap = ({ selectedSkill, isActiveTab, addDayTrigger }) => {
     );
 };
 
+// Styles remain EXACTLY as in your original code
 const styles = {
     pageWrapper: {
         backgroundColor: '#F8F9FB',
@@ -973,6 +1100,11 @@ const styles = {
     cursor: {
         cursor: 'pointer'
     },
+    resourceActions: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: '8px'
+    },
     addResourceBtn: {
         display: 'flex',
         alignItems: 'center',
@@ -1146,6 +1278,13 @@ const styles = {
         fontWeight: '600',
         cursor: 'pointer',
         fontSize: '14px'
+    },
+    loadingState: {
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        height: '200px',
+        color: '#6B7280'
     }
 };
 

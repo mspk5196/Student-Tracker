@@ -8,7 +8,6 @@ const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 export const googleAuth = async (req, res) => {
   try {
     const { credential } = req.body;
-    // console.log("🔹 RECEIVED CREDENTIAL:", credential);
     if (!credential) return res.status(400).json({ message: 'No token' });
 
     const ticket = await client.verifyIdToken({
@@ -31,9 +30,6 @@ export const googleAuth = async (req, res) => {
     }
 
     const user = rows[0];
-    // console.log("🔹 USER FROM DB:", user);
-    // console.log("🔹 ROLE TYPE:", typeof user.role);
-    // console.log("🔹 ROLE VALUE:", user.role);
     const token = jwt.sign(
       {
         user_id: user.user_id,
@@ -47,7 +43,7 @@ export const googleAuth = async (req, res) => {
     res.json({
       token,
       user: {
-        user_id: user.user_id,
+        user_id: user.user_id, 
         name: user.name,
         email: user.email,
         role: user.role,

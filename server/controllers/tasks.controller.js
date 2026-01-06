@@ -44,7 +44,6 @@ export const getVenuesForFaculty = async (req, res) => {
   try {
     const { faculty_id } = req.params;
 
-    console.log('📥 Getting venues for faculty_id:', faculty_id);
 
     // ✅ FIX: JOIN with role table to get role name
     const [adminCheck] = await db.query(`
@@ -54,14 +53,10 @@ export const getVenuesForFaculty = async (req, res) => {
       WHERE u.user_id = ?  
     `, [faculty_id]);
 
-    console.log('👤 User role check:', adminCheck);
-
     let query;
     let params;
 
     if (adminCheck. length > 0 && adminCheck[0].role === 'admin') {
-      // Admin sees ALL venues
-      console.log('👑 Admin user - showing all venues');
       
       query = `
         SELECT 
@@ -79,8 +74,6 @@ export const getVenuesForFaculty = async (req, res) => {
       params = [];
       
     } else {
-      // Faculty sees only assigned venues
-      console.log('👨‍🏫 Faculty user - showing assigned venues');
       
       // Get faculty_id from user_id
       const [faculty] = await db.query('SELECT faculty_id FROM faculties WHERE user_id = ?', [faculty_id]);
@@ -110,15 +103,13 @@ export const getVenuesForFaculty = async (req, res) => {
 
     const [venues] = await db.query(query, params);
 
-    console.log('✅ Found venues:', venues. length, venues);
-
     res.status(200).json({
       success: true,
       data: venues
     });
     
   } catch (error) {
-    console.error('❌ Error fetching venues:', error);
+    console.error(' Error fetching venues:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to fetch venues'
@@ -515,15 +506,12 @@ export const submitAssignmentFile = async (req, res) => {
 
 // backend/controllers/tasks.controller.js
 
-/// backend/controllers/tasks.controller.js
-
 export const getVenuesByEmail = async (req, res) => {
   try {
     const { email } = req. params;
-    
-    console.log('📧 Getting venues for email:', email);
+  
 
-    // ✅ Get user with role using JOIN
+    //  Get user with role using JOIN
     const [users] = await db.query(`
       SELECT u.user_id, r.role 
       FROM users u
@@ -539,13 +527,11 @@ export const getVenuesByEmail = async (req, res) => {
     }
     
     const user = users[0];
-    console.log('👤 Found user:', user);
     
     let venues;
     
     // If admin, show ALL venues
     if (user.role === 'admin') {
-      console.log('👑 Admin user - fetching all venues');
       
       [venues] = await db.query(`
         SELECT 
@@ -562,7 +548,6 @@ export const getVenuesByEmail = async (req, res) => {
       `);
       
     } else if (user.role === 'faculty') {
-      console.log('👨‍🏫 Faculty user - fetching assigned venues');
       
       // Get faculty_id
       const [faculty] = await db.query('SELECT faculty_id FROM faculties WHERE user_id = ? ', [user.user_id]);
@@ -596,7 +581,6 @@ export const getVenuesByEmail = async (req, res) => {
       });
     }
     
-    console.log('✅ Found venues:', venues. length);
     
     res.status(200).json({
       success: true,
@@ -604,7 +588,7 @@ export const getVenuesByEmail = async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ Error fetching venues:', error);
+    console.error(' Error fetching venues:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to fetch venues'

@@ -1287,15 +1287,15 @@ const GroupsClasses = () => {
     await fetchAvailableFaculties(venue. venue_id);
   };
 
-  const downloadExcelTemplate = () => {
-    const csvContent = "data:text/csv;charset=utf-8,name,email,rollNumber,department,year,semester\nJohn Doe,john@example. com,7376242AL101,Computer Science,2,3\nJane Smith,jane@example.com,7376242AL102,Computer Science,2,3";
-    const link = document.createElement('a');
-    link.setAttribute('href', csvContent);
-    link.setAttribute('download', 'student_upload_template.csv');
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
+  // const downloadExcelTemplate = () => {
+  //   const csvContent = "data:text/csv;charset=utf-8,name,email,rollNumber,department,year,semester\nJohn Doe,john@example. com,7376242AL101,Computer Science,2,3\nJane Smith,jane@example.com,7376242AL102,Computer Science,2,3";
+  //   const link = document.createElement('a');
+  //   link.setAttribute('href', csvContent);
+  //   link.setAttribute('download', 'student_upload_template');
+  //   document.body.appendChild(link);
+  //   link.click();
+  //   document.body.removeChild(link);
+  // };
 
   return (
     <div style={s.container}>
@@ -1305,7 +1305,8 @@ const GroupsClasses = () => {
           <button onClick={() => setError('')} style={s.errorClose}>×</button>
         </div>
       )}
-
+   <div>
+   </div>
       <div style={s.topBar}>
         <div style={s.searchWrapper}>
           <Search sx={{ color: '#94a3b8', fontSize: 22 }} />
@@ -1810,13 +1811,13 @@ const GroupsClasses = () => {
                   * Available capacity: {selectedVenue?.capacity - selectedVenue?.current_students} students<br/>
                   * Only . xlsx and .xls files are accepted
                 </p>
-                <button 
+                {/* <button 
                   style={s. downloadTemplateBtn}
                   onClick={downloadExcelTemplate}
                 >
                   <GetApp sx={{ fontSize: 16 }} />
                   Download Template
-                </button>
+                </button> */}
               </div>
               <div style={s.formGroup}>
                 <label style={s.label}>Select Excel File *</label>

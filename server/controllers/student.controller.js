@@ -141,7 +141,6 @@ export const getAllStudents = async (req, res) => {
 export const getStudentById = async (req, res) => {
   try {
     const { studentId } = req.params;
-    console.log('🔍 Fetching student with ID:', studentId);
 
     const [student] = await db.query(`
       SELECT 
@@ -182,7 +181,6 @@ export const getStudentById = async (req, res) => {
     `, [studentId]);
 
     if (student.length === 0) {
-      console.log('❌ Student not found');
       return res.status(404).json({
         success: false,
         message: 'Student not found'
@@ -210,7 +208,6 @@ export const getStudentById = async (req, res) => {
       image: null
     };
 
-    console.log('✅ Student found:', formattedStudent. name);
     res.status(200).json({ success: true, data: formattedStudent });
   } catch (error) {
     console.error('Error fetching student:', error);
@@ -548,8 +545,6 @@ export const getStudentAttendanceDashboard = async (req, res) => {
     const { studentId } = req.params;
     const { year = new Date().getFullYear() } = req.query;
 
-    console.log('Fetching attendance dashboard for student:', studentId, 'year:', year);
-
     // Get overall stats - FIXED:  Removed sessions table dependency
     const [overallStats] = await db.query(`
       SELECT 
@@ -652,8 +647,6 @@ export const getStudentAttendanceDashboard = async (req, res) => {
 export const getStudentOverview = async (req, res) => {
   try {
     const { studentId } = req.params;
-
-    console.log('Fetching overview for student:', studentId);
 
     // Get student personal info first
     const [studentInfo] = await db.query(`
@@ -856,8 +849,6 @@ export const getStudentRanking = async (req, res) => {
 export const getStudentTaskGrade = async (req, res) => {
   try {
     const { studentId } = req.params;
-
-    console.log('Fetching task grade for student:', studentId);
 
     // Verify student exists
     const [studentCheck] = await db.query(`

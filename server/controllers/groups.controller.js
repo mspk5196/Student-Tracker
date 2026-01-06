@@ -58,7 +58,7 @@ export const createVenue = async (req, res) => {
     if (existing.length > 0) {
       return res.status(400).json({ 
         success: false, 
-        message: 'Venue name already exists.  Please choose a different name.' 
+        message: 'Venue name already exists. Please choose a different name.' 
       });
     }
 
@@ -67,7 +67,7 @@ export const createVenue = async (req, res) => {
       const [facultyCheck] = await connection.query(
         `SELECT v.venue_name, u.name as faculty_name
          FROM venue v 
-         INNER JOIN faculties f ON v. assigned_faculty_id = f. faculty_id
+         INNER JOIN faculties f ON v.assigned_faculty_id = f.faculty_id
          INNER JOIN users u ON f.user_id = u.user_id
          WHERE v.assigned_faculty_id = ? AND v.status = 'Active'`,
         [assigned_faculty_id]
@@ -76,7 +76,7 @@ export const createVenue = async (req, res) => {
       if (facultyCheck.length > 0) {
         return res.status(400).json({ 
           success: false, 
-          message: `${facultyCheck[0].faculty_name} is already assigned to "${facultyCheck[0].venue_name}".  Please choose a different faculty.` 
+          message: `${facultyCheck[0].faculty_name} is already assigned to "${facultyCheck[0].venue_name}". Please choose a different faculty.` 
         });
       }
     }
@@ -92,7 +92,7 @@ export const createVenue = async (req, res) => {
 
     res.status(201).json({ 
       success: true, 
-      message: 'Venue created successfully! ',
+      message: 'Venue created successfully!',
       data: { venue_id: result.insertId }
     });
 
@@ -101,7 +101,7 @@ export const createVenue = async (req, res) => {
     console.error('Error creating venue:', error);
     res.status(500).json({ 
       success: false, 
-      message: 'Failed to create venue.  Please try again.' 
+      message: 'Failed to create venue. Please try again.' 
     });
   } finally {
     connection.release();
@@ -110,7 +110,7 @@ export const createVenue = async (req, res) => {
 
 // Update venue
 export const updateVenue = async (req, res) => {
-  const connection = await db. getConnection();
+  const connection = await db.getConnection();
   
   try {
     const { venueId } = req.params;
@@ -125,7 +125,7 @@ export const updateVenue = async (req, res) => {
     if (existing.length > 0) {
       return res.status(400).json({ 
         success: false, 
-        message:  'Venue name already exists.  Please choose a different name.' 
+        message: 'Venue name already exists. Please choose a different name.' 
       });
     }
 
@@ -158,7 +158,7 @@ export const updateVenue = async (req, res) => {
 
 // Delete venue
 export const deleteVenue = async (req, res) => {
-  const connection = await db. getConnection();
+  const connection = await db.getConnection();
   
   try {
     const { venueId } = req.params;
@@ -174,7 +174,7 @@ export const deleteVenue = async (req, res) => {
     if (students[0].count > 0) {
       return res.status(400).json({ 
         success: false, 
-        message: `Cannot delete venue with ${students[0].count} active students.  Please remove students first.` 
+        message: `Cannot delete venue with ${students[0].count} active students. Please remove students first.` 
       });
     }
 
@@ -211,7 +211,7 @@ export const assignFacultyToVenue = async (req, res) => {
   
   try {
     const { venueId } = req.params;
-    const { faculty_id } = req. body;
+    const { faculty_id } = req.body;
 
     if (!faculty_id) {
       return res.status(400).json({ 
@@ -222,7 +222,7 @@ export const assignFacultyToVenue = async (req, res) => {
 
     // Get current venue info
     const [currentVenue] = await connection.query(
-      'SELECT venue_name FROM venue WHERE venue_id = ? ',
+      'SELECT venue_name FROM venue WHERE venue_id = ?',
       [venueId]
     );
 
@@ -238,22 +238,22 @@ export const assignFacultyToVenue = async (req, res) => {
       `SELECT v.venue_id, v.venue_name, u.name as faculty_name
        FROM venue v 
        INNER JOIN faculties f ON v.assigned_faculty_id = f.faculty_id
-       INNER JOIN users u ON f. user_id = u.user_id
-       WHERE v.assigned_faculty_id = ? AND v.venue_id != ?  AND v.status = 'Active'`,
+       INNER JOIN users u ON f.user_id = u.user_id
+       WHERE v.assigned_faculty_id = ? AND v.venue_id != ? AND v.status = 'Active'`,
       [faculty_id, venueId]
     );
 
-    if (facultyCheck. length > 0) {
+    if (facultyCheck.length > 0) {
       return res.status(400).json({ 
         success: false, 
         message: `${facultyCheck[0].faculty_name} is already assigned to "${facultyCheck[0].venue_name}". A faculty can only be assigned to one venue at a time.` 
       });
     }
 
-    await connection. beginTransaction();
+    await connection.beginTransaction();
 
     await connection.query(
-      'UPDATE venue SET assigned_faculty_id = ? WHERE venue_id = ? ',
+      'UPDATE venue SET assigned_faculty_id = ? WHERE venue_id = ?',
       [faculty_id, venueId]
     );
 
@@ -263,7 +263,7 @@ export const assignFacultyToVenue = async (req, res) => {
     const [facultyInfo] = await connection.query(
       `SELECT u.name as faculty_name FROM faculties f
        INNER JOIN users u ON f.user_id = u.user_id
-       WHERE f.faculty_id = ? `,
+       WHERE f.faculty_id = ?`,
       [faculty_id]
     );
 
@@ -304,7 +304,7 @@ export const getAvailableFaculties = async (req, res) => {
           ELSE -1
         END as assignment_status
       FROM faculties f
-      INNER JOIN users u ON f.user_id = u. user_id
+      INNER JOIN users u ON f.user_id = u.user_id
       LEFT JOIN venue v ON f.faculty_id = v.assigned_faculty_id AND v.status = 'Active'
       WHERE u.is_active = 1
     `;
@@ -313,23 +313,23 @@ export const getAvailableFaculties = async (req, res) => {
 
     // Add search filter
     if (search) {
-      query += ` AND (u.name LIKE ? OR u.department LIKE ?  OR u.email LIKE ?)`;
+      query += ` AND (u.name LIKE ? OR u.department LIKE ? OR u.email LIKE ?)`;
       params.push(`%${search}%`, `%${search}%`, `%${search}%`);
     }
 
     query += ` ORDER BY assignment_status DESC, u.name ASC`;
 
-    const [faculties] = await db. query(query, params);
+    const [faculties] = await db.query(query, params);
 
     // Separate faculties
     let currentlyAssigned = null;
     let availableFaculties = [];
 
     faculties.forEach(faculty => {
-      if (faculty. assignment_status === 1) {
+      if (faculty.assignment_status === 1) {
         // Currently assigned to this venue
         currentlyAssigned = {
-          ... faculty,
+          ...faculty,
           workload: 1,
           workload_status: 'Current'
         };
@@ -348,7 +348,7 @@ export const getAvailableFaculties = async (req, res) => {
     res.status(200).json({ 
       success: true, 
       data: {
-        available:  availableFaculties,
+        available: availableFaculties,
         current: currentlyAssigned,
         total: availableFaculties.length + (currentlyAssigned ? 1 : 0)
       }
@@ -367,18 +367,19 @@ export const bulkUploadStudentsToVenue = async (req, res) => {
   const connection = await db.getConnection();
   
   try {
-    const { venueId } = req. params;
+    const { venueId } = req.params;
 
     if (!req.file) {
       return res.status(400).json({ 
         success: false, 
-        message: 'No file uploaded.  Please select an Excel file.' 
+        message: 'No file uploaded. Please select an Excel file.' 
       });
     }
 
+
     // Get venue details and check capacity
     const [venues] = await connection.query(
-      'SELECT * FROM venue WHERE venue_id = ? ',
+      'SELECT * FROM venue WHERE venue_id = ?',
       [venueId]
     );
 
@@ -399,6 +400,7 @@ export const bulkUploadStudentsToVenue = async (req, res) => {
       WHERE g.venue_id = ? AND gs.status = 'Active'
     `, [venueId]);
 
+   
     const availableSlots = venue.capacity - currentCount[0].count;
 
     // Parse Excel file
@@ -410,7 +412,7 @@ export const bulkUploadStudentsToVenue = async (req, res) => {
     if (data.length === 0) {
       return res.status(400).json({ 
         success: false, 
-        message:  'Excel file is empty.  Please add student data and try again.' 
+        message: 'Excel file is empty. Please add student data and try again.' 
       });
     }
 
@@ -425,7 +427,7 @@ export const bulkUploadStudentsToVenue = async (req, res) => {
 
     // Get or create default group for venue
     let [groups] = await connection.query(
-      'SELECT group_id FROM \`groups\` WHERE venue_id = ?  LIMIT 1',
+      'SELECT group_id FROM \`groups\` WHERE venue_id = ? LIMIT 1',
       [venueId]
     );
 
@@ -439,109 +441,146 @@ export const bulkUploadStudentsToVenue = async (req, res) => {
       
       groupId = groupResult.insertId;
     } else {
-      groupId = groups[0]. group_id;
+      groupId = groups[0].group_id;
     }
 
     let studentsAdded = 0;
     let studentsSkipped = 0;
     const errors = [];
+    const successfulStudents = [];
 
-    for (const row of data) {
+    for (let i = 0; i < data.length; i++) {
+      const row = data[i];
+      
       const { name, email, rollNumber, department, year, semester } = row;
 
       if (!name || !email || !rollNumber) {
-        errors.push(`Row skipped: Missing required fields (name, email, or rollNumber)`);
+                errors.push(`Row ${i + 1}: Missing required fields (name, email, or rollNumber)`);
         studentsSkipped++;
         continue;
       }
 
       try {
-        // Check if student exists
+        // Check if user already exists
         const [existingUser] = await connection.query(
-          'SELECT user_id FROM users WHERE email = ?  OR ID = ?',
-          [email, rollNumber]
+          'SELECT user_id FROM users WHERE email = ? OR ID = ?',
+          [email.trim(), rollNumber.trim()]
         );
 
         let userId;
         let studentId;
 
         if (existingUser.length === 0) {
-          // Insert new student
+         
+          // Insert new user
           const [userResult] = await connection.query(
             `INSERT INTO users (role_id, name, email, ID, department, created_at, is_active) 
              VALUES (3, ?, ?, ?, ?, NOW(), 1)`,
-            [name, email, rollNumber, department || 'General']
+            [name.trim(), email.trim(), rollNumber.trim(), (department || 'General').trim()]
           );
 
           userId = userResult.insertId;
+         
 
-          const [studentResult] = await connection. query(
-            'INSERT INTO students (user_id, year, semester, assigned_faculty_id) VALUES (?, ?, ?, ? )',
-            [userId, year || 1, semester || 1, venue. assigned_faculty_id || 0]
+          // Insert student record
+          const [studentResult] = await connection.query(
+            'INSERT INTO students (user_id, year, semester, assigned_faculty_id) VALUES (?, ?, ?, ?)',
+            [userId, year || 1, semester || 1, venue.assigned_faculty_id || 0]
           );
 
           studentId = studentResult.insertId;
+          
         } else {
           userId = existingUser[0].user_id;
+          
 
+          // Check if student record exists
           const [student] = await connection.query(
-            'SELECT student_id FROM students WHERE user_id = ? ',
+            'SELECT student_id FROM students WHERE user_id = ?',
             [userId]
           );
 
           if (student.length === 0) {
-            const [studentResult] = await connection. query(
+           
+            const [studentResult] = await connection.query(
               'INSERT INTO students (user_id, year, semester, assigned_faculty_id) VALUES (?, ?, ?, ?)',
               [userId, year || 1, semester || 1, venue.assigned_faculty_id || 0]
             );
             studentId = studentResult.insertId;
+          
           } else {
             studentId = student[0].student_id;
+            
           }
         }
 
-        // Check if already allocated
-        const [existing] = await connection.query(
-          'SELECT id FROM group_students WHERE student_id = ? AND group_id = ?  AND status = "Active"',
-          [studentId, groupId]
-        );
+        // Check if already allocated to this venue
+        const [existingAllocation] = await connection.query(`
+          SELECT gs.id 
+          FROM group_students gs
+          INNER JOIN \`groups\` g ON gs.group_id = g.group_id
+          WHERE gs.student_id = ? AND g.venue_id = ? AND gs.status = 'Active'
+        `, [studentId, venueId]);
 
-        if (existing.length === 0) {
-          await connection.query(
-            'INSERT INTO group_students (group_id, student_id, allocation_date, status) VALUES (?, ?, NOW(), "Active")',
-            [groupId, studentId]
-          );
-          studentsAdded++;
-        } else {
+        if (existingAllocation.length > 0) {
+          
           studentsSkipped++;
           errors.push(`${name} (${rollNumber}) already allocated to this venue`);
+          continue;
         }
 
+        // Insert into group_students
+        const [insertResult] = await connection.query(
+          'INSERT INTO group_students (group_id, student_id, allocation_date, status) VALUES (?, ?, NOW(), "Active")',
+          [groupId, studentId]
+        );
+        
+        
+        studentsAdded++;
+        successfulStudents.push({
+          name,
+          email,
+          rollNumber,
+          department,
+          userId,
+          studentId,
+          groupStudentsId: insertResult.insertId
+        });
+
       } catch (err) {
+        console.error(`Error processing row ${i + 1}:`, err);
+        console.error('SQL Error:', err.sqlMessage || err.message);
+        console.error('SQL Query:', err.sql || 'No SQL available');
         studentsSkipped++;
-        errors. push(`Error processing ${name} (${rollNumber}): ${err.message}`);
+        errors.push(`Row ${i + 1}: Error processing ${name} (${rollNumber}) - ${err.message}`);
       }
     }
 
     await connection.commit();
 
+
     res.status(201).json({ 
       success: true, 
-      message: `Successfully uploaded! Added:  ${studentsAdded} students, Skipped: ${studentsSkipped}`,
+      message: `Successfully uploaded! Added: ${studentsAdded} students, Skipped: ${studentsSkipped}`,
       data: {
         studentsAdded,
         studentsSkipped,
-        errors:  errors.slice(0, 10)
+        errors: errors.slice(0, 10),
+        successfulStudents: successfulStudents.slice(0, 5)
       }
     });
 
   } catch (error) {
     await connection.rollback();
-    console.error('Error bulk uploading students:', error);
+    console.error('=== BULK UPLOAD FAILED ===');
+    console.error('Full error:', error);
+    console.error('Stack trace:', error.stack);
+    
     res.status(500).json({ 
       success: false, 
       message: 'Failed to upload students. Please check the file format and try again.',
-      error: error.message 
+      error: error.message,
+      errorDetails: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   } finally {
     connection.release();
@@ -554,7 +593,7 @@ export const allocateStudentsByRollRange = async (req, res) => {
   
   try {
     const { venueId } = req.params;
-    const { rollNumberFrom, rollNumberTo } = req. body;
+    const { rollNumberFrom, rollNumberTo } = req.body;
 
     if (!rollNumberFrom || !rollNumberTo) {
       return res.status(400).json({ 
@@ -570,7 +609,7 @@ export const allocateStudentsByRollRange = async (req, res) => {
     );
 
     if (venues.length === 0) {
-      return res. status(404).json({ 
+      return res.status(404).json({ 
         success: false, 
         message: 'Venue not found' 
       });
@@ -601,7 +640,7 @@ export const allocateStudentsByRollRange = async (req, res) => {
           INNER JOIN \`groups\` g ON gs.group_id = g.group_id
           WHERE gs.student_id = s.student_id 
             AND g.venue_id = ? 
-            AND gs. status = 'Active'
+            AND gs.status = 'Active'
         )
       ORDER BY u.ID
     `, [rollNumberFrom, rollNumberTo, venueId]);
@@ -614,22 +653,22 @@ export const allocateStudentsByRollRange = async (req, res) => {
     }
 
     if (students.length > availableSlots) {
-      return res. status(400).json({ 
+      return res.status(400).json({ 
         success: false, 
-        message: `Venue capacity exceeded. Available:  ${availableSlots}, Found: ${students.length} students` 
+        message: `Venue capacity exceeded. Available: ${availableSlots}, Found: ${students.length} students` 
       });
     }
 
     await connection.beginTransaction();
 
     // Get or create default group for venue
-    let [groups] = await connection. query(
+    let [groups] = await connection.query(
       'SELECT group_id FROM \`groups\` WHERE venue_id = ? LIMIT 1',
       [venueId]
     );
 
     let groupId;
-    if (groups. length === 0) {
+    if (groups.length === 0) {
       const [groupResult] = await connection.query(`
         INSERT INTO \`groups\` 
         (group_code, group_name, venue_id, faculty_id, schedule_days, schedule_time, max_students, department, status, created_at) 
@@ -645,7 +684,7 @@ export const allocateStudentsByRollRange = async (req, res) => {
     for (const student of students) {
       await connection.query(
         'INSERT INTO group_students (group_id, student_id, allocation_date, status) VALUES (?, ?, NOW(), "Active")',
-        [groupId, student. student_id]
+        [groupId, student.student_id]
       );
     }
 
@@ -653,7 +692,7 @@ export const allocateStudentsByRollRange = async (req, res) => {
 
     res.status(200).json({ 
       success: true, 
-      message: `Successfully allocated ${students.length} students (${rollNumberFrom} to ${rollNumberTo}) to ${venue.venue_name}! `,
+      message: `Successfully allocated ${students.length} students (${rollNumberFrom} to ${rollNumberTo}) to ${venue.venue_name}!`,
       data: {
         allocated: students.length,
         students: students.map(s => ({ name: s.name, rollNumber: s.rollNumber }))
@@ -733,7 +772,7 @@ export const removeStudentFromVenue = async (req, res) => {
     console.error('Error removing student:', error);
     res.status(500).json({ 
       success: false, 
-      message:  'Failed to remove student.  Please try again.' 
+      message: 'Failed to remove student. Please try again.' 
     });
   } finally {
     connection.release();
@@ -756,7 +795,7 @@ export const getAllFacultiesForGroups = async (req, res) => {
       ORDER BY u.name
     `);
 
-    res.status(200).json({ success: true, data:  faculties });
+    res.status(200).json({ success: true, data: faculties });
   } catch (error) {
     console.error('Error fetching faculties:', error);
     res.status(500).json({ success: false, message: 'Failed to fetch faculties' });
@@ -782,7 +821,7 @@ export const searchVenues = async (req, res) => {
       LEFT JOIN faculties f ON v.assigned_faculty_id = f.faculty_id
       LEFT JOIN users u ON f.user_id = u.user_id
       LEFT JOIN \`groups\` g ON v.venue_id = g.venue_id
-      LEFT JOIN group_students gs ON g. group_id = gs.group_id AND gs.status = 'Active'
+      LEFT JOIN group_students gs ON g.group_id = gs.group_id AND gs.status = 'Active'
       WHERE v.venue_name LIKE ? OR v.location LIKE ? OR u.name LIKE ?
       GROUP BY v.venue_id
       ORDER BY v.venue_name
@@ -791,6 +830,6 @@ export const searchVenues = async (req, res) => {
     res.status(200).json({ success: true, data: venues });
   } catch (error) {
     console.error('Error searching venues:', error);
-    res.status(500).json({ success: false, message:  'Failed to search venues' });
+    res.status(500).json({ success: false, message: 'Failed to search venues' });
   }
 };

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 import {
     BookOpen, Calendar, Clock, ClipboardCheck,
     MapPin, Users, ChevronRight, Plus,
@@ -6,103 +7,45 @@ import {
     AlertCircle, TrendingUp, TrendingDown
 } from 'lucide-react';
 
-// Static data (can be moved to a separate file)
-const STATIC_DATA = {
-    stats: [
-        { id: 1, label: 'My Classes', value: '6', sub: 'Across 3 departments', icon: <BookOpen size={20} /> },
-        { id: 2, label: "Today's Sessions", value: '4', sub: '2 completed, 2 upcoming', icon: <Calendar size={20} /> },
-        { id: 3, label: 'Attendance Pending', value: '2', sub: 'Mark within 24 hours', icon: <Clock size={20} />, badge: '2 groups' },
-        { id: 4, label: 'Tasks to Review', value: '18', sub: 'Submissions awaiting review', icon: <ClipboardCheck size={20} /> },
-    ],
+// API Configuration
+const API_BASE = 'http://localhost:5000/api/faculty/dashboard';
 
-    classes: [
-        {
-            id: 'CS-201',
-            name: 'Data Structures (CS-A)',
-            students: 45,
-            status: 'Attendance pending',
-            statusType: 'pending',
-            time: '10:00 - 11:00 AM',
-            loc: 'Lab 3',
-            actions: ['Mark Attendance', 'View Class', 'Post Task'],
-            completed: false
-        },
-        {
-            id: 'CS-105',
-            name: 'Programming Basics (CS-B)',
-            students: 52,
-            status: 'In progress',
-            statusType: 'progress',
-            time: '11:15 AM - 12:15 PM',
-            loc: 'Room 204',
-            actions: ['Mark Attendance', 'Post Task'],
-            completed: false
-        },
-        {
-            id: 'AI-310',
-            name: 'Intro to AI (AI-A)',
-            students: 38,
-            status: 'Completed',
-            statusType: 'completed',
-            time: '02:00 - 03:00 PM',
-            loc: 'Seminar Hall',
-            actions: ['Edit Attendance', 'View Tasks'],
-            completed: true
-        }
-    ],
-
-    groups: [
-        { id: 'CS-201', title: 'Data Structures (CS-A)', schedule: 'Mon, Wed 10:00 AM', students: 45, attend: '92%', tasks: '2 active', status: 'On track', type: 'success' },
-        { id: 'CS-105', title: 'Programming Basics (CS-B)', schedule: 'Tue, Thu 11:15 AM', students: 52, attend: '86%', tasks: '1 due today', status: 'Watch attendance', type: 'warning' },
-        { id: 'AI-310', title: 'Intro to AI (AI-A)', schedule: 'Fri 02:00 PM', students: 38, attend: '78%', tasks: '3 pending reviews', status: 'Review tasks', type: 'info' },
-    ],
-
-    taskReview: {
-        pendingReviews: 18,
-        avgCompletion: 82,
-        tasks: [
-            { id: 1, name: 'Assignment 3: Linked Lists', class: 'CS-201', submitted: 32, total: 45, status: 'review' },
-            { id: 2, name: 'Lab 2: Control Statements', class: 'CS-105', submitted: 40, total: 52, status: 'progress' }
-        ]
-    },
-
-    attendance: {
-        overall: 88,
-        target: 90,
-        pendingSessions: 2,
-        highest: { class: 'CS-201', percentage: 94 },
-        lowest: { class: 'AI-310', percentage: 78 }
-    },
-
-    quickActions: [
-        { id: 1, title: 'Mark attendance for a class', desc: 'Opens attendance marking flow' },
-        { id: 2, title: 'Create a new task', desc: 'Assign work linked to study material' },
-        { id: 3, title: 'Upload study material', desc: 'Day-wise roadmap for your groups' },
-        { id: 4, title: 'View student performance', desc: 'Open student tracking & profiles' }
-    ],
-
-    engagementData: {
-        attendance: {
-            labels: ['CS-201', 'CS-105', 'AI-310', 'CS-202', 'AI-315'],
-            datasets: [
-                {
-                    data: [94, 86, 78, 91, 83],
-                    label: 'Attendance %',
-                    color: '#2563eb'
-                }
-            ]
-        },
-        taskCompletion: {
-            labels: ['Submitted', 'Pending', 'Overdue'],
-            data: [72, 18, 10],
-            colors: ['#10b981', '#f59e0b', '#ef4444']
-        }
+// Create axios instance with auth interceptor
+const api = axios.create({
+    baseURL: API_BASE,
+    headers: {
+        'Content-Type': 'application/json',
     }
-};
+});
+
+// Add request interceptor to include token
+api.interceptors.request.use(
+    (config) => {
+        const token = localStorage.getItem('token');
+        if (token) {
+            config.headers.Authorization = `Bearer ${token}`;
+        }
+        return config;
+    },
+    (error) => {
+        return Promise.reject(error);
+    }
+);
+
+// Add response interceptor to handle errors
+api.interceptors.response.use(
+    (response) => response,
+    (error) => {
+        if (error.response?.status === 401) {
+            localStorage.clear();
+            window.location.href = '/login';
+        }
+        return Promise.reject(error);
+    }
+);
 
 // Graph Components
 const BarChart = ({ data }) => {
-    // For attendance, we usually want to show it relative to 100%
     const baseline = 100;
 
     return (
@@ -308,15 +251,133 @@ const DonutChart = ({ data }) => {
 };
 
 const Dashboard = () => {
-    // State Management
-    const [stats, setStats] = useState(STATIC_DATA.stats);
-    const [classes, setClasses] = useState(STATIC_DATA.classes);
-    const [groups, setGroups] = useState(STATIC_DATA.groups);
-    const [taskReview, setTaskReview] = useState(STATIC_DATA.taskReview);
-    const [attendance, setAttendance] = useState(STATIC_DATA.attendance);
-    const [quickActions] = useState(STATIC_DATA.quickActions);
+    // Auth state
+    const [user, setUser] = useState(null);
+    const [authLoading, setAuthLoading] = useState(true);
+    
+    // Dashboard state
+    const [stats, setStats] = useState([]);
+    const [classes, setClasses] = useState([]);
+    const [groups, setGroups] = useState([]);
+    const [taskReview, setTaskReview] = useState({
+        pendingReviews: 0,
+        avgCompletion: 0,
+        tasks: []
+    });
+    const [attendance, setAttendance] = useState({
+        overall: 0,
+        target: 90,
+        pendingSessions: 0,
+        highest: { class: '', percentage: 0 },
+        lowest: { class: '', percentage: 0 }
+    });
+    const [quickActions] = useState([
+        { id: 1, title: 'Mark attendance for a class', desc: 'Opens attendance marking flow' },
+        { id: 2, title: 'Create a new task', desc: 'Assign work linked to study material' },
+        { id: 3, title: 'Upload study material', desc: 'Day-wise roadmap for your groups' },
+        { id: 4, title: 'View student performance', desc: 'Open student tracking & profiles' }
+    ]);
+    const [engagementData, setEngagementData] = useState({
+        attendance: {
+            labels: [],
+            datasets: [{ data: [], label: 'Attendance %', color: '#2563eb' }]
+        },
+        taskCompletion: {
+            labels: ['Submitted', 'Pending', 'Overdue'],
+            data: [0, 0, 0],
+            colors: ['#10b981', '#f59e0b', '#ef4444']
+        }
+    });
+
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
     const [selectedClass, setSelectedClass] = useState(null);
     const [markingAttendance, setMarkingAttendance] = useState(false);
+
+    // Check authentication on mount
+    useEffect(() => {
+        const token = localStorage.getItem('token');
+        const storedUser = localStorage.getItem('user');
+        
+        if (!token || !storedUser) {
+            window.location.href = '/login';
+        } else {
+            try {
+                setUser(JSON.parse(storedUser));
+                setAuthLoading(false);
+            } catch {
+                localStorage.clear();
+                window.location.href = '/login';
+            }
+        }
+    }, []);
+
+    // Fetch dashboard data
+    useEffect(() => {
+        if (authLoading) return;
+
+        const fetchDashboardData = async () => {
+            setLoading(true);
+            setError(null);
+            
+            try {
+                const response = await api.get('/');
+                const data = response.data;
+
+                setStats(data.stats || []);
+                setClasses(data.classes || []);
+                setGroups(data.groups || []);
+                setTaskReview(data.taskReview || {
+                    pendingReviews: 0,
+                    avgCompletion: 0,
+                    tasks: []
+                });
+                setAttendance(data.attendance || {
+                    overall: 0,
+                    target: 90,
+                    pendingSessions: 0,
+                    highest: { class: '', percentage: 0 },
+                    lowest: { class: '', percentage: 0 }
+                });
+                setEngagementData(data.engagementData || {
+                    attendance: {
+                        labels: [],
+                        datasets: [{ data: [], label: 'Attendance %', color: '#2563eb' }]
+                    },
+                    taskCompletion: {
+                        labels: ['Submitted', 'Pending', 'Overdue'],
+                        data: [0, 0, 0],
+                        colors: ['#10b981', '#f59e0b', '#ef4444']
+                    }
+                });
+            } catch (err) {
+                console.error('Failed to load dashboard:', err);
+                setError(err.response?.data?.message || 'Failed to load dashboard data');
+                
+                // If it's an auth error, redirect to login
+                if (err.response?.status === 401) {
+                    localStorage.clear();
+                    window.location.href = '/login';
+                }
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchDashboardData();
+        
+        // Set up real-time updates interval
+        const interval = setInterval(async () => {
+            try {
+                const response = await api.get('/overview');
+                setStats(response.data.stats || []);
+            } catch (err) {
+                console.error('Failed to update dashboard:', err);
+            }
+        }, 30000);
+
+        return () => clearInterval(interval);
+    }, [authLoading]);
 
     // Simulate real-time updates
     useEffect(() => {
@@ -338,23 +399,33 @@ const Dashboard = () => {
     }, []);
 
     // Function Handlers
-    const handleClassAction = (classId, action) => {
+    const handleClassAction = async (classId, action) => {
         console.log(`Action "${action}" on class ${classId}`);
 
         switch (action) {
             case 'Mark Attendance':
                 setMarkingAttendance(true);
                 setSelectedClass(classId);
-                setTimeout(() => {
+                try {
+                    // In production, this would be an API call
+                    await new Promise(resolve => setTimeout(resolve, 500));
                     alert(`Marking attendance for ${classId}. This would open a modal in production.`);
-                    setMarkingAttendance(false);
+                    
                     // Update class status
                     setClasses(prev => prev.map(cls =>
                         cls.id === classId
                             ? { ...cls, status: 'Attendance marked', statusType: 'completed' }
                             : cls
                     ));
-                }, 500);
+                    
+                    // Update attendance count
+                    setAttendance(prev => ({
+                        ...prev,
+                        pendingSessions: Math.max(0, prev.pendingSessions - 1)
+                    }));
+                } finally {
+                    setMarkingAttendance(false);
+                }
                 break;
 
             case 'View Class':
@@ -363,6 +434,11 @@ const Dashboard = () => {
 
             case 'Post Task':
                 alert(`Posting new task for ${classId}`);
+                // Update task review count
+                setTaskReview(prev => ({
+                    ...prev,
+                    pendingReviews: prev.pendingReviews + 5
+                }));
                 break;
 
             case 'Edit Attendance':
@@ -418,12 +494,17 @@ const Dashboard = () => {
 
     const handleGroupClick = (groupId) => {
         const group = groups.find(g => g.id === groupId);
-        alert(`Opening details for ${group.title}\nStatus: ${group.status}\nAttendance: ${group.attend}`);
+        alert(`Opening details for ${group?.title}\nStatus: ${group?.status}\nAttendance: ${group?.attend}`);
     };
 
     const handleTaskReviewClick = (taskId) => {
         const task = taskReview.tasks.find(t => t.id === taskId);
-        alert(`Reviewing: ${task.name}\n${task.submitted}/${task.total} submissions`);
+        alert(`Reviewing: ${task?.name}\n${task?.submitted}/${task?.total} submissions`);
+    };
+
+    const handleLogout = () => {
+        localStorage.clear();
+        window.location.href = '/login';
     };
 
     // Calculate dynamic stats
@@ -442,20 +523,90 @@ const Dashboard = () => {
 
     const dynamicStats = calculateDynamicStats();
 
+    if (authLoading || loading) {
+        return (
+            <div style={{
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                background: 'rgba(255, 255, 255, 0.8)',
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                zIndex: 1000
+            }}>
+                <div style={{
+                    width: '40px',
+                    height: '40px',
+                    border: '3px solid #e5e7eb',
+                    borderTopColor: '#2563eb',
+                    borderRadius: '50%',
+                    animation: 'spin 0.8s linear infinite'
+                }}></div>
+                <span style={{ marginLeft: '12px' }}>Loading dashboard...</span>
+                <style>{`
+                    @keyframes spin {
+                        to { transform: rotate(360deg); }
+                    }
+                `}</style>
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div style={{
+                padding: '24px',
+                maxWidth: '1200px',
+                margin: '0 auto'
+            }}>
+                <div style={{
+                    background: '#fee2e2',
+                    color: '#dc2626',
+                    padding: '12px 16px',
+                    borderRadius: '8px',
+                    margin: '16px 0',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                }}>
+                    <AlertCircle size={20} />
+                    <span>Error: {error}</span>
+                </div>
+                <button 
+                    onClick={() => window.location.reload()}
+                    style={{
+                        background: '#2563eb',
+                        color: 'white',
+                        border: 'none',
+                        padding: '10px 20px',
+                        borderRadius: '10px',
+                        cursor: 'pointer'
+                    }}
+                >
+                    Retry
+                </button>
+            </div>
+        );
+    }
+
     return (
         <div className="dashboard-wrapper">
-            {/* SCOPED CSS - Enhanced with larger sizes */}
             <style>{`
                 .dashboard-wrapper {
                     background-color: #f9fafb;
                     min-height: 100vh;
                     font-family: 'Inter', system-ui, -apple-system, sans-serif;
                     color: #111827;
-                    padding: 4px 4px;
+                    padding: 24px;
                     max-width: 1920px;
                     margin: 0 auto;
                 }
-                .header h1 { font-size: 24px; font-weight: 600; margin-bottom: 32px; color: #374151; letter-spacing: -0.02em; }
+                .header { margin-bottom: 32px; }
+                .header h1 { font-size: 24px; font-weight: 600; color: #374151; letter-spacing: -0.02em; margin-bottom: 8px; }
+                .header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 32px; }
                 
                 /* Stats Grid */
                 .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; margin-bottom: 40px; }
@@ -500,6 +651,7 @@ const Dashboard = () => {
                 }
                 @media (max-width: 640px) {
                     .stats-row { grid-template-columns: 1fr; }
+                    .main-grid { grid-template-columns: 1fr; }
                 }
                 
                 .section-label { margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
@@ -524,12 +676,12 @@ const Dashboard = () => {
                 }
                 .class-info-top { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
                 .class-name { font-weight: 700; font-size: 16px; }
-                .std-count { background: #f3f4f6; font-size: 13px; padding: 4px 12px; border-radius: 6px; color: #4b5563; font-weight: 500; }
+                .std-count { background: #f3f4f6; font-size: 13px; padding: 4px 12px; border-radius: 6px; color: #4b5563; font-weight: 500; display: flex; align-items: center; gap: 4px; }
                 .status-badge { font-size: 13px; padding: 4px 12px; border-radius: 6px; font-weight: 600; }
                 .status-pending { background: #ecfdf5; color: #059669; }
                 .status-progress { background: #eff6ff; color: #2563eb; }
                 .status-completed { background: #fff7ed; color: #ea580c; }
-                .meta-row { display: flex; gap: 20px; font-size: 14px; color: #6b7280; }
+                .meta-row { display: flex; gap: 20px; font-size: 14px; color: #6b7280; align-items: center; }
                 .btn-action { 
                     background: white; 
                     border: 1px solid #e5e7eb; 
@@ -692,44 +844,73 @@ const Dashboard = () => {
                 }
             `}</style>
 
-            <header className="header">
-                <h1>Overview of today's classes, attendance, and tasks</h1>
-            </header>
+            <div className="header">
+                <div className="header-row">
+                    <div>
+                        <h1>Faculty Dashboard</h1>
+                        <p style={{ color: '#6b7280', fontSize: '14px' }}>
+                            Welcome back, {user?.name || 'Faculty'}! Here's your overview for today.
+                        </p>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                        <button className="btn-action" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <AlertCircle size={18} />
+                            Notifications
+                        </button>
+                        <button 
+                            className="btn-action" 
+                            onClick={handleLogout}
+                            style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+                        >
+                            Logout
+                        </button>
+                    </div>
+                </div>
+            </div>
 
             {/* 4 Top Cards */}
             <div className="stats-row">
-                {stats.map(s => (
-                    <div
-                        className={`stat-card ${markingAttendance ? 'loading' : ''}`}
-                        key={s.id}
-                        onClick={() => {
-                            if (s.label === 'Attendance Pending') {
-                                handleOpenAttendance();
-                            } else if (s.label === 'Tasks to Review') {
-                                handleGoToTasks();
-                            }
-                        }}
-                    >
-                        <div className="stat-top">
-                            <span>{s.label}</span>
-                            <span style={{ color: '#d1d5db' }}>{s.icon}</span>
+                {stats.map(s => {
+                    const IconComponent = {
+                        'book-open': BookOpen,
+                        'calendar': Calendar,
+                        'clock': Clock,
+                        'clipboard-check': ClipboardCheck
+                    }[s.icon] || BookOpen;
+
+                    return (
+                        <div
+                            className={`stat-card ${markingAttendance ? 'loading' : ''}`}
+                            key={s.id}
+                            onClick={() => {
+                                if (s.label === 'Attendance Pending') {
+                                    handleOpenAttendance();
+                                } else if (s.label === 'Tasks to Review') {
+                                    handleGoToTasks();
+                                }
+                            }}
+                        >
+                            <div className="stat-top">
+                                <span>{s.label}</span>
+                                <IconComponent size={20} color="#d1d5db" />
+                            </div>
+                            <div className="stat-val">
+                                {s.label === 'My Classes' ? dynamicStats.totalClasses : s.value}
+                                {s.badge && <span className="pill-green">{s.badge}</span>}
+                                {s.label === "Today's Sessions" && (
+                                    <span className="pill-blue">
+                                        {dynamicStats.completedSessions}/{dynamicStats.totalClasses}
+                                    </span>
+                                )}
+                            </div>
+                            <div className="stat-sub">
+                                {s.label === "Today's Sessions"
+                                    ? `${dynamicStats.completedSessions} completed, ${dynamicStats.upcomingSessions} upcoming`
+                                    : s.sub}
+                            </div>
                         </div>
-                        <div className="stat-val">
-                            {s.label === 'My Classes' ? dynamicStats.totalClasses : s.value}
-                            {s.badge && <span className="pill-green">{s.badge}</span>}
-                            {s.label === "Today's Sessions" && (
-                                <span className="pill-blue">
-                                    {dynamicStats.completedSessions}/{dynamicStats.totalClasses}
-                                </span>
-                            )}
-                        </div>
-                        <div className="stat-sub">
-                            {s.label === "Today's Sessions"
-                                ? `${dynamicStats.completedSessions} completed, ${dynamicStats.upcomingSessions} upcoming`
-                                : s.sub}
-                        </div>
-                    </div>
-                ))}
+                    );
+                })}
             </div>
 
             <div className="main-grid">
@@ -737,7 +918,7 @@ const Dashboard = () => {
                 <div className="left-content">
                     <div className="section-label">
                         <div>
-                            <h2>Today</h2>
+                            <h2>Today's Classes</h2>
                             <p>Scheduled sessions with quick actions</p>
                         </div>
                         <button className="btn-primary" onClick={handlePlanNextWeek}>
@@ -751,7 +932,10 @@ const Dashboard = () => {
                                 <div>
                                     <div className="class-info-top">
                                         <span className="class-name">{c.id} {c.name}</span>
-                                        <span className="std-count">{c.students} Students</span>
+                                        <span className="std-count">
+                                            <Users size={14} />
+                                            {c.students} Students
+                                        </span>
                                         <span className={`status-badge status-${c.statusType}`}>
                                             {c.status}
                                             {c.statusType === 'completed' && ' ✓'}
@@ -759,19 +943,19 @@ const Dashboard = () => {
                                     </div>
                                     <div className="meta-row">
                                         <span>
-                                            <Clock size={14} style={{ verticalAlign: 'middle', marginRight: '4px' }} />
+                                            <Clock size={14} style={{ marginRight: '4px' }} />
                                             {c.time}
                                         </span>
                                         <span>
-                                            <MapPin size={14} style={{ verticalAlign: 'middle', marginRight: '4px' }} />
+                                            <MapPin size={14} style={{ marginRight: '4px' }} />
                                             {c.loc}
                                         </span>
                                     </div>
                                 </div>
                                 <div className="actions">
-                                    {c.actions.map(a => (
+                                    {c.actions.map((a, index) => (
                                         <button
-                                            key={a}
+                                            key={index}
                                             className="btn-action"
                                             onClick={() => handleClassAction(c.id, a)}
                                             disabled={markingAttendance}
@@ -794,13 +978,13 @@ const Dashboard = () => {
                                 <div className="graph-title">
                                     <BarChart3 size={18} /> Class-wise Attendance
                                 </div>
-                                <BarChart data={STATIC_DATA.engagementData.attendance} />
+                                <BarChart data={engagementData.attendance} />
                             </div>
                             <div className="graph-card">
                                 <div className="graph-title">
                                     <PieChart size={18} /> Task Completion
                                 </div>
-                                <DonutChart data={STATIC_DATA.engagementData.taskCompletion} />
+                                <DonutChart data={engagementData.taskCompletion} />
                             </div>
                         </div>
                     </div>
@@ -850,64 +1034,64 @@ const Dashboard = () => {
 
                 {/* RIGHT COLUMN (SIDEBAR) */}
                 <div className="sidebar">
-                    <div className="sidebar-card">
-                        <div className="sb-title">
-                            <h3>Task Review Queue</h3>
-                            <button className="mini-btn" onClick={handleOpenTasks}>
-                                Open tasks
-                            </button>
-                        </div>
-                        <div className="review-stats">
-                            <div className="rs-item">
-                                <div className="rs-label">Pending reviews</div>
-                                <div className="rs-val">{taskReview.pendingReviews}</div>
-                                <div className="rs-label" style={{ textTransform: 'none', fontWeight: 400 }}>
-                                    Across 5 tasks
-                                </div>
-                            </div>
-                            <div className="rs-item" style={{ borderLeft: '1px solid #f3f4f6', paddingLeft: '20px' }}>
-                                <div className="rs-label">Avg completion</div>
-                                <div className="rs-val txt-green">{taskReview.avgCompletion}%</div>
-                                <div className="rs-label" style={{ textTransform: 'none', fontWeight: 400 }}>
-                                    All active groups
-                                </div>
-                            </div>
-                        </div>
-                        <div>
-                            {taskReview.tasks.map(task => (
-                                <div
-                                    key={task.id}
-                                    style={{
-                                        display: 'flex',
-                                        justifyContent: 'space-between',
-                                        marginBottom: '14px',
-                                        padding: '10px',
-                                        borderRadius: '8px',
-                                        cursor: 'pointer',
-                                        transition: 'all 0.2s'
-                                    }}
-                                    onMouseEnter={(e) => e.currentTarget.style.background = '#f9fafb'}
-                                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                                    onClick={() => handleTaskReviewClick(task.id)}
-                                >
-                                    <div>
-                                        <div className="at-text">{task.name}</div>
-                                        <div className="as-text">
-                                            {task.class} | {task.submitted}/{task.total} submitted
-                                        </div>
-                                    </div>
-                                    <span className={`status-badge ${task.status === 'review' ? 'status-completed' : 'status-progress'}`}>
-                                        {task.status === 'review' ? 'Review' : 'In progress'}
-                                    </span>
-                                </div>
-                            ))}
-                        </div>
-                        <div className="blue-link" onClick={handleGoToTasks}>
-                            Go to Tasks & Submissions
-                        </div>
-                    </div>
-
                     <div className="sticky-sidebar-section">
+                        <div className="sidebar-card">
+                            <div className="sb-title">
+                                <h3>Task Review Queue</h3>
+                                <button className="mini-btn" onClick={handleOpenTasks}>
+                                    Open tasks
+                                </button>
+                            </div>
+                            <div className="review-stats">
+                                <div className="rs-item">
+                                    <div className="rs-label">Pending reviews</div>
+                                    <div className="rs-val">{taskReview.pendingReviews}</div>
+                                    <div className="rs-label" style={{ textTransform: 'none', fontWeight: 400 }}>
+                                        Across {taskReview.tasks.length} tasks
+                                    </div>
+                                </div>
+                                <div className="rs-item" style={{ borderLeft: '1px solid #f3f4f6', paddingLeft: '20px' }}>
+                                    <div className="rs-label">Avg completion</div>
+                                    <div className="rs-val txt-green">{taskReview.avgCompletion}%</div>
+                                    <div className="rs-label" style={{ textTransform: 'none', fontWeight: 400 }}>
+                                        All active groups
+                                    </div>
+                                </div>
+                            </div>
+                            <div>
+                                {taskReview.tasks.map(task => (
+                                    <div
+                                        key={task.id}
+                                        style={{
+                                            display: 'flex',
+                                            justifyContent: 'space-between',
+                                            marginBottom: '14px',
+                                            padding: '10px',
+                                            borderRadius: '8px',
+                                            cursor: 'pointer',
+                                            transition: 'all 0.2s'
+                                        }}
+                                        onMouseEnter={(e) => e.currentTarget.style.background = '#f9fafb'}
+                                        onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                                        onClick={() => handleTaskReviewClick(task.id)}
+                                    >
+                                        <div>
+                                            <div className="at-text">{task.name}</div>
+                                            <div className="as-text">
+                                                {task.class} | {task.submitted}/{task.total} submitted
+                                            </div>
+                                        </div>
+                                        <span className={`status-badge ${task.status === 'review' ? 'status-completed' : 'status-progress'}`}>
+                                            {task.status === 'review' ? 'Review' : 'In progress'}
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+                            <div className="blue-link" onClick={handleGoToTasks}>
+                                Go to Tasks & Submissions
+                            </div>
+                        </div>
+
                         <div className="sidebar-card">
                             <h3 style={{ fontSize: '17px', fontWeight: 700, marginBottom: '16px' }}>Attendance Summary</h3>
                             <div style={{

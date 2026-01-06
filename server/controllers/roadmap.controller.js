@@ -1,10 +1,11 @@
+// controllers/roadmap.controller.js
 import db from '../config/db.js';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 
 // Configure multer for resource uploads
-const storage = multer. diskStorage({
+const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     const uploadDir = 'uploads/roadmap';
     if (!fs.existsSync(uploadDir)) {
@@ -38,21 +39,91 @@ export const upload = multer({
 export const getRoadmapByVenue = async (req, res) => {
   try {
     const { venue_id } = req.params;
+    const user_id = req.user.user_id; // Get user_id from JWT token
+
+    console.log('Fetching roadmap for venue:', venue_id, 'user:', user_id);
+
+    // Get user role first
+    const [user] = await db.query(`
+      SELECT role_id FROM users WHERE user_id = ?
+    `, [user_id]);
+
+    if (user.length === 0) {
+      return res.status(403).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    const userRole = user[0].role_id;
+    let faculty_id = null;
+
+    // If user is faculty, get their faculty_id
+    if (userRole === 2) { // Faculty role
+      const [faculty] = await db.query(`
+        SELECT faculty_id FROM faculties WHERE user_id = ?
+      `, [user_id]);
+
+      if (faculty.length === 0) {
+        return res.status(403).json({
+          success: false,
+          message: 'User is not registered as faculty'
+        });
+      }
+      faculty_id = faculty[0].faculty_id;
+    }
 
     // Get all roadmap modules for the venue
-    const [modules] = await db.query(`
-      SELECT 
-        r.roadmap_id,
-        r. day,
-        r.title,
-        r.description,
-        r.status,
-        r.created_at,
-        r.updated_at
-      FROM roadmap r
-      WHERE r.venue_id = ? 
-      ORDER BY r.day ASC
-    `, [venue_id]);
+    // Admin can see all, faculty can only see their own
+    let query = '';
+    let params = [];
+
+    if (userRole === 1) { // Admin
+      query = `
+        SELECT 
+          r.roadmap_id,
+          r.day,
+          r.title,
+          r.description,
+          r.status,
+          r.created_at,
+          r.updated_at,
+          r.faculty_id,
+          u.name as faculty_name,
+          f.user_id as faculty_user_id
+        FROM roadmap r
+        LEFT JOIN faculties f ON r.faculty_id = f.faculty_id
+        LEFT JOIN users u ON f.user_id = u.user_id
+        WHERE r.venue_id = ? 
+        ORDER BY r.day ASC
+      `;
+      params = [venue_id];
+    } else if (userRole === 2 && faculty_id) { // Faculty
+      query = `
+        SELECT 
+          r.roadmap_id,
+          r.day,
+          r.title,
+          r.description,
+          r.status,
+          r.created_at,
+          r.updated_at,
+          r.faculty_id
+        FROM roadmap r
+        WHERE r.venue_id = ? 
+          AND r.faculty_id = ?
+        ORDER BY r.day ASC
+      `;
+      params = [venue_id, faculty_id];
+    } else {
+      return res.status(403).json({
+        success: false,
+        message: 'Unauthorized to view roadmap'
+      });
+    }
+
+    const [modules] = await db.query(query, params);
+    console.log('Found modules:', modules.length);
 
     // Get resources for each module
     for (let module of modules) {
@@ -70,7 +141,7 @@ export const getRoadmapByVenue = async (req, res) => {
         ORDER BY uploaded_at ASC
       `, [module.roadmap_id]);
 
-      module.resources = resources;
+      module.resources = resources || [];
     }
 
     res.status(200).json({
@@ -90,19 +161,93 @@ export const getRoadmapByVenue = async (req, res) => {
 export const createRoadmapModule = async (req, res) => {
   try {
     const { venue_id, faculty_id, day, title, description, status } = req.body;
+    const user_id = req.user.user_id; // Get user_id from JWT
 
-    if (!venue_id || !faculty_id || !day || !title) {
+    console.log('Creating module:', { venue_id, faculty_id, day, title, user_id });
+
+    if (!venue_id || !day || !title) {
       return res.status(400).json({
         success: false,
-        message: 'Please provide venue_id, faculty_id, day, and title'
+        message: 'Please provide venue_id, day, and title'
       });
     }
 
-    // Check if day already exists for this venue
+    // Get user role
+    const [user] = await db.query(`
+      SELECT role_id FROM users WHERE user_id = ?
+    `, [user_id]);
+
+    if (user.length === 0) {
+      return res.status(403).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    const userRole = user[0].role_id;
+    let actual_faculty_id;
+
+    if (userRole === 1) { // Admin role (role_id: 1)
+      // Admin can create modules - they can specify any faculty_id or use their own
+      if (faculty_id) {
+        // Verify the faculty_id exists if provided
+        const [facultyCheck] = await db.query(`
+          SELECT faculty_id FROM faculties WHERE faculty_id = ?
+        `, [faculty_id]);
+
+        if (facultyCheck.length === 0) {
+          // If faculty_id doesn't exist, check if it's the admin's user_id
+          // (admin might be sending their user_id as faculty_id)
+          if (faculty_id == user_id) {
+            // Admin is using their user_id as faculty_id - this is allowed
+            actual_faculty_id = faculty_id;
+          } else {
+            return res.status(400).json({
+              success: false,
+              message: 'Invalid faculty_id'
+            });
+          }
+        } else {
+          actual_faculty_id = faculty_id;
+        }
+      } else {
+        // Admin didn't specify faculty_id - use their user_id
+        actual_faculty_id = user_id;
+      }
+    } else if (userRole === 2) { // Faculty role
+      // Faculty must use their own faculty_id
+      const [faculty] = await db.query(`
+        SELECT faculty_id FROM faculties WHERE user_id = ?
+      `, [user_id]);
+
+      if (faculty.length === 0) {
+        return res.status(403).json({
+          success: false,
+          message: 'User is not registered as faculty'
+        });
+      }
+
+      actual_faculty_id = faculty[0].faculty_id;
+      
+      // Faculty can only use their own faculty_id
+      if (faculty_id && faculty_id != actual_faculty_id) {
+        return res.status(403).json({
+          success: false,
+          message: 'Faculty can only create modules for themselves'
+        });
+      }
+    } else {
+      return res.status(403).json({
+        success: false,
+        message: 'User role not authorized to create modules'
+      });
+    }
+
+    // Check if day already exists for this venue and faculty
     const [existing] = await db.query(`
       SELECT roadmap_id FROM roadmap
-      WHERE venue_id = ? AND day = ?
-    `, [venue_id, day]);
+      WHERE venue_id = ? AND faculty_id = ? AND day = ?
+    `, [venue_id, actual_faculty_id, day]);
 
     if (existing.length > 0) {
       return res.status(400).json({
@@ -114,18 +259,19 @@ export const createRoadmapModule = async (req, res) => {
     const [result] = await db.query(`
       INSERT INTO roadmap (venue_id, faculty_id, day, title, description, status, created_at)
       VALUES (?, ?, ?, ?, ?, ?, NOW())
-    `, [venue_id, faculty_id, day, title, description || '', status || 'draft']);
+    `, [venue_id, actual_faculty_id, day, title, description || '', status || 'draft']);
 
     res.status(201).json({
       success: true,
-      message: 'Roadmap module created successfully! ',
+      message: 'Roadmap module created successfully!',
       data: { roadmap_id: result.insertId }
     });
   } catch (error) {
     console.error('Error creating roadmap module:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to create roadmap module'
+      message: 'Failed to create roadmap module',
+      error: error.message
     });
   }
 };
@@ -134,7 +280,10 @@ export const createRoadmapModule = async (req, res) => {
 export const updateRoadmapModule = async (req, res) => {
   try {
     const { roadmap_id } = req.params;
-    const { title, description, status } = req. body;
+    const { title, description, status } = req.body;
+    const user_id = req.user.user_id;
+
+    console.log('Updating module:', roadmap_id, { title, status });
 
     if (!title) {
       return res.status(400).json({
@@ -143,11 +292,64 @@ export const updateRoadmapModule = async (req, res) => {
       });
     }
 
-    await db.query(`
+    // Get user role
+    const [user] = await db.query(`
+      SELECT role_id FROM users WHERE user_id = ?
+    `, [user_id]);
+
+    if (user.length === 0) {
+      return res.status(403).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    const userRole = user[0].role_id;
+    let faculty_id = null;
+
+    // If user is faculty, get their faculty_id
+    if (userRole === 2) {
+      const [faculty] = await db.query(`
+        SELECT faculty_id FROM faculties WHERE user_id = ?
+      `, [user_id]);
+
+      if (faculty.length === 0) {
+        return res.status(403).json({
+          success: false,
+          message: 'User is not a faculty member'
+        });
+      }
+      faculty_id = faculty[0].faculty_id;
+    }
+
+    let whereClause = '';
+    let params = [];
+
+    if (userRole === 1) { // Admin can update any module
+      whereClause = 'roadmap_id = ?';
+      params = [title, description || '', status || 'published', roadmap_id];
+    } else if (userRole === 2 && faculty_id) { // Faculty can only update their own
+      whereClause = 'roadmap_id = ? AND faculty_id = ?';
+      params = [title, description || '', status || 'published', roadmap_id, faculty_id];
+    } else {
+      return res.status(403).json({
+        success: false,
+        message: 'Unauthorized to update this module'
+      });
+    }
+
+    const [result] = await db.query(`
       UPDATE roadmap
       SET title = ?, description = ?, status = ?, updated_at = NOW()
-      WHERE roadmap_id = ? 
-    `, [title, description || '', status || 'published', roadmap_id]);
+      WHERE ${whereClause}
+    `, params);
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Module not found or unauthorized'
+      });
+    }
 
     res.status(200).json({
       success: true,
@@ -168,23 +370,94 @@ export const deleteRoadmapModule = async (req, res) => {
   
   try {
     const { roadmap_id } = req.params;
+    const user_id = req.user.user_id;
+
+    console.log('Deleting module:', roadmap_id);
 
     await connection.beginTransaction();
+
+    // Get user role
+    const [user] = await connection.query(`
+      SELECT role_id FROM users WHERE user_id = ?
+    `, [user_id]);
+
+    if (user.length === 0) {
+      await connection.rollback();
+      return res.status(403).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    const userRole = user[0].role_id;
+    let faculty_id = null;
+
+    // If user is faculty, get their faculty_id
+    if (userRole === 2) {
+      const [faculty] = await connection.query(`
+        SELECT faculty_id FROM faculties WHERE user_id = ?
+      `, [user_id]);
+
+      if (faculty.length === 0) {
+        await connection.rollback();
+        return res.status(403).json({
+          success: false,
+          message: 'User is not a faculty member'
+        });
+      }
+      faculty_id = faculty[0].faculty_id;
+    }
+
+    // Build where clause based on user role
+    let whereClause = '';
+    let params = [];
+
+    if (userRole === 1) { // Admin can delete any module
+      whereClause = 'roadmap_id = ?';
+      params = [roadmap_id];
+    } else if (userRole === 2 && faculty_id) { // Faculty can only delete their own
+      whereClause = 'roadmap_id = ? AND faculty_id = ?';
+      params = [roadmap_id, faculty_id];
+    } else {
+      await connection.rollback();
+      return res.status(403).json({
+        success: false,
+        message: 'Unauthorized to delete this module'
+      });
+    }
+
+    // Get module to verify it exists
+    const [module] = await connection.query(`
+      SELECT roadmap_id FROM roadmap WHERE ${whereClause}
+    `, params);
+
+    if (module.length === 0) {
+      await connection.rollback();
+      return res.status(404).json({
+        success: false,
+        message: 'Module not found or unauthorized'
+      });
+    }
 
     // Get all resource files to delete them
     const [resources] = await connection.query(`
       SELECT file_path FROM roadmap_resources
-      WHERE roadmap_id = ?  AND file_path IS NOT NULL
+      WHERE roadmap_id = ? AND file_path IS NOT NULL
     `, [roadmap_id]);
 
     // Delete files from filesystem
     for (const resource of resources) {
-      if (resource.file_path && fs.existsSync(resource. file_path)) {
-        fs.unlinkSync(resource.file_path);
+      if (resource.file_path && fs.existsSync(resource.file_path)) {
+        try {
+          fs.unlinkSync(resource.file_path);
+          console.log('Deleted file:', resource.file_path);
+        } catch (fileError) {
+          console.warn('Failed to delete file:', resource.file_path, fileError.message);
+        }
       }
     }
 
-    // Delete resources from database (cascade will handle this, but explicit is better)
+    // Delete resources from database
     await connection.query(`
       DELETE FROM roadmap_resources WHERE roadmap_id = ?
     `, [roadmap_id]);
@@ -198,7 +471,7 @@ export const deleteRoadmapModule = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message:  'Roadmap module deleted successfully!'
+      message: 'Roadmap module deleted successfully!'
     });
   } catch (error) {
     await connection.rollback();
@@ -216,6 +489,10 @@ export const deleteRoadmapModule = async (req, res) => {
 export const addResourceToModule = async (req, res) => {
   try {
     const { roadmap_id, resource_name, resource_type, resource_url } = req.body;
+    const file = req.file;
+    const user_id = req.user.user_id;
+
+    console.log('Adding resource:', { roadmap_id, resource_name, resource_type, hasFile: !!file, user_id });
 
     if (!roadmap_id || !resource_name || !resource_type) {
       return res.status(400).json({
@@ -225,10 +502,66 @@ export const addResourceToModule = async (req, res) => {
     }
 
     // Validate resource type
-    if (! ['pdf', 'video', 'link'].includes(resource_type)) {
+    if (!['pdf', 'video', 'link'].includes(resource_type)) {
       return res.status(400).json({
         success: false,
-        message: 'Invalid resource type.  Must be pdf, video, or link'
+        message: 'Invalid resource type. Must be pdf, video, or link'
+      });
+    }
+
+    // Get user role
+    const [user] = await db.query(`
+      SELECT role_id FROM users WHERE user_id = ?
+    `, [user_id]);
+
+    if (user.length === 0) {
+      return res.status(403).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    const userRole = user[0].role_id;
+    let faculty_id = null;
+
+    // If user is faculty, get their faculty_id
+    if (userRole === 2) {
+      const [faculty] = await db.query(`
+        SELECT faculty_id FROM faculties WHERE user_id = ?
+      `, [user_id]);
+
+      if (faculty.length === 0) {
+        return res.status(403).json({
+          success: false,
+          message: 'User is not a faculty member'
+        });
+      }
+      faculty_id = faculty[0].faculty_id;
+    }
+
+    // Verify the module belongs to the user (or admin can access any)
+    let verifyQuery = '';
+    let verifyParams = [];
+
+    if (userRole === 1) { // Admin can add resource to any module
+      verifyQuery = 'SELECT roadmap_id FROM roadmap WHERE roadmap_id = ?';
+      verifyParams = [roadmap_id];
+    } else if (userRole === 2 && faculty_id) { // Faculty can only add to their own
+      verifyQuery = 'SELECT roadmap_id FROM roadmap WHERE roadmap_id = ? AND faculty_id = ?';
+      verifyParams = [roadmap_id, faculty_id];
+    } else {
+      return res.status(403).json({
+        success: false,
+        message: 'Unauthorized to add resource to this module'
+      });
+    }
+
+    const [verify] = await db.query(verifyQuery, verifyParams);
+
+    if (verify.length === 0) {
+      return res.status(403).json({
+        success: false,
+        message: 'Unauthorized to add resource to this module'
       });
     }
 
@@ -238,14 +571,14 @@ export const addResourceToModule = async (req, res) => {
 
     // If it's a PDF upload
     if (resource_type === 'pdf') {
-      if (!req.file) {
+      if (!file) {
         return res.status(400).json({
           success: false,
           message: 'Please upload a PDF file'
         });
       }
-      filePath = req.file.path;
-      fileSize = req.file.size;
+      filePath = file.path;
+      fileSize = file.size;
       url = null;
     } else {
       // For video or link, URL is required
@@ -266,7 +599,7 @@ export const addResourceToModule = async (req, res) => {
       success: true,
       message: 'Resource added successfully!',
       data: {
-        resource_id: result. insertId,
+        resource_id: result.insertId,
         file_path: filePath
       }
     });
@@ -283,23 +616,84 @@ export const addResourceToModule = async (req, res) => {
 export const deleteResourceFromModule = async (req, res) => {
   try {
     const { resource_id } = req.params;
+    const user_id = req.user.user_id;
 
-    // Get resource details first
-    const [resources] = await db.query(`
-      SELECT file_path FROM roadmap_resources WHERE resource_id = ?
-    `, [resource_id]);
+    console.log('Deleting resource:', resource_id);
+
+    // Get user role
+    const [user] = await db.query(`
+      SELECT role_id FROM users WHERE user_id = ?
+    `, [user_id]);
+
+    if (user.length === 0) {
+      return res.status(403).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    const userRole = user[0].role_id;
+    let faculty_id = null;
+
+    // If user is faculty, get their faculty_id
+    if (userRole === 2) {
+      const [faculty] = await db.query(`
+        SELECT faculty_id FROM faculties WHERE user_id = ?
+      `, [user_id]);
+
+      if (faculty.length === 0) {
+        return res.status(403).json({
+          success: false,
+          message: 'User is not a faculty member'
+        });
+      }
+      faculty_id = faculty[0].faculty_id;
+    }
+
+    // Get resource details and verify ownership
+    let query = '';
+    let params = [];
+
+    if (userRole === 1) { // Admin can delete any resource
+      query = `
+        SELECT rr.file_path, rr.roadmap_id 
+        FROM roadmap_resources rr
+        WHERE rr.resource_id = ?
+      `;
+      params = [resource_id];
+    } else if (userRole === 2 && faculty_id) { // Faculty can only delete their own
+      query = `
+        SELECT rr.file_path, rr.roadmap_id 
+        FROM roadmap_resources rr
+        JOIN roadmap r ON rr.roadmap_id = r.roadmap_id
+        WHERE rr.resource_id = ? AND r.faculty_id = ?
+      `;
+      params = [resource_id, faculty_id];
+    } else {
+      return res.status(403).json({
+        success: false,
+        message: 'Unauthorized to delete resource'
+      });
+    }
+
+    const [resources] = await db.query(query, params);
 
     if (resources.length === 0) {
       return res.status(404).json({
         success: false,
-        message: 'Resource not found'
+        message: 'Resource not found or unauthorized'
       });
     }
 
     // Delete file from filesystem if it exists
     const filePath = resources[0].file_path;
     if (filePath && fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
+      try {
+        fs.unlinkSync(filePath);
+        console.log('Deleted resource file:', filePath);
+      } catch (fileError) {
+        console.warn('Failed to delete file:', filePath, fileError.message);
+      }
     }
 
     // Delete from database
@@ -324,17 +718,72 @@ export const deleteResourceFromModule = async (req, res) => {
 export const getResourceFile = async (req, res) => {
   try {
     const { resource_id } = req.params;
+    const user_id = req.user.user_id;
 
-    const [resources] = await db.query(`
-      SELECT resource_name, file_path, resource_type
-      FROM roadmap_resources
-      WHERE resource_id = ?
-    `, [resource_id]);
+    console.log('Downloading resource:', resource_id);
+
+    // Get user role
+    const [user] = await db.query(`
+      SELECT role_id FROM users WHERE user_id = ?
+    `, [user_id]);
+
+    if (user.length === 0) {
+      return res.status(403).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    const userRole = user[0].role_id;
+    let faculty_id = null;
+
+    // If user is faculty, get their faculty_id
+    if (userRole === 2) {
+      const [faculty] = await db.query(`
+        SELECT faculty_id FROM faculties WHERE user_id = ?
+      `, [user_id]);
+
+      if (faculty.length === 0) {
+        return res.status(403).json({
+          success: false,
+          message: 'User is not a faculty member'
+        });
+      }
+      faculty_id = faculty[0].faculty_id;
+    }
+
+    // Verify ownership before allowing download
+    let query = '';
+    let params = [];
+
+    if (userRole === 1) { // Admin can download any resource
+      query = `
+        SELECT rr.resource_name, rr.file_path, rr.resource_type
+        FROM roadmap_resources rr
+        WHERE rr.resource_id = ?
+      `;
+      params = [resource_id];
+    } else if (userRole === 2 && faculty_id) { // Faculty can only download their own
+      query = `
+        SELECT rr.resource_name, rr.file_path, rr.resource_type
+        FROM roadmap_resources rr
+        JOIN roadmap r ON rr.roadmap_id = r.roadmap_id
+        WHERE rr.resource_id = ? AND r.faculty_id = ?
+      `;
+      params = [resource_id, faculty_id];
+    } else {
+      return res.status(403).json({
+        success: false,
+        message: 'Unauthorized to download resource'
+      });
+    }
+
+    const [resources] = await db.query(query, params);
 
     if (resources.length === 0) {
-      return res. status(404).json({
+      return res.status(404).json({
         success: false,
-        message:  'Resource not found'
+        message: 'Resource not found or unauthorized'
       });
     }
 
@@ -354,12 +803,18 @@ export const getResourceFile = async (req, res) => {
       });
     }
 
-    res.download(resource.file_path, resource.resource_name);
+    // Set proper headers for download
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${resource.resource_name}.pdf"`);
+    
+    // Stream the file
+    const fileStream = fs.createReadStream(resource.file_path);
+    fileStream.pipe(res);
   } catch (error) {
     console.error('Error downloading resource:', error);
     res.status(500).json({
       success: false,
-      message:  'Failed to download resource'
+      message: 'Failed to download resource'
     });
   }
 };
