@@ -38,9 +38,6 @@ import ClassDetails from "../pages/SuperAdmin/Classes&Groups/ClassDetails/ClassD
 
 // Student Pages
 import StudentDashboard from "../pages/Student/Dashboard/StudentDashboard";
-
-
-import StudentDashboard from "../pages/Student/Dashboard/StudentDashboard";
 import MyClassRoom from "../pages/Student/MyClassRoom/MyClassRoom";
 import StudentAttendance from "../pages/Student/StudentAttendance/Attendance";
 import TasksAssignments from "../pages/Student/Tasks&Assignments/Tasks&Assignment"
