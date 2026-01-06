@@ -239,6 +239,51 @@ export const getOrCreateSession = async (req, res) => {
   }
 };
 
+// Get existing attendance for a session
+export const getSessionAttendance = async (req, res) => {
+  try {
+    const { sessionId, venueId } = req.params;
+
+    // Get attendance records for this session
+    const [attendanceRecords] = await db.query(`
+      SELECT 
+        a.student_id,
+        a.is_present,
+        a.is_late
+      FROM attendance a
+      WHERE a.session_id = ? AND a.venue_id = ?
+    `, [sessionId, venueId]);
+
+    // Transform to frontend format
+    const attendanceMap = {};
+    attendanceRecords.forEach(record => {
+      let status = 'absent';
+      if (record.is_present === 1) {
+        status = record.is_late === 1 ? 'late' : 'present';
+      }
+      
+      attendanceMap[record.student_id] = {
+        status,
+        remarks: '' // remarks column doesn't exist in table
+      };
+    });
+
+    res.status(200).json({
+      success: true,
+      data: attendanceMap,
+      count: attendanceRecords.length
+    });
+
+  } catch (error) {
+    console.error('❌ Error fetching session attendance:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch session attendance',
+      error: error.message
+    });
+  }
+};
+
 // Save attendance - MAIN FUNCTION
 export const saveAttendance = async (req, res) => {
 
@@ -301,7 +346,6 @@ export const saveAttendance = async (req, res) => {
       
       const isPresent = record.status === 'present' ? 1 : 0;
       const isLate = record.status === 'late' ? 1 : 0;
-      const remarks = record.remarks || null;
 
       // Check if attendance already exists for this student in this session
       const [existingRecord] = await connection.query(`
@@ -315,20 +359,19 @@ export const saveAttendance = async (req, res) => {
           UPDATE attendance 
           SET 
             is_present = ?, 
-            remarks = ?, 
             is_late = ?, 
             faculty_id = ?,
             updated_at = NOW()
           WHERE student_id = ? AND session_id = ?
-        `, [isPresent, remarks, isLate, actualFacultyId, record.student_id, sessionId]);
+        `, [isPresent, isLate, actualFacultyId, record.student_id, sessionId]);
         updatedCount++;
       } else {
         // Insert new record
         await connection.query(`
           INSERT INTO attendance 
-          (student_id, faculty_id, venue_id, session_id, is_present, is_late, remarks, created_at) 
-          VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
-        `, [record.student_id, actualFacultyId, venueId, sessionId, isPresent, isLate, remarks]);
+          (student_id, faculty_id, venue_id, session_id, is_present, is_late, created_at) 
+          VALUES (?, ?, ?, ?, ?, ?, NOW())
+        `, [record.student_id, actualFacultyId, venueId, sessionId, isPresent, isLate]);
         insertedCount++;
             }
     }
@@ -525,12 +568,13 @@ export const getStudentAttendanceDashboard = async (req, res) => {
     const [monthlyStats] = await db.query(`
       SELECT 
         DATE_FORMAT(created_at, '%b') as month,
+        MONTH(created_at) as month_num,
         ROUND((SUM(CASE WHEN is_present = 1 THEN 1 ELSE 0 END) / COUNT(*)) * 100, 0) as general,
         ROUND((SUM(CASE WHEN is_present = 1 THEN 1 ELSE 0 END) / COUNT(*)) * 100, 0) as skill
       FROM attendance
       WHERE student_id = ?
         AND YEAR(created_at) = ?
-      GROUP BY MONTH(created_at)
+      GROUP BY MONTH(created_at), DATE_FORMAT(created_at, '%b')
       ORDER BY MONTH(created_at)
     `, [studentId, currentYear]);
 

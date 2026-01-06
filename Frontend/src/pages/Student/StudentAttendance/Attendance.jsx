@@ -267,15 +267,47 @@ const StudentAttendance = () => {
 
             {/* Loading State */}
             {loading && (
-                <div style={{ textAlign: 'center', padding: '40px' }}>
-                    <p style={{ fontSize: '16px', color: '#64748b' }}>Loading attendance data...</p>
+                <div style={{ 
+                    display: 'flex', 
+                    flexDirection: 'column', 
+                    alignItems: 'center', 
+                    justifyContent: 'center', 
+                    padding: '80px 20px',
+                    minHeight: '60vh'
+                }}>
+                    <div style={{
+                        width: '50px',
+                        height: '50px',
+                        border: '4px solid #E5E7EB',
+                        borderTop: '4px solid #2563EB',
+                        borderRadius: '50%',
+                        animation: 'spin 1s linear infinite',
+                        marginBottom: '20px'
+                    }}></div>
+                    <p style={{ fontSize: '16px', color: '#64748b', fontWeight: '500' }}>Loading your attendance data...</p>
+                    <style>{`
+                        @keyframes spin {
+                            0% { transform: rotate(0deg); }
+                            100% { transform: rotate(360deg); }
+                        }
+                    `}</style>
                 </div>
             )}
 
             {/* Error State */}
             {error && (
-                <div style={{ padding: '20px', backgroundColor: '#FEF2F2', borderRadius: '12px', marginBottom: '24px' }}>
-                    <p style={{ color: '#EF4444', fontSize: '14px' }}>{error}</p>
+                <div style={{ 
+                    padding: '24px', 
+                    backgroundColor: '#FEF2F2', 
+                    borderRadius: '12px', 
+                    marginBottom: '24px',
+                    border: '1px solid #FEE2E2',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px'
+                }}>
+                    <AlertCircle size={20} color="#EF4444" />
+                    <p style={{ color: '#EF4444', fontSize: '14px', margin: 0 }}>{error}</p>
                 </div>
             )}
 
@@ -326,6 +358,53 @@ const StudentAttendance = () => {
                         </div>
                     </div>
 
+                    {/* Info Banner for Empty State */}
+                    {attendanceSummary.totalClasses === 0 && (
+                        <div style={{
+                            backgroundColor: '#FFFBEB',
+                            border: '1px solid #FCD34D',
+                            borderRadius: '12px',
+                            padding: '20px 24px',
+                            marginBottom: '32px',
+                            display: 'flex',
+                            alignItems: 'flex-start',
+                            gap: '16px'
+                        }}>
+                            <div style={{
+                                width: '40px',
+                                height: '40px',
+                                backgroundColor: '#FEF3C7',
+                                borderRadius: '50%',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                flexShrink: 0
+                            }}>
+                                <Info size={20} color="#F59E0B" />
+                            </div>
+                            <div>
+                                <h3 style={{ 
+                                    fontSize: '16px', 
+                                    fontWeight: '700', 
+                                    color: '#92400E',
+                                    marginBottom: '8px',
+                                    marginTop: '4px'
+                                }}>
+                                    Welcome to Your Attendance Dashboard!
+                                </h3>
+                                <p style={{ 
+                                    fontSize: '14px', 
+                                    color: '#78350F',
+                                    lineHeight: '1.6',
+                                    margin: 0
+                                }}>
+                                    Your attendance records will automatically appear here once your faculty starts marking attendance. 
+                                    Make sure to attend your classes regularly to maintain good academic standing!
+                                </p>
+                            </div>
+                        </div>
+                    )}
+
                     <div style={styles.mainLayout} className="main-layout">
                         {/* Left Side: Subject-wise Breakdown */}
                         <div style={styles.leftCol}>
@@ -334,8 +413,56 @@ const StudentAttendance = () => {
                             </div>
                             <div style={styles.subjectList}>
                                 {subjectAttendance.length === 0 ? (
-                                    <div style={{ padding: '40px', textAlign: 'center', color: '#94a3b8' }}>
-                                        No subject data available
+                                    <div style={{ 
+                                        padding: '60px 40px', 
+                                        textAlign: 'center',
+                                        backgroundColor: '#FFFFFF',
+                                        borderRadius: '16px',
+                                        border: '2px dashed #E5E7EB'
+                                    }}>
+                                        <div style={{
+                                            width: '80px',
+                                            height: '80px',
+                                            margin: '0 auto 24px',
+                                            backgroundColor: '#F3F4F6',
+                                            borderRadius: '50%',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center'
+                                        }}>
+                                            <BookOpen size={40} color="#9CA3AF" />
+                                        </div>
+                                        <h3 style={{ 
+                                            fontSize: '18px', 
+                                            fontWeight: '700', 
+                                            color: '#1F2937',
+                                            marginBottom: '8px' 
+                                        }}>
+                                            No Course Data Yet
+                                        </h3>
+                                        <p style={{ 
+                                            fontSize: '14px', 
+                                            color: '#6B7280',
+                                            marginBottom: '24px',
+                                            lineHeight: '1.6'
+                                        }}>
+                                            Your course-wise attendance will appear here once you start attending classes. 
+                                            Check back after your first session!
+                                        </p>
+                                        <div style={{
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            gap: '8px',
+                                            padding: '10px 20px',
+                                            backgroundColor: '#EFF6FF',
+                                            borderRadius: '8px',
+                                            color: '#2563EB',
+                                            fontSize: '13px',
+                                            fontWeight: '600'
+                                        }}>
+                                            <Info size={16} />
+                                            Attendance is tracked automatically
+                                        </div>
                                     </div>
                                 ) : (
                                     subjectAttendance.map(subject => (
@@ -396,7 +523,47 @@ const StudentAttendance = () => {
                         </div>
 
                         <div style={styles.historyList}>
-                            {currentItems.map(record => {
+                            {currentItems.length === 0 ? (
+                                <div style={{ 
+                                    padding: '60px 40px', 
+                                    textAlign: 'center'
+                                }}>
+                                    <div style={{
+                                        width: '80px',
+                                        height: '80px',
+                                        margin: '0 auto 24px',
+                                        backgroundColor: '#F3F4F6',
+                                        borderRadius: '50%',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center'
+                                    }}>
+                                        <Calendar size={40} color="#9CA3AF" />
+                                    </div>
+                                    <h3 style={{ 
+                                        fontSize: '18px', 
+                                        fontWeight: '700', 
+                                        color: '#1F2937',
+                                        marginBottom: '8px' 
+                                    }}>
+                                        {filteredHistory.length === 0 && attendanceHistory.length > 0 
+                                            ? 'No Matching Records' 
+                                            : 'No Attendance History'}
+                                    </h3>
+                                    <p style={{ 
+                                        fontSize: '14px', 
+                                        color: '#6B7280',
+                                        lineHeight: '1.6',
+                                        maxWidth: '300px',
+                                        margin: '0 auto'
+                                    }}>
+                                        {filteredHistory.length === 0 && attendanceHistory.length > 0
+                                            ? 'Try adjusting your search or filter criteria'
+                                            : 'Your attendance records will appear here once faculty marks your attendance'}
+                                    </p>
+                                </div>
+                            ) : (
+                                currentItems.map(record => {
                                 const status = getStatusStyle(record.status);
                                 return (
                                     <div key={record.id} style={styles.historyItem} className="history-item">
@@ -418,57 +585,60 @@ const StudentAttendance = () => {
                                         </div>
                                     </div>
                                 );
-                            })}
+                            })
+                            )}
                         </div>
                         
-                        {/* Pagination Component */}
-                        <div style={styles.paginationContainer} className="pagination-container">
-                            <div style={styles.paginationInfo} className="pagination-info">
-                                Showing {startIndex + 1}-{endIndex} of {filteredHistory.length} records
-                            </div>
-                            <div style={styles.paginationControls} className="pagination-controls">
-                                <div style={styles.paginationButtons} className="pagination-buttons">
-                                    <button
-                                        style={{
-                                            ...styles.paginationButton,
-                                            ...styles.prevButton,
-                                            opacity: currentPage === 1 ? 0.5 : 1
-                                        }}
-                                        onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                                        disabled={currentPage === 1}
-                                    >
-                                        <ChevronLeft size={16} /> Prev
-                                    </button>
-                                    
-                                    {getPageNumbers().map(page => (
+                        {/* Pagination Component - Only show if there's data */}
+                        {filteredHistory.length > 0 && (
+                            <div style={styles.paginationContainer} className="pagination-container">
+                                <div style={styles.paginationInfo} className="pagination-info">
+                                    Showing {startIndex + 1}-{endIndex} of {filteredHistory.length} records
+                                </div>
+                                <div style={styles.paginationControls} className="pagination-controls">
+                                    <div style={styles.paginationButtons} className="pagination-buttons">
                                         <button
-                                            key={page}
                                             style={{
                                                 ...styles.paginationButton,
-                                                ...styles.pageNumber,
-                                                backgroundColor: currentPage === page ? '#2563EB' : 'transparent',
-                                                color: currentPage === page ? '#FFFFFF' : '#374151'
+                                                ...styles.prevButton,
+                                                opacity: currentPage === 1 ? 0.5 : 1
                                             }}
-                                            onClick={() => setCurrentPage(page)}
+                                            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                                            disabled={currentPage === 1}
                                         >
-                                            {page}
+                                            <ChevronLeft size={16} /> Prev
                                         </button>
-                                    ))}
-                                    
-                                    <button
-                                        style={{
-                                            ...styles.paginationButton,
-                                            ...styles.nextButton,
-                                            opacity: currentPage === totalPages ? 0.5 : 1
-                                        }}
-                                        onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                                        disabled={currentPage === totalPages}
-                                    >
-                                        Next <ChevronRight size={16} />
-                                    </button>
+                                        
+                                        {getPageNumbers().map(page => (
+                                            <button
+                                                key={page}
+                                                style={{
+                                                    ...styles.paginationButton,
+                                                    ...styles.pageNumber,
+                                                    backgroundColor: currentPage === page ? '#2563EB' : 'transparent',
+                                                    color: currentPage === page ? '#FFFFFF' : '#374151'
+                                                }}
+                                                onClick={() => setCurrentPage(page)}
+                                            >
+                                                {page}
+                                            </button>
+                                        ))}
+                                        
+                                        <button
+                                            style={{
+                                                ...styles.paginationButton,
+                                                ...styles.nextButton,
+                                                opacity: currentPage === totalPages ? 0.5 : 1
+                                            }}
+                                            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                                            disabled={currentPage === totalPages}
+                                        >
+                                            Next <ChevronRight size={16} />
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
+                        )}
                     </div>
                 </div>
             </div>
