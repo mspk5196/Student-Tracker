@@ -280,7 +280,7 @@ const StudentHeader = () => {
   const { studentId } = useParams();
   const navigate = useNavigate();
   const { token } = useAuthStore();
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+  const API_URL = import.meta.env.VITE_API_URL;
 
   // --- Responsive Logic ---
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);

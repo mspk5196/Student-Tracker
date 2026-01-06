@@ -17,14 +17,14 @@ import IconButton from '@mui/material/IconButton';
 
 // Mock Initial Data
 const MOCK_SUBMISSIONS = [
-    { id: '2023001', name: 'John Doe', date: 'Oct 24, 10:30 AM', file: 'linked_list_impl.cpp', status: 'Pending Review', grade: '', action: 'Save', type: 'code', isLate: false, course: 'CS-201' },
-    { id: '2023015', name: 'Sarah Smith', date: 'Oct 23, 04:15 PM', file: 'project_v1.zip', status: 'Graded', grade: '92', action: 'Edit', type: 'zip', isLate: false, course: 'CS-201' },
-    { id: '2023042', name: 'Mike Peters', date: 'Oct 25, 09:00 AM', file: 'assignment_final.pdf', status: 'Needs Revision', grade: '65', action: 'Update', isLate: true, course: 'CS-201' },
-    { id: '2023088', name: 'Emily Chen', date: 'Oct 24, 11:45 AM', file: 'data_structs.cpp', status: 'Pending Review', grade: '', action: 'Save', type: 'code', isLate: false, course: 'CS-202' },
-    { id: '2023090', name: 'Alex Hall', date: 'Oct 24, 02:30 PM', file: 'test_sort.cpp', status: 'Pending Review', grade: '', action: 'Save', type: 'code', isLate: false, course: 'CS-201' },
-    { id: '2023095', name: 'Zoe Kemp', date: 'Oct 23, 09:15 AM', file: 'manual_v1.pdf', status: 'Graded', grade: '88', action: 'Edit', type: 'pdf', isLate: false, course: 'CS-202' },
-    { id: '2023099', name: 'Brian Lux', date: 'Oct 26, 10:00 AM', file: 'analysis.pdf', status: 'Pending Review', grade: '', action: 'Save', type: 'pdf', isLate: true, course: 'CS-201' },
-    { id: '2023102', name: 'Tim Cook', date: 'Oct 22, 11:00 AM', file: 'main.cpp', status: 'Graded', grade: '95', action: 'Edit', type: 'code', isLate: false, course: 'CS-201' },
+    { id: '2023001', name: 'John Doe', date: 'Oct 24, 10:30 AM', file: 'linked_list_impl.cpp', file_path: null, status: 'Pending Review', grade: '', action: 'Save', type: 'code', isLate: false, course: 'CS-201' },
+    { id: '2023015', name: 'Sarah Smith', date: 'Oct 23, 04:15 PM', file: 'project_v1.zip', file_path: null, status: 'Graded', grade: '92', action: 'Edit', type: 'zip', isLate: false, course: 'CS-201' },
+    { id: '2023042', name: 'Mike Peters', date: 'Oct 25, 09:00 AM', file: 'assignment_final.pdf', file_path: null, status: 'Needs Revision', grade: '65', action: 'Update', isLate: true, course: 'CS-201' },
+    { id: '2023088', name: 'Emily Chen', date: 'Oct 24, 11:45 AM', file: 'data_structs.cpp', file_path: null, status: 'Pending Review', grade: '', action: 'Save', type: 'code', isLate: false, course: 'CS-202' },
+    { id: '2023090', name: 'Alex Hall', date: 'Oct 24, 02:30 PM', file: 'test_sort.cpp', file_path: null, status: 'Pending Review', grade: '', action: 'Save', type: 'code', isLate: false, course: 'CS-201' },
+    { id: '2023095', name: 'Zoe Kemp', date: 'Oct 23, 09:15 AM', file: 'manual_v1.pdf', file_path: null, status: 'Graded', grade: '88', action: 'Edit', type: 'pdf', isLate: false, course: 'CS-202' },
+    { id: '2023099', name: 'Brian Lux', date: 'Oct 26, 10:00 AM', file: 'analysis.pdf', file_path: null, status: 'Pending Review', grade: '', action: 'Save', type: 'pdf', isLate: true, course: 'CS-201' },
+    { id: '2023102', name: 'Tim Cook', date: 'Oct 22, 11:00 AM', file: 'main.cpp', file_path: null, status: 'Graded', grade: '95', action: 'Edit', type: 'code', isLate: false, course: 'CS-201' },
 ];
 
 const ReportsAnalytics = () => {
@@ -440,9 +440,21 @@ const ReportsAnalytics = () => {
                                         </span>
                                     </td>
                                     <td>
-                                        <a href="#" className="file-attachment">
-                                            {getFileIcon(student.type)} {student.file}
-                                        </a>
+                                        {student.file_path ? (
+                                            <a 
+                                                href={student.file_path.startsWith('http') ? student.file_path : `${API_URL}/${student.file_path}`}
+                                                className="file-attachment"
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                download={!student.file_path.startsWith('http')}
+                                            >
+                                                {getFileIcon(student.type)} {student.file}
+                                            </a>
+                                        ) : (
+                                            <span className="file-attachment" style={{ color: '#94a3b8', cursor: 'not-allowed' }}>
+                                                {getFileIcon(student.type)} {student.file}
+                                            </span>
+                                        )}
                                     </td>
                                     <td>
                                         <div className={`status-tag ${student.status === 'Graded' ? 'tag-graded' :

@@ -595,3 +595,330 @@ export const getVenuesByEmail = async (req, res) => {
     });
   }
 };
+
+// ============ STUDENT TASK FUNCTIONS ============
+
+// Get all tasks/assignments for a student
+export const getStudentTasks = async (req, res) => {
+  try {
+    const user_id = req.user.user_id;
+
+    // Get student info and their venue
+    const [studentInfo] = await db.query(`
+      SELECT 
+        s.student_id, 
+        u.ID as roll_number, 
+        gs.group_id, 
+        g.venue_id, 
+        v.venue_name
+      FROM students s
+      INNER JOIN users u ON s.user_id = u.user_id
+      LEFT JOIN group_students gs ON s.student_id = gs.student_id AND gs.status = 'Active'
+      LEFT JOIN \`groups\` g ON gs.group_id = g.group_id
+      LEFT JOIN venue v ON g.venue_id = v.venue_id
+      WHERE s.user_id = ?
+    `, [user_id]);
+
+    if (studentInfo.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Student not found or not assigned to any venue'
+      });
+    }
+
+    const { student_id, venue_id, venue_name } = studentInfo[0];
+
+    console.log('Student Info:', { student_id, venue_id, venue_name, user_id });
+
+    if (!venue_id) {
+      return res.status(200).json({
+        success: true,
+        message: 'Student not assigned to any venue',
+        data: {
+          venue_name: null,
+          venue_id: null,
+          student_id: student_id,
+          groupedTasks: {}
+        }
+      });
+    }
+
+    // Get all tasks for the student's venue
+    const [tasks] = await db.query(`
+      SELECT 
+        t.task_id,
+        t.title,
+        t.description,
+        t.day,
+        t.due_date,
+        t.max_score,
+        t.material_type,
+        t.external_url,
+        t.status as task_status,
+        t.created_at,
+        u.name as faculty_name,
+        ts.submission_id,
+        ts.file_name,
+        ts.file_path,
+        ts.submitted_at,
+        ts.grade,
+        ts.feedback,
+        ts.is_late,
+        ts.status as submission_status
+      FROM tasks t
+      INNER JOIN faculties f ON t.faculty_id = f.faculty_id
+      LEFT JOIN users u ON f.user_id = u.user_id
+      LEFT JOIN task_submissions ts ON t.task_id = ts.task_id AND ts.student_id = ?
+      WHERE t.venue_id = ? AND t.status = 'Active'
+      ORDER BY t.day ASC, t.created_at ASC
+    `, [student_id, venue_id]);
+
+    console.log(`Found ${tasks.length} tasks for venue_id ${venue_id}`);
+
+    // Debug: Check all tasks in the venue regardless of status
+    const [allVenueTasks] = await db.query(`
+      SELECT task_id, title, status, venue_id FROM tasks WHERE venue_id = ?
+    `, [venue_id]);
+    console.log(`Total tasks in venue ${venue_id}:`, allVenueTasks);
+
+    // Get materials for each task
+    const tasksWithResources = await Promise.all(tasks.map(async (task) => {
+      // Parse materials from task if they exist
+      let materials = [];
+      if (task.material_type && task.external_url) {
+        materials.push({
+          type: task.material_type,
+          name: task.title,
+          fileUrl: task.material_type === 'file' ? task.external_url : null,
+          url: task.material_type === 'link' ? task.external_url : null
+        });
+      }
+
+      // Determine overall status
+      let overallStatus = 'pending';
+      if (task.submission_status === 'Graded') {
+        overallStatus = 'completed';
+      } else if (task.submission_id) {
+        overallStatus = 'pending'; // Submitted but not graded
+      } else if (task.due_date && new Date(task.due_date) < new Date()) {
+        overallStatus = 'overdue';
+      }
+
+      return {
+        id: task.task_id,
+        day: task.day,
+        title: task.title,
+        description: task.description,
+        dueDate: task.due_date,
+        status: overallStatus,
+        score: task.max_score,
+        materialType: task.material_type,
+        moduleTitle: `Day ${task.day}`,
+        instructor: task.faculty_name || 'Faculty',
+        submittedDate: task.submitted_at,
+        grade: task.grade ? `${task.grade}/${task.max_score}` : null,
+        feedback: task.feedback,
+        isLate: task.is_late,
+        fileName: task.file_name,
+        filePath: task.file_path,
+        materials: materials
+      };
+    }));
+
+    // Group tasks by module/subject
+    const groupedTasks = tasksWithResources.reduce((acc, task) => {
+      const key = `DAY-${task.day}`;
+      if (!acc[key]) {
+        acc[key] = {
+          title: `Day ${task.day}`,
+          instructor: task.instructor,
+          tasks: []
+        };
+      }
+      acc[key].tasks.push(task);
+      return acc;
+    }, {});
+
+    res.status(200).json({
+      success: true,
+      data: {
+        venue_name,
+        venue_id,
+        student_id,
+        groupedTasks
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching student tasks:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch tasks',
+      error: error.message
+    });
+  }
+};
+
+// Submit task assignment
+export const submitTask = async (req, res) => {
+  try {
+    const { task_id } = req.params;
+    const { submission_type, link_url } = req.body;
+    const user_id = req.user.user_id;
+    const file = req.file;
+
+    // Get student_id
+    const [student] = await db.query(`
+      SELECT student_id FROM students WHERE user_id = ?
+    `, [user_id]);
+
+    if (student.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Student not found'
+      });
+    }
+
+    const student_id = student[0].student_id;
+
+    // Verify task exists and is active
+    const [task] = await db.query(`
+      SELECT task_id, due_date FROM tasks WHERE task_id = ? AND status = 'Active'
+    `, [task_id]);
+
+    if (task.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Task not found or not available'
+      });
+    }
+
+    // Check if already submitted
+    const [existing] = await db.query(`
+      SELECT submission_id FROM task_submissions 
+      WHERE task_id = ? AND student_id = ?
+    `, [task_id, student_id]);
+
+    const due_date = task[0].due_date;
+    const is_late = due_date && new Date() > new Date(due_date);
+
+    if (file && file.originalname) {
+      // File submission
+      if (existing.length > 0) {
+        // Update existing submission
+        await db.query(`
+          UPDATE task_submissions 
+          SET file_name = ?, file_path = ?, is_late = ?, 
+              submitted_at = NOW(), status = 'Pending Review'
+          WHERE submission_id = ?
+        `, [file.originalname, file.path, is_late, existing[0].submission_id]);
+
+        return res.status(200).json({
+          success: true,
+          message: 'Assignment resubmitted successfully!'
+        });
+      } else {
+        // Create new submission
+        await db.query(`
+          INSERT INTO task_submissions 
+          (task_id, student_id, file_name, file_path, is_late, submitted_at, status)
+          VALUES (?, ?, ?, ?, ?, NOW(), 'Pending Review')
+        `, [task_id, student_id, file.originalname, file.path, is_late]);
+
+        return res.status(201).json({
+          success: true,
+          message: 'Assignment submitted successfully!'
+        });
+      }
+    } else if (link_url) {
+      // Link submission - store in file_path as URL
+      if (existing.length > 0) {
+        // Update existing submission
+        await db.query(`
+          UPDATE task_submissions 
+          SET file_name = 'Link Submission', file_path = ?, is_late = ?, 
+              submitted_at = NOW(), status = 'Pending Review'
+          WHERE submission_id = ?
+        `, [link_url, is_late, existing[0].submission_id]);
+
+        return res.status(200).json({
+          success: true,
+          message: 'Link submitted successfully!'
+        });
+      } else {
+        // Create new submission
+        await db.query(`
+          INSERT INTO task_submissions 
+          (task_id, student_id, file_name, file_path, is_late, submitted_at, status)
+          VALUES (?, ?, 'Link Submission', ?, ?, NOW(), 'Pending Review')
+        `, [task_id, student_id, link_url, is_late]);
+
+        return res.status(201).json({
+          success: true,
+          message: 'Link submitted successfully!'
+        });
+      }
+    } else {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide either a file or a link'
+      });
+    }
+  } catch (error) {
+    console.error('Error submitting task:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to submit assignment',
+      error: error.message
+    });
+  }
+};
+
+// Download submission file
+export const downloadSubmission = async (req, res) => {
+  try {
+    const { submission_id } = req.params;
+    const user_id = req.user.user_id;
+
+    // Get student_id and verify ownership
+    const [student] = await db.query(`
+      SELECT s.student_id 
+      FROM students s
+      WHERE s.user_id = ?
+    `, [user_id]);
+
+    if (student.length === 0) {
+      return res.status(403).json({
+        success: false,
+        message: 'Unauthorized'
+      });
+    }
+
+    const [submission] = await db.query(`
+      SELECT file_path, submission_type 
+      FROM task_submissions 
+      WHERE submission_id = ? AND student_id = ?
+    `, [submission_id, student[0].student_id]);
+
+    if (submission.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Submission not found'
+      });
+    }
+
+    if (!submission[0].file_path) {
+      return res.status(404).json({
+        success: false,
+        message: 'No file attached to this submission'
+      });
+    }
+
+    res.download(submission[0].file_path);
+  } catch (error) {
+    console.error('Error downloading submission:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to download file'
+    });
+  }
+};

@@ -615,15 +615,8 @@ import useAuthStore from '../../../store/useAuthStore';
 
 const AttendanceManagement = () => {
     const { token, user } = useAuthStore();
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+    const API_URL = import.meta.env.VITE_API_URL;
 
-    // Debug on mount
-    useEffect(() => {
-        console.log('🚀 AttendanceManagement mounted');
-        console.log('👤 User from auth store:', user);
-        console.log('🔑 Token present:', !!token);
-        console.log('🌐 API URL:', API_URL);
-    }, []);
 
     // Responsive state
     const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
@@ -670,7 +663,6 @@ const AttendanceManagement = () => {
 
         // Determine which ID to use
         const userId = user.user_id || user.id || user.faculty_id || 1;
-        console.log('📍 Fetching venues for user ID:', userId);
 
         setLoading(true);
         setError('');
@@ -682,20 +674,17 @@ const AttendanceManagement = () => {
                 }
             });
 
-            console.log('📡 Response status:', response.status);
             
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}`);
             }
 
             const data = await response.json();
-            console.log('✅ Venues response:', data);
             
             if (data.success && data.data.length > 0) {
                 setVenues(data.data);
                 setSelectedVenue(data.data[0]);
                 setUserInfo(data.user_info);
-                console.log('👤 User info:', data.user_info);
             } else {
                 setError(data.message || 'No venues found');
             }
@@ -713,7 +702,6 @@ const AttendanceManagement = () => {
             return;
         }
 
-        console.log('📋 Fetching students for venue:', selectedVenue.venue_id);
         
         setLoading(true);
         try {
@@ -728,7 +716,6 @@ const AttendanceManagement = () => {
             );
             
             const data = await response.json();
-            console.log('📋 Students response:', data);
             
             if (data.success) {
                 setStudents(data.data);
@@ -753,7 +740,7 @@ const AttendanceManagement = () => {
                 timeSlot
             };
             
-            console.log('🎫 Initializing session:', sessionData);
+            
             
             const response = await fetch(`${API_URL}/attendance/session`, {
                 method: 'POST',
@@ -765,19 +752,19 @@ const AttendanceManagement = () => {
             });
             
             const data = await response.json();
-            console.log('🎫 Session response:', data);
+            
             
             if (data.success) {
                 setSessionId(data.data.session_id);
-                console.log('✅ Session ID:', data.data.session_id);
+               
             }
         } catch (err) {
-            console.error('❌ Error initializing session:', err);
+            console.error(' Error initializing session:', err);
         }
     };
 
     const saveAttendance = async () => {
-        console.log('💾 Starting save attendance...');
+       
         
         // Validations
         if (!sessionId) {
@@ -798,7 +785,6 @@ const AttendanceManagement = () => {
 
         // Determine user ID to send
         const userId = user?.user_id || user?.id || user?.faculty_id || 1;
-        console.log('👤 Using user ID for save:', userId);
 
         const attendanceData = {
             facultyId: userId,
@@ -813,14 +799,12 @@ const AttendanceManagement = () => {
             }))
         };
 
-        console.log('📦 Data to save:', attendanceData);
 
         setLoading(true);
         setError('');
         setSuccess('');
         
         try {
-            console.log('📡 Sending to:', `${API_URL}/attendance/save`);
             
             const response = await fetch(`${API_URL}/attendance/save`, {
                 method: 'POST',
@@ -831,21 +815,20 @@ const AttendanceManagement = () => {
                 body: JSON.stringify(attendanceData)
             });
 
-            console.log('📡 Response status:', response.status);
+           
             
             const responseText = await response.text();
-            console.log('📡 Response text:', responseText);
             
             let data;
             try {
                 data = JSON.parse(responseText);
             } catch (e) {
-                console.error('❌ Failed to parse JSON:', responseText);
+                console.error(' Failed to parse JSON:', responseText);
                 throw new Error('Invalid server response');
             }
             
             if (data.success) {
-                console.log('✅ Save successful:', data);
+               
                 setSuccess(`Attendance saved successfully! (${data.data?.total || markedStudents.length} students)`);
                 
                 // Clear marked status
@@ -854,11 +837,11 @@ const AttendanceManagement = () => {
                 // Show success for 5 seconds
                 setTimeout(() => setSuccess(''), 5000);
             } else {
-                console.error('❌ Save failed:', data);
+                console.error(' Save failed:', data);
                 setError(data.message || 'Failed to save attendance');
             }
         } catch (err) {
-            console.error('❌ Error saving attendance:', err);
+            console.error(' Error saving attendance:', err);
             setError('Failed to save attendance: ' + err.message);
         } finally {
             setLoading(false);

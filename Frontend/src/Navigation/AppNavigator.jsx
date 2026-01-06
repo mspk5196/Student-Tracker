@@ -28,18 +28,20 @@ import StudentPage from "../pages/SuperAdmin/studentsPage/AllStudents/studentsPa
 import TaskHeader from "../pages/SuperAdmin/Task&Assignments/TaskHeader/TaskHeader";
 
 // Faculty Pages
-import FacultyDashboard from '../pages/Faculty/DashboardPanal/Dashboard';
 import ClassHeader from "../pages/Faculty/Class&Group/ClassHeader/ClassHeader";
 import MyClasses from "../pages/Faculty/Class&Group/MyClasses/MyClasses";
 import AllClasses from "../pages/Faculty/Class&Group/AllClasses/AllClasses";
 import StudentsPage from "../pages/SuperAdmin/studentsPage/AllStudents/studentsPage";
 import Reports from "../pages/SuperAdmin/Reports&Analytics/Reporst&analytics";
-import ClassDetails from "../pages/SuperAdmin/Classes&Groups/ClassDetails/ClassDetails";
 
 // Student Pages
 import StudentDashboard from "../pages/Student/Dashboard/StudentDashboard";
+import MyClassRoom from "../pages/Student/MyClassRoom/MyClassRoom";
+import StudentAttendance from "../pages/Student/StudentAttendance/Attendance";
+import TasksAssignments from "../pages/Student/Tasks&Assignments/Tasks&Assignment"
+import StudentRoadmap from "../pages/Student/RoadMap&Material/RoadMap&Material";
 
-
+import Performance from "../pages/Student/Performance/Performance";
 const AppNavigator = () => {
   const user = useAuthStore((s) => s.user);
 
@@ -65,7 +67,6 @@ const AppNavigator = () => {
             <Route path="attendance" element={<Attendance />} />
             <Route path="tasks" element={<TaskHeader />} />  {/* ✅ Already correct */}
             <Route path="reports" element={<ReportsAnalytics />} />  {/* ✅ Already correct */}
-            {/* <Route path="settings" element={<div>Settings</div>} /> */}
           </Route>
         )}
 
@@ -77,25 +78,26 @@ const AppNavigator = () => {
               <Route index element={<StudentsPage />} />
               <Route path=":studentId" element={<StudentHeader />} />
             </Route>
-            <Route path="classes" element={<ClassHeader />}>
-              <Route index element={<MyClasses />} />
-              <Route path="all" element={<AllClasses />} />
-            </Route>
+            {/* <Route path="classes" element={<ClassHeader />}> */}
+              {/* <Route index element={<MyClasses />} /> */}
+              {/* <Route path="all" element={<AllClasses />} /> */}
+            {/* </Route> */}
             <Route path="/" element={<Attendance />} />
             <Route path="tasks" element={<TaskHeader />} />  {/* ✅ Already correct */}
-            <Route path="students" element={<div>Students</div>} />
+            {/* <Route path="students" element={<div>Students</div>} /> */}
             <Route path="reports" element={<Reports />} />  {/* ✅ Faculty can also access reports */}
-            <Route path="settings" element={<div>Settings</div>} />
           </Route>
         )}
 
         {/* STUDENT (role === "student") */}
         {user?.role === "student" && (
           <Route path="/" element={<SideTab />}>
-            {/* <Route index element={<div style={{padding: '40px'}}><StudentDashboard /></div>} /> */}
-            {/* <Route path="classes" element={<div style={{padding: '40px'}}>My Classes</div>} /> */}
-            <Route path="/" element={<div style={{padding: '40px'}}>My Attendance</div>} />
-            <Route path="tasks" element={<div style={{padding: '40px'}}>My Tasks</div>} />
+            {/* <Route index element={<StudentDashboard/>} /> */}
+            {/* <Route path="classes" element={<MyClassRoom />}/> */}
+            <Route path="attendance" element={<StudentAttendance />}/>
+            <Route path="/" element={<StudentRoadmap />}/>
+            <Route path="tasks" element={<TasksAssignments />} />
+            {/* <Route path="performance" element={<Performance />} /> */}
           </Route>
         )}
 

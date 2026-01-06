@@ -40,7 +40,7 @@ const EducationDashboard = () => {
   const navigate = useNavigate();
   
   const { token } = useAuthStore();
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+  const API_URL = import.meta.env.VITE_API_URL;
 
   // State for data
   const [metrics, setMetrics] = useState([]);

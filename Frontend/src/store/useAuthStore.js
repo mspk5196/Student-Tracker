@@ -9,7 +9,6 @@ const useAuthStore = create((set) => ({
     localStorage.setItem("token", token);
     localStorage.setItem("user", JSON.stringify(user));
     set({ user, token });
-    console.log("jwt token stored in localStorage:", token);
   },
 
   logout: () => {
