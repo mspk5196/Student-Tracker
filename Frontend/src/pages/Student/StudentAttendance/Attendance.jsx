@@ -36,6 +36,7 @@ const StudentAttendance = () => {
 
     const [searchQuery, setSearchQuery] = useState('');
     const [filter, setFilter] = useState('all');
+    const [selectedDate, setSelectedDate] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 5;
 
@@ -107,13 +108,22 @@ const StudentAttendance = () => {
                 const historyData = await historyResponse.json();
 
                 if (historyData.success) {
-                    const history = historyData.data.map((record, index) => ({
-                        id: record.attendance_id || index,
-                        date: new Date(record.created_at).toISOString().split('T')[0],
-                        subject: record.venue_name,
-                        time: record.session_name || 'N/A',
-                        status: record.is_present === 1 ? (record.is_late === 1 ? 'late' : 'present') : 'absent'
-                    }));
+                    const history = historyData.data.map((record, index) => {
+                        // Extract date from session_name (format: VenueName_YYYYMMDD_Date_Time)
+                        let sessionDate = new Date(record.created_at).toISOString().split('T')[0];
+                        const dateMatch = record.session_name?.match(/(\d{4})-(\d{2})-(\d{2})/);
+                        if (dateMatch) {
+                            sessionDate = `${dateMatch[1]}-${dateMatch[2]}-${dateMatch[3]}`;
+                        }
+                        
+                        return {
+                            id: record.attendance_id || index,
+                            date: sessionDate,
+                            subject: record.venue_name,
+                            time: record.session_name || 'N/A',
+                            status: record.is_present === 1 ? (record.is_late === 1 ? 'late' : 'present') : 'absent'
+                        };
+                    });
                     setAttendanceHistory(history);
                 }
 
@@ -128,18 +138,66 @@ const StudentAttendance = () => {
         fetchAttendanceData();
     }, [user, token, API_URL]);
 
-    // Filter history based on search and filter
-    const filteredHistory = attendanceHistory.filter(record => {
-        const matchesSearch = record.subject.toLowerCase().includes(searchQuery.toLowerCase());
-        const matchesFilter = filter === 'all' || record.status === filter;
-        return matchesSearch && matchesFilter;
+    // Create a map of dates with attendance records
+    const attendanceByDate = attendanceHistory.reduce((acc, record) => {
+        if (!acc[record.date]) {
+            acc[record.date] = [];
+        }
+        acc[record.date].push(record);
+        return acc;
+    }, {});
+
+    // Get unique dates from actual attendance records only
+    const uniqueDates = [...new Set(attendanceHistory.map(record => record.date))].sort((a, b) => new Date(b) - new Date(a));
+
+    // Generate complete history with 4 blocks per day (only for dates with records)
+    const completeHistory = uniqueDates.flatMap(date => {
+        const recordsForDate = attendanceByDate[date] || [];
+        const blocks = [];
+        
+        // Add existing records
+        blocks.push(...recordsForDate);
+        
+        // Fill remaining slots with absent blocks (up to 4 total)
+        const remainingSlots = 4 - recordsForDate.length;
+        for (let i = 0; i < remainingSlots; i++) {
+            blocks.push({
+                id: `absent-${date}-${i}`,
+                date: date,
+                subject: 'No Session',
+                time: `Hour ${recordsForDate.length + i + 1}`,
+                status: 'absent'
+            });
+        }
+        
+        return blocks;
     });
 
+    // Filter history based on search, filter, and selected date
+    const filteredHistory = completeHistory.filter(record => {
+        const matchesSearch = record.subject.toLowerCase().includes(searchQuery.toLowerCase());
+        const matchesFilter = filter === 'all' || record.status === filter;
+        const matchesDate = !selectedDate || record.date === selectedDate;
+        return matchesSearch && matchesFilter && matchesDate;
+    });
+
+    // Group filtered history by date to show daily breakdown
+    const groupedByDate = filteredHistory.reduce((acc, record) => {
+        if (!acc[record.date]) {
+            acc[record.date] = [];
+        }
+        acc[record.date].push(record);
+        return acc;
+    }, {});
+
+    // If a date is selected, show only that date's records
+    const displayHistory = selectedDate ? (groupedByDate[selectedDate] || []) : filteredHistory;
+
     // Pagination calculations
-    const totalPages = Math.ceil(filteredHistory.length / itemsPerPage);
+    const totalPages = Math.ceil(displayHistory.length / itemsPerPage);
     const startIndex = (currentPage - 1) * itemsPerPage;
-    const endIndex = Math.min(startIndex + itemsPerPage, filteredHistory.length);
-    const currentItems = filteredHistory.slice(startIndex, endIndex);
+    const endIndex = Math.min(startIndex + itemsPerPage, displayHistory.length);
+    const currentItems = displayHistory.slice(startIndex, endIndex);
 
     const getStatusStyle = (status) => {
         switch (status) {
@@ -498,7 +556,9 @@ const StudentAttendance = () => {
                 <div style={styles.rightCol}>
                     <div style={styles.card}>
                         <div style={styles.cardHeader}>
-                            <h2 style={styles.sectionTitle} className="section-title">Recent History</h2>
+                            <h2 style={styles.sectionTitle} className="section-title">
+                                {selectedDate ? `Attendance for ${new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}` : 'Recent History'}
+                            </h2>
                             <div style={styles.filterGroup} className="filter-group">
                                 <div style={styles.searchBox} className="search-box">
                                     <Search size={14} style={styles.searchIcon} />
@@ -514,13 +574,88 @@ const StudentAttendance = () => {
                                     value={filter}
                                     onChange={(e) => setFilter(e.target.value)}
                                 >
-                                    <option value="all">All</option>
+                                    <option value="all">All Status</option>
                                     <option value="present">Present</option>
                                     <option value="absent">Absent</option>
                                     <option value="late">Late</option>
                                 </select>
+                                <select
+                                    style={styles.filterSelect}
+                                    value={selectedDate}
+                                    onChange={(e) => {
+                                        setSelectedDate(e.target.value);
+                                        setCurrentPage(1);
+                                    }}
+                                >
+                                    <option value="">All Days</option>
+                                    {uniqueDates.map(date => (
+                                        <option key={date} value={date}>
+                                            {new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                        </option>
+                                    ))}
+                                </select>
                             </div>
                         </div>
+
+                        {/* Daily Summary - Show when date is selected */}
+                        {selectedDate && groupedByDate[selectedDate] && (
+                            <div style={{
+                                padding: '16px',
+                                backgroundColor: '#F9FAFB',
+                                borderBottom: '1px solid #E5E7EB',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                flexWrap: 'wrap',
+                                gap: '12px'
+                            }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                    <Clock size={18} color="#6366F1" />
+                                    <span style={{ fontSize: '14px', fontWeight: '600', color: '#374151' }}>
+                                        4 hours per day
+                                    </span>
+                                </div>
+                                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                                    {['present', 'late', 'absent'].map(status => {
+                                        const count = groupedByDate[selectedDate].filter(r => r.status === status).length;
+                                        const statusStyle = getStatusStyle(status);
+                                        return count > 0 && (
+                                            <div key={status} style={{
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '6px',
+                                                padding: '6px 12px',
+                                                backgroundColor: statusStyle.bg,
+                                                borderRadius: '6px',
+                                                fontSize: '13px',
+                                                fontWeight: '600',
+                                                color: statusStyle.color
+                                            }}>
+                                                {statusStyle.icon}
+                                                <span>{count} {status}</span>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                                {groupedByDate[selectedDate].filter(r => r.status === 'present').length === 4 && (
+                                    <div style={{
+                                        width: '100%',
+                                        marginTop: '8px',
+                                        padding: '8px 12px',
+                                        backgroundColor: '#ECFDF5',
+                                        borderRadius: '6px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '8px',
+                                        fontSize: '13px',
+                                        color: '#059669'
+                                    }}>
+                                        <Info size={14} />
+                                        <span>Perfect attendance - all 4 hours present!</span>
+                                    </div>
+                                )}
+                            </div>
+                        )}
 
                         <div style={styles.historyList}>
                             {currentItems.length === 0 ? (
@@ -546,7 +681,7 @@ const StudentAttendance = () => {
                                         color: '#1F2937',
                                         marginBottom: '8px' 
                                     }}>
-                                        {filteredHistory.length === 0 && attendanceHistory.length > 0 
+                                        {displayHistory.length === 0 && attendanceHistory.length > 0 
                                             ? 'No Matching Records' 
                                             : 'No Attendance History'}
                                     </h3>
@@ -557,8 +692,10 @@ const StudentAttendance = () => {
                                         maxWidth: '300px',
                                         margin: '0 auto'
                                     }}>
-                                        {filteredHistory.length === 0 && attendanceHistory.length > 0
-                                            ? 'Try adjusting your search or filter criteria'
+                                        {displayHistory.length === 0 && attendanceHistory.length > 0
+                                            ? selectedDate 
+                                                ? `No attendance records found for ${new Date(selectedDate).toLocaleDateString()}. Try selecting a different date.`
+                                                : 'Try adjusting your search or filter criteria'
                                             : 'Your attendance records will appear here once faculty marks your attendance'}
                                     </p>
                                 </div>
@@ -590,54 +727,54 @@ const StudentAttendance = () => {
                         </div>
                         
                         {/* Pagination Component - Only show if there's data */}
-                        {filteredHistory.length > 0 && (
+                        {displayHistory.length > 0 && (
                             <div style={styles.paginationContainer} className="pagination-container">
-                                <div style={styles.paginationInfo} className="pagination-info">
-                                    Showing {startIndex + 1}-{endIndex} of {filteredHistory.length} records
-                                </div>
-                                <div style={styles.paginationControls} className="pagination-controls">
-                                    <div style={styles.paginationButtons} className="pagination-buttons">
+                            <div style={styles.paginationInfo} className="pagination-info">
+                                Showing {startIndex + 1}-{endIndex} of {displayHistory.length} records
+                            </div>
+                            <div style={styles.paginationControls} className="pagination-controls">
+                                <div style={styles.paginationButtons} className="pagination-buttons">
+                                    <button
+                                        style={{
+                                            ...styles.paginationButton,
+                                            ...styles.prevButton,
+                                            opacity: currentPage === 1 ? 0.5 : 1
+                                        }}
+                                        onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                                        disabled={currentPage === 1}
+                                    >
+                                        <ChevronLeft size={16} /> Prev
+                                    </button>
+                                    
+                                    {getPageNumbers().map(page => (
                                         <button
+                                            key={page}
                                             style={{
                                                 ...styles.paginationButton,
-                                                ...styles.prevButton,
-                                                opacity: currentPage === 1 ? 0.5 : 1
+                                                ...styles.pageNumber,
+                                                backgroundColor: currentPage === page ? '#2563EB' : 'transparent',
+                                                color: currentPage === page ? '#FFFFFF' : '#374151'
                                             }}
-                                            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                                            disabled={currentPage === 1}
+                                            onClick={() => setCurrentPage(page)}
                                         >
-                                            <ChevronLeft size={16} /> Prev
+                                            {page}
                                         </button>
-                                        
-                                        {getPageNumbers().map(page => (
-                                            <button
-                                                key={page}
-                                                style={{
-                                                    ...styles.paginationButton,
-                                                    ...styles.pageNumber,
-                                                    backgroundColor: currentPage === page ? '#2563EB' : 'transparent',
-                                                    color: currentPage === page ? '#FFFFFF' : '#374151'
-                                                }}
-                                                onClick={() => setCurrentPage(page)}
-                                            >
-                                                {page}
-                                            </button>
-                                        ))}
-                                        
-                                        <button
-                                            style={{
-                                                ...styles.paginationButton,
-                                                ...styles.nextButton,
-                                                opacity: currentPage === totalPages ? 0.5 : 1
-                                            }}
-                                            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                                            disabled={currentPage === totalPages}
-                                        >
-                                            Next <ChevronRight size={16} />
-                                        </button>
-                                    </div>
+                                    ))}
+                                    
+                                    <button
+                                        style={{
+                                            ...styles.paginationButton,
+                                            ...styles.nextButton,
+                                            opacity: currentPage === totalPages ? 0.5 : 1
+                                        }}
+                                        onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                                        disabled={currentPage === totalPages}
+                                    >
+                                        Next <ChevronRight size={16} />
+                                    </button>
                                 </div>
                             </div>
+                        </div>
                         )}
                     </div>
                 </div>
