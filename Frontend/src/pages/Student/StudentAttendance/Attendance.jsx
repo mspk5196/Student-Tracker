@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     Calendar,
     Clock,
@@ -13,45 +13,123 @@ import {
     Info,
     ChevronLeft
 } from 'lucide-react';
+import useAuthStore from '../../../store/useAuthStore';
 
 const StudentAttendance = () => {
-    // --- MOCK DATA FOR STUDENT ATTENDANCE ---
-    const ATTENDANCE_SUMMARY = {
-        overall: 82,
-        totalClasses: 120,
-        present: 98,
-        absent: 15,
-        late: 7,
-        standing: "Good Standing"
-    };
+    const { user, token } = useAuthStore();
+    const API_URL = import.meta.env.VITE_API_URL;
 
-    const SUBJECT_ATTENDANCE = [
-        { id: 1, name: 'React Mastery Workshop', code: 'REACT-101', present: 28, total: 30, percent: 93, status: 'safe' },
-        { id: 2, name: 'HTML & CSS Fundamentals', code: 'WEB-201', present: 22, total: 30, percent: 73, status: 'warning' },
-        { id: 3, name: 'JavaScript Deep Dive', code: 'JS-301', present: 25, total: 30, percent: 83, status: 'safe' },
-        { id: 4, name: 'UI/UX Design Principles', code: 'DESIGN-501', present: 23, total: 30, percent: 76, status: 'warning' }
-    ];
+    // --- STATE MANAGEMENT ---
+    const [attendanceSummary, setAttendanceSummary] = useState({
+        overall: 0,
+        totalClasses: 0,
+        present: 0,
+        absent: 0,
+        late: 0,
+        standing: "Loading..."
+    });
 
-    const ATTENDANCE_HISTORY = [
-        { id: 101, date: '2024-10-24', subject: 'React Mastery Workshop', time: '09:00 AM - 10:30 AM', status: 'present' },
-        { id: 102, date: '2024-10-24', subject: 'HTML & CSS Fundamentals', time: '10:30 AM - 12:00 PM', status: 'absent' },
-        { id: 103, date: '2024-10-23', subject: 'JavaScript Deep Dive', time: '01:30 PM - 03:00 PM', status: 'present' },
-        { id: 104, date: '2024-10-23', subject: 'UI/UX Design Principles', time: '03:00 PM - 04:30 PM', status: 'late' },
-        { id: 105, date: '2024-10-22', subject: 'React Mastery Workshop', time: '09:00 AM - 10:30 AM', status: 'present' },
-        { id: 106, date: '2024-10-22', subject: 'HTML & CSS Fundamentals', time: '10:30 AM - 12:00 PM', status: 'present' },
-        { id: 107, date: '2024-10-21', subject: 'JavaScript Deep Dive', time: '01:30 PM - 03:00 PM', status: 'present' },
-        { id: 108, date: '2024-10-21', subject: 'UI/UX Design Principles', time: '03:00 PM - 04:30 PM', status: 'absent' },
-        { id: 109, date: '2024-10-20', subject: 'React Mastery Workshop', time: '09:00 AM - 10:30 AM', status: 'present' },
-        { id: 110, date: '2024-10-20', subject: 'HTML & CSS Fundamentals', time: '10:30 AM - 12:00 PM', status: 'late' }
-    ];
+    const [subjectAttendance, setSubjectAttendance] = useState([]);
+    const [attendanceHistory, setAttendanceHistory] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
 
     const [searchQuery, setSearchQuery] = useState('');
     const [filter, setFilter] = useState('all');
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 5;
 
+    // --- FETCH DATA FROM BACKEND ---
+    useEffect(() => {
+        const fetchAttendanceData = async () => {
+            if (!user?.user_id) return;
+
+            setLoading(true);
+            setError(null);
+
+            try {
+                // Fetch dashboard data
+                const dashboardResponse = await fetch(
+                    `${API_URL}/attendance/dashboard/${user.user_id}`,
+                    {
+                        headers: {
+                            'Authorization': `Bearer ${token}`,
+                            'Content-Type': 'application/json'
+                        }
+                    }
+                );
+
+                const dashboardData = await dashboardResponse.json();
+
+                if (dashboardData.success) {
+                    const data = dashboardData.data;
+                    
+                    // Set attendance summary
+                    const presentCount = data.sessionStatus.find(s => s.label === 'Present')?.count || 0;
+                    const lateCount = data.sessionStatus.find(s => s.label === 'Late')?.count || 0;
+                    const absentCount = data.sessionStatus.find(s => s.label === 'Absent')?.count || 0;
+                    const totalClasses = presentCount + lateCount + absentCount;
+                    const overallPercent = totalClasses > 0 ? Math.round((presentCount / totalClasses) * 100) : 0;
+
+                    setAttendanceSummary({
+                        overall: overallPercent,
+                        totalClasses: totalClasses,
+                        present: presentCount,
+                        absent: absentCount,
+                        late: lateCount,
+                        standing: overallPercent >= 75 ? "Good Standing" : "Warning"
+                    });
+
+                    // Set subject attendance
+                    const subjects = data.subjects.map((sub, index) => ({
+                        id: index + 1,
+                        name: sub.name,
+                        code: `VENUE-${index + 1}`,
+                        present: sub.current,
+                        total: sub.total,
+                        percent: sub.percent,
+                        status: sub.percent >= 75 ? 'safe' : 'warning'
+                    }));
+                    setSubjectAttendance(subjects);
+                }
+
+                // Fetch attendance history
+                const historyResponse = await fetch(
+                    `${API_URL}/attendance/history/${user.user_id}`,
+                    {
+                        headers: {
+                            'Authorization': `Bearer ${token}`,
+                            'Content-Type': 'application/json'
+                        }
+                    }
+                );
+
+                const historyData = await historyResponse.json();
+
+                if (historyData.success) {
+                    const history = historyData.data.map((record, index) => ({
+                        id: record.attendance_id || index,
+                        date: new Date(record.created_at).toISOString().split('T')[0],
+                        subject: record.venue_name,
+                        time: record.session_name || 'N/A',
+                        status: record.is_present === 1 ? (record.is_late === 1 ? 'late' : 'present') : 'absent'
+                    }));
+                    setAttendanceHistory(history);
+                }
+
+            } catch (err) {
+                console.error('❌ Error fetching attendance data:', err);
+                setError('Failed to load attendance data. Please try again later.');
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchAttendanceData();
+    }, [user, token, API_URL]);
+
     // Filter history based on search and filter
-    const filteredHistory = ATTENDANCE_HISTORY.filter(record => {
+    const filteredHistory = attendanceHistory.filter(record => {
         const matchesSearch = record.subject.toLowerCase().includes(searchQuery.toLowerCase());
         const matchesFilter = filter === 'all' || record.status === filter;
         return matchesSearch && matchesFilter;
@@ -187,84 +265,107 @@ const StudentAttendance = () => {
                 }
             `}</style>
 
-            {/* Header Section */}
-            <header style={styles.header} className="header">
-                <div style={styles.headerLeft}>
-                    <h1 style={styles.title}>My Attendance</h1>
-                    <p style={styles.subtitle}>Track your presence and maintain your academic standing</p>
+            {/* Loading State */}
+            {loading && (
+                <div style={{ textAlign: 'center', padding: '40px' }}>
+                    <p style={{ fontSize: '16px', color: '#64748b' }}>Loading attendance data...</p>
                 </div>
-                <div style={styles.standingBadge} className="standing-badge">
-                    <TrendingUp size={16} style={{ marginRight: 8 }} />
-                    {ATTENDANCE_SUMMARY.standing}
-                </div>
-            </header>
+            )}
 
-            {/* Quick Stats Grid */}
-            <div style={styles.statsGrid} className="stats-grid">
-                <div style={styles.statCard}>
-                    <div style={styles.statIconBox}><CheckCircle2 color="#10B981" /></div>
-                    <div style={styles.statInfo}>
-                        <span style={styles.statLabel}>Overall Attendance</span>
-                        <span style={styles.statValue}>{ATTENDANCE_SUMMARY.overall}%</span>
-                    </div>
+            {/* Error State */}
+            {error && (
+                <div style={{ padding: '20px', backgroundColor: '#FEF2F2', borderRadius: '12px', marginBottom: '24px' }}>
+                    <p style={{ color: '#EF4444', fontSize: '14px' }}>{error}</p>
                 </div>
-                <div style={styles.statCard}>
-                    <div style={styles.statIconBox}><BookOpen color="#2563EB" /></div>
-                    <div style={styles.statInfo}>
-                        <span style={styles.statLabel}>Total Classes</span>
-                        <span style={styles.statValue}>{ATTENDANCE_SUMMARY.totalClasses}</span>
-                    </div>
-                </div>
-                <div style={styles.statCard}>
-                    <div style={styles.statIconBox}><Clock color="#F59E0B" /></div>
-                    <div style={styles.statInfo}>
-                        <span style={styles.statLabel}>Present / Late</span>
-                        <span style={styles.statValue}>{ATTENDANCE_SUMMARY.present} / {ATTENDANCE_SUMMARY.late}</span>
-                    </div>
-                </div>
-                <div style={styles.statCard}>
-                    <div style={styles.statIconBox}><XCircle color="#EF4444" /></div>
-                    <div style={styles.statInfo}>
-                        <span style={styles.statLabel}>Absences</span>
-                        <span style={styles.statValue}>{ATTENDANCE_SUMMARY.absent}</span>
-                    </div>
-                </div>
-            </div>
+            )}
 
-            <div style={styles.mainLayout} className="main-layout">
-                {/* Left Side: Subject-wise Breakdown */}
-                <div style={styles.leftCol}>
-                    <div style={styles.sectionHeader}>
-                        <h2 style={styles.sectionTitle} className="section-title">Course-wise Breakdown</h2>
-                    </div>
-                    <div style={styles.subjectList}>
-                        {SUBJECT_ATTENDANCE.map(subject => (
-                            <div key={subject.id} style={styles.subjectCard} className="subject-card">
-                                <div style={styles.subjectInfo}>
-                                    <div style={styles.subjectCode}>{subject.code}</div>
-                                    <h3 style={styles.subjectName} className="subject-name">{subject.name}</h3>
-                                    <div style={styles.classCounts}>
-                                        {subject.present} of {subject.total} classes attended
-                                    </div>
-                                </div>
-                                <div style={styles.percentGroup} className="percent-group">
-                                    <div style={{
-                                        ...styles.percentCircle,
-                                        borderColor: subject.status === 'safe' ? '#10B981' : '#F59E0B'
-                                    }}>
-                                        {subject.percent}%
-                                    </div>
-                                    <span style={{
-                                        ...styles.statusText,
-                                        color: subject.status === 'safe' ? '#10B981' : '#F59E0B'
-                                    }}>
-                                        {subject.status === 'safe' ? 'Safe' : 'Watch out'}
-                                    </span>
-                                </div>
+            {/* Content - Only show when not loading */}
+            {!loading && !error && (
+                <>
+                    {/* Header Section */}
+                    <header style={styles.header} className="header">
+                        <div style={styles.headerLeft}>
+                            <h1 style={styles.title}>My Attendance</h1>
+                            <p style={styles.subtitle}>Track your presence and maintain your academic standing</p>
+                        </div>
+                        <div style={styles.standingBadge} className="standing-badge">
+                            <TrendingUp size={16} style={{ marginRight: 8 }} />
+                            {attendanceSummary.standing}
+                        </div>
+                    </header>
+
+                    {/* Quick Stats Grid */}
+                    <div style={styles.statsGrid} className="stats-grid">
+                        <div style={styles.statCard}>
+                            <div style={styles.statIconBox}><CheckCircle2 color="#10B981" /></div>
+                            <div style={styles.statInfo}>
+                                <span style={styles.statLabel}>Overall Attendance</span>
+                                <span style={styles.statValue}>{attendanceSummary.overall}%</span>
                             </div>
-                        ))}
+                        </div>
+                        <div style={styles.statCard}>
+                            <div style={styles.statIconBox}><BookOpen color="#2563EB" /></div>
+                            <div style={styles.statInfo}>
+                                <span style={styles.statLabel}>Total Classes</span>
+                                <span style={styles.statValue}>{attendanceSummary.totalClasses}</span>
+                            </div>
+                        </div>
+                        <div style={styles.statCard}>
+                            <div style={styles.statIconBox}><Clock color="#F59E0B" /></div>
+                            <div style={styles.statInfo}>
+                                <span style={styles.statLabel}>Present / Late</span>
+                                <span style={styles.statValue}>{attendanceSummary.present} / {attendanceSummary.late}</span>
+                            </div>
+                        </div>
+                        <div style={styles.statCard}>
+                            <div style={styles.statIconBox}><XCircle color="#EF4444" /></div>
+                            <div style={styles.statInfo}>
+                                <span style={styles.statLabel}>Absent</span>
+                                <span style={styles.statValue}>{attendanceSummary.absent}</span>
+                            </div>
+                        </div>
                     </div>
-                </div>
+
+                    <div style={styles.mainLayout} className="main-layout">
+                        {/* Left Side: Subject-wise Breakdown */}
+                        <div style={styles.leftCol}>
+                            <div style={styles.sectionHeader}>
+                                <h2 style={styles.sectionTitle} className="section-title">Course-wise Breakdown</h2>
+                            </div>
+                            <div style={styles.subjectList}>
+                                {subjectAttendance.length === 0 ? (
+                                    <div style={{ padding: '40px', textAlign: 'center', color: '#94a3b8' }}>
+                                        No subject data available
+                                    </div>
+                                ) : (
+                                    subjectAttendance.map(subject => (
+                                        <div key={subject.id} style={styles.subjectCard} className="subject-card">
+                                            <div style={styles.subjectInfo}>
+                                                <div style={styles.subjectCode}>{subject.code}</div>
+                                                <h3 style={styles.subjectName} className="subject-name">{subject.name}</h3>
+                                                <div style={styles.classCounts}>
+                                                    {subject.present} of {subject.total} classes attended
+                                                </div>
+                                            </div>
+                                            <div style={styles.percentGroup} className="percent-group">
+                                                <div style={{
+                                                    ...styles.percentCircle,
+                                                    borderColor: subject.status === 'safe' ? '#10B981' : '#F59E0B'
+                                                }}>
+                                                    {subject.percent}%
+                                                </div>
+                                                <span style={{
+                                                    ...styles.statusText,
+                                                    color: subject.status === 'safe' ? '#10B981' : '#F59E0B'
+                                                }}>
+                                                    {subject.status === 'safe' ? 'Safe' : 'Watch out'}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                        </div>
 
                 {/* Right Side: Attendance History */}
                 <div style={styles.rightCol}>
@@ -371,6 +472,8 @@ const StudentAttendance = () => {
                     </div>
                 </div>
             </div>
+            </>
+            )}
         </div>
     );
 };
