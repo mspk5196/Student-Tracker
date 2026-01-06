@@ -24,6 +24,6 @@ app.use('/api/groups', groupsRoutes);
 app.use('/api/tasks', tasksRoutes);
  app.use('/api/roadmap', roadmapRoutes);
 app.use('/api/dashboard', dashboardRoutes);
-// app.use('/api/faculty/dashboard', facultyDashboardRoutes);
+// app.use('/api/faculty/dashboard', facultyDashboardRoutes); 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT,'0.0.0.0', () => console.log(`Server running on ${PORT}`));

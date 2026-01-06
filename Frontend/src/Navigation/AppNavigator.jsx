@@ -65,14 +65,14 @@ const AppNavigator = () => {
             <Route path="attendance" element={<Attendance />} />
             <Route path="tasks" element={<TaskHeader />} />  {/* ✅ Already correct */}
             <Route path="reports" element={<ReportsAnalytics />} />  {/* ✅ Already correct */}
-            <Route path="settings" element={<div>Settings</div>} />
+            {/* <Route path="settings" element={<div>Settings</div>} /> */}
           </Route>
         )}
 
         {/* FACULTY (role === "faculty") */}
         {user?.role === "faculty" && (
           <Route path="/" element={<SideTab />}>
-            <Route index element={<FacultyDashboard />} />
+            {/* <Route index element={<FacultyDashboard />} /> */}
             <Route path="students">
               <Route index element={<StudentsPage />} />
               <Route path=":studentId" element={<StudentHeader />} />
@@ -81,7 +81,7 @@ const AppNavigator = () => {
               <Route index element={<MyClasses />} />
               <Route path="all" element={<AllClasses />} />
             </Route>
-            <Route path="attendance" element={<Attendance />} />
+            <Route path="/" element={<Attendance />} />
             <Route path="tasks" element={<TaskHeader />} />  {/* ✅ Already correct */}
             <Route path="students" element={<div>Students</div>} />
             <Route path="reports" element={<Reports />} />  {/* ✅ Faculty can also access reports */}
@@ -92,9 +92,9 @@ const AppNavigator = () => {
         {/* STUDENT (role === "student") */}
         {user?.role === "student" && (
           <Route path="/" element={<SideTab />}>
-            <Route index element={<div style={{padding: '40px'}}><StudentDashboard /></div>} />
-            <Route path="classes" element={<div style={{padding: '40px'}}>My Classes</div>} />
-            <Route path="attendance" element={<div style={{padding: '40px'}}>My Attendance</div>} />
+            {/* <Route index element={<div style={{padding: '40px'}}><StudentDashboard /></div>} /> */}
+            {/* <Route path="classes" element={<div style={{padding: '40px'}}>My Classes</div>} /> */}
+            <Route path="/" element={<div style={{padding: '40px'}}>My Attendance</div>} />
             <Route path="tasks" element={<div style={{padding: '40px'}}>My Tasks</div>} />
           </Route>
         )}
