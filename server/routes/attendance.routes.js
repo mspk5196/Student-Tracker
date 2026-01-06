@@ -56,7 +56,8 @@ import {
   getLateStudents,
   getStudentAttendanceHistory,
   getStudentAttendanceDashboard,
-  testAttendance
+  testAttendance,
+  getSessionAttendance
 } from '../controllers/attendance.controller.js';
 import { authenticate } from '../middleware/auth.middleware.js';
 
@@ -72,6 +73,7 @@ router.get('/test', testAttendance);
 router.get('/venues/:facultyId', getVenueAllocations);
 router.get('/students/:venueId', getStudentsForVenue);
 router.post('/session', getOrCreateSession);
+router.get('/session/:sessionId/:venueId', getSessionAttendance);
 router.post('/save', saveAttendance);  // Make sure this is exactly '/save'
 router.get('/late-students/:facultyId', getLateStudents);
 router.get('/history/:studentId', getStudentAttendanceHistory);
