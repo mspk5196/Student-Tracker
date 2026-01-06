@@ -14,7 +14,7 @@ import CloseIcon from '@mui/icons-material/Close';
 
 // Tab Components
 import Overview from './Overview/Overview';
-import AttendanceDashboard from './Attendance/Attendance';
+import AttendanceDashboard from './Attendance/Attendance'
 import TaskGrade from './Task&Grades/TaskGrade';
 import Ranking from './Ranking/Ranking';
 

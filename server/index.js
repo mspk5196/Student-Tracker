@@ -8,6 +8,8 @@ import attendanceRoutes from './routes/attendance.routes.js';
  import groupsRoutes from './routes/groups.routes.js';
  import tasksRoutes from './routes/tasks.routes.js';
  import roadmapRoutes from './routes/roadmap.routes.js'; 
+import dashboardRoutes from './routes/dashboard.routes.js';
+// import facultyDashboardRoutes from './routes/facultyDashboardRoutes.js';
 dotenv.config();
 
 const app = express();
@@ -21,5 +23,7 @@ app.use('/api/attendance', attendanceRoutes);
 app.use('/api/groups', groupsRoutes);
 app.use('/api/tasks', tasksRoutes);
  app.use('/api/roadmap', roadmapRoutes);
+app.use('/api/dashboard', dashboardRoutes);
+// app.use('/api/faculty/dashboard', facultyDashboardRoutes);
 const PORT = process.env.PORT || 5000;
 app.listen(PORT,'0.0.0.0', () => console.log(`Server running on ${PORT}`));

@@ -37,6 +37,8 @@ const Login = () => {
 
       // data.user.role must be 1 | 2 | 3
       login(data.user, data.token);
+      console.log("Login successful:", data.user);
+      console.log("jwt token:", data.token);
 
       navigate("/"); // single entry point
     } catch (err) {

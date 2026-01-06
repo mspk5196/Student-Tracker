@@ -1,785 +1,295 @@
 import React, { useState, useEffect } from 'react';
 import useAuthStore from '../../../../../store/useAuthStore';
-import {
-  Person as PersonIcon,
-  CheckCircle as CheckCircleIcon,
-  AccessTime as AccessTimeIcon,
-  Cancel as CancelIcon,
-  Save as SaveIcon,
-  CalendarToday as CalendarIcon,
-  Schedule as ScheduleIcon,
-  School as SchoolIcon
-} from '@mui/icons-material';
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
+import AccessTimeIcon from '@mui/icons-material/AccessTime';
+import CancelOutlinedIcon from '@mui/icons-material/CancelOutlined';
+import DoneIcon from '@mui/icons-material/Done';
 
-const AttendanceManagement = () => {
-  const { token, user } = useAuthStore();
-  const API_URL = import.meta.env.VITE_API_URL;
+const SUBJECT_SHADES = [
+  "#2144BA", "#10B981", "#F59E0B", "#8B5CF6", "#EC4899", 
+  "#06B6D4", "#F43F5E", "#10B981", "#6366F1", "#14B8A6"
+];
 
-  const [venues, setVenues] = useState([]);
-  const [students, setStudents] = useState([]);
-  const [selectedVenue, setSelectedVenue] = useState('');
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
-  const [selectedTimeSlot, setSelectedTimeSlot] = useState('Morning');
-  const [sessionId, setSessionId] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [stats, setStats] = useState({ present: 0, late: 0, absent: 0 });
+const AttendanceDashboard = ({ studentId }) => {
+  const { token } = useAuthStore();
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
-  // Fetch venues on component mount
+  const [dashboardData, setDashboardData] = useState(null);
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear().toString());
+  const [availableYears, setAvailableYears] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [isAnimate, setIsAnimate] = useState(false);
+  const [hoveredData, setHoveredData] = useState(null);
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+
+  const [subPage, setSubPage] = useState(0);
+  const [wsPage, setWsPage] = useState(0);
+  const LIMIT = 5;
+
   useEffect(() => {
-    console.log('🔵 Component mounted, user:', user);
-    if (user?. user_id) {
-      fetchVenues();
+    if (token && studentId) {
+      fetchAttendanceDashboard();
     }
-  }, [user, token, API_URL]);
+  }, [token, studentId, selectedYear]);
 
-  // Fetch students when venue is selected
   useEffect(() => {
-    console.log('🟡 Venue changed:', selectedVenue);
-    if (selectedVenue && selectedVenue !== '') {
-      console.log('✅ Fetching students for venue:', selectedVenue);
-      fetchStudents();
-      createOrGetSession();
-    } else {
-      console.log('⚠️ No venue selected, clearing students');
-      setStudents([]);
-      setSessionId(null);
-    }
-  }, [selectedVenue, selectedDate, selectedTimeSlot]);
+    setIsAnimate(false);
+    const timer = setTimeout(() => setIsAnimate(true), 100);
+    return () => clearTimeout(timer);
+  }, [dashboardData]);
 
-  // Update stats when students data changes
-  useEffect(() => {
-    updateStats();
-  }, [students]);
-
-  const fetchVenues = async () => {
-    try {
-      console.log('📍 Fetching venues for user:', user. user_id);
-      const response = await fetch(`${API_URL}/attendance/venues/${user.user_id}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      const data = await response.json();
-      console.log('✅ Venues response:', data);
-
-      if (data.success) {
-        console.log('📋 Setting venues:', data.data);
-        setVenues(data. data);
-      } else {
-        console.error('❌ Failed to fetch venues:', data.message);
-      }
-    } catch (error) {
-      console.error('❌ Error fetching venues:', error);
-    }
-  };
-
-  const fetchStudents = async () => {
-    if (!selectedVenue) {
-      console.log('⚠️ fetchStudents called but no venue selected');
-      return;
-    }
-
+  const fetchAttendanceDashboard = async () => {
     setLoading(true);
     try {
-      console.log('📋 Fetching students for venue:', selectedVenue, 'user:', user.user_id);
       const response = await fetch(
-        `${API_URL}/attendance/students/${selectedVenue}/${user.user_id}`,
+        `${API_URL}/students/${studentId}/attendance-dashboard?year=${selectedYear}`,
         {
           headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
         }
       );
 
-      const data = await response. json();
-      console.log('✅ Students response:', data);
-
+      const data = await response.json();
       if (data.success) {
-        const studentsWithStatus = data.data.map(student => ({
-          ...student,
-          status: '',
-          remarks: ''
-        }));
-        console.log('👥 Setting students:', studentsWithStatus. length);
-        setStudents(studentsWithStatus);
-      } else {
-        console.error('❌ Failed to fetch students:', data.message);
-        setStudents([]);
+        setDashboardData(data.data);
+        const currentYear = new Date().getFullYear();
+        setAvailableYears([currentYear.toString(), (currentYear - 1).toString()]);
       }
-    } catch (error) {
-      console.error('❌ Error fetching students:', error);
-      setStudents([]);
+    } catch (err) {
+      console.error('Error fetching attendance dashboard:', err);
     } finally {
       setLoading(false);
     }
   };
 
-  const createOrGetSession = async () => {
-    if (!selectedVenue) {
-      console.log('⚠️ createOrGetSession called but no venue selected');
-      return;
-    }
-
-    try {
-      console.log('🔄 Creating/getting session for venue:', selectedVenue);
-      const selectedVenueObj = venues.find(v => v.venue_id. toString() === selectedVenue.toString());
-      const venueName = selectedVenueObj?. venue_name || 'Session';
-      
-      console.log('📝 Session details:', { venueName, date: selectedDate, timeSlot:  selectedTimeSlot });
-      
-      const response = await fetch(`${API_URL}/attendance/session`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON. stringify({
-          sessionName: venueName,
-          date: selectedDate,
-          timeSlot: selectedTimeSlot
-        })
-      });
-
-      const data = await response.json();
-      console.log('✅ Session response:', data);
-
-      if (data.success) {
-        console.log('🆔 Session ID:', data.data.session_id);
-        setSessionId(data.data.session_id);
-      } else {
-        console.error('❌ Failed to create session:', data.message);
-      }
-    } catch (error) {
-      console.error('❌ Error creating session:', error);
-    }
+  const handleMouseMove = (e) => {
+    setMousePos({ x: e.clientX, y: e.clientY });
   };
 
-  const handleVenueChange = (e) => {
-    const newVenue = e.target. value;
-    console.log('🎯 Venue dropdown changed to:', newVenue);
-    console.log('🔍 Type of new venue:', typeof newVenue);
-    console.log('📋 Available venues:', venues);
-    setSelectedVenue(newVenue);
-  };
-
-  const handleStatusChange = (studentId, newStatus) => {
-    console.log('✏️ Status changed for student:', studentId, 'to:', newStatus);
-    setStudents(prev =>
-      prev.map(student =>
-        student.student_id === studentId
-          ? { ...student, status: newStatus }
-          : student
-      )
+  if (loading || !dashboardData) {
+    return (
+      <div style={{ textAlign: 'center', padding: '60px 20px', color: '#6B7280' }}>
+        Loading attendance data...
+      </div>
     );
-  };
+  }
 
-  const handleRemarksChange = (studentId, remarks) => {
-    setStudents(prev =>
-      prev.map(student =>
-        student.student_id === studentId
-          ? { ...student, remarks }
-          : student
-      )
-    );
-  };
-
-  const updateStats = () => {
-    const present = students.filter(s => s.status === 'present').length;
-    const late = students. filter(s => s.status === 'late').length;
-    const absent = students.filter(s => s.status === 'absent').length;
-    setStats({ present, late, absent });
-  };
-
-  const handleSaveAttendance = async () => {
-    if (!sessionId) {
-      alert('Session not created. Please try again.');
-      return;
-    }
-
-    const unmarkedStudents = students.filter(s => ! s.status);
-    if (unmarkedStudents.length > 0) {
-      const confirmSave = window.confirm(
-        `${unmarkedStudents.length} students are unmarked. Do you want to continue?`
-      );
-      if (!confirmSave) return;
-    }
-
-    setSaving(true);
-
-    try {
-      console.log('💾 Saving attendance.. .');
-      const attendanceData = students.map(student => ({
-        student_id: student.student_id,
-        status: student.status || 'absent',
-        remarks: student.remarks
-      }));
-
-      const response = await fetch(`${API_URL}/attendance/save`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          facultyId: user.user_id,
-          venueId: selectedVenue,
-          sessionId: sessionId,
-          date: selectedDate,
-          timeSlot: selectedTimeSlot,
-          attendance: attendanceData
-        })
-      });
-
-      const data = await response.json();
-      console.log('✅ Save response:', data);
-
-      if (data.success) {
-        alert('✅ Attendance saved successfully!');
-      } else {
-        alert('❌ ' + (data.message || 'Failed to save attendance'));
-      }
-    } catch (error) {
-      console.error('❌ Error saving attendance:', error);
-      alert('Failed to save attendance. Please try again.');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const filteredStudents = students.filter(student =>
-    student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    student.id.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  console.log('🔴 Current state:', { 
-    selectedVenue, 
-    venuesCount: venues.length, 
-    studentsCount: students.length,
-    loading 
-  });
+  const paginatedSubjects = dashboardData.subjects.slice(subPage * LIMIT, (subPage + 1) * LIMIT);
+  const paginatedSkills = dashboardData.skills.slice(wsPage * LIMIT, (wsPage + 1) * LIMIT);
 
   return (
-    <div style={styles.container}>
+    <div className="dashboard-container">
       <style>{`
-        .attendance-container {
-          font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-          background: #f8fafc;
-          min-height: 100vh;
-          padding: 24px;
+        .dashboard-container { background-color: #f8faff; font-family: 'Inter', sans-serif; padding: 15px; border-radius:10px; min-height: 100vh; color: #1e293b; overflow-x: hidden; }
+        .section-grid { display: grid; gap: 20px; margin-bottom: 24px; width: 100%; grid-template-columns: 1fr; }
+        
+        /* Responsive Grid Logic */
+        @media (min-width: 768px) {
+          .top-stats { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+          .bottom-content { grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); }
         }
 
-        . header-card {
-          background: white;
-          border-radius: 12px;
-          padding: 24px;
-          margin-bottom: 24px;
-          box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        @media (min-width: 1100px) {
+          .middle-content { grid-template-columns: minmax(0, 2.5fr) 350px; }
         }
 
-        .controls-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-          gap: 16px;
-          margin-bottom: 20px;
-        }
-
-        . form-group {
-          display:  flex;
-          flex-direction:  column;
-          gap: 8px;
-        }
-
-        .form-label {
-          font-size: 13px;
-          font-weight:  600;
-          color: #475569;
-          display: flex;
-          align-items: center;
-          gap: 6px;
-        }
-
-        . form-select, .form-input {
-          padding: 10px 12px;
-          border: 1px solid #e2e8f0;
-          border-radius: 8px;
-          font-size:  14px;
-          outline: none;
-          transition: all 0.2s;
-          background: white;
-        }
-
-        .form-select:focus, .form-input:focus {
-          border-color: #3b82f6;
-          box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-        }
-
-        .stats-row {
-          display: flex;
-          gap: 16px;
-          flex-wrap: wrap;
-        }
-
-        .stat-card {
-          flex: 1;
-          min-width: 150px;
-          padding: 16px;
-          border-radius: 10px;
-          display: flex;
-          align-items: center;
-          gap: 12px;
-        }
-
-        .stat-card.present { background: #dcfce7; }
-        .stat-card.late { background: #fef3c7; }
-        .stat-card.absent { background: #fee2e2; }
-
-        . stat-icon {
-          width: 40px;
-          height: 40px;
-          border-radius: 8px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        }
-
-        .stat-content {
-          flex: 1;
-        }
-
-        .stat-value {
-          font-size: 24px;
-          font-weight:  800;
-          line-height: 1;
-          margin-bottom: 4px;
-        }
-
-        .stat-label {
-          font-size: 12px;
-          font-weight: 600;
-          text-transform: uppercase;
-          opacity: 0.7;
-        }
-
-        .students-card {
-          background: white;
-          border-radius: 12px;
-          padding: 24px;
-          box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-        }
-
-        .students-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-bottom: 20px;
-          gap: 16px;
-          flex-wrap: wrap;
-        }
-
-        .search-box {
-          position: relative;
-          flex: 1;
-          min-width: 250px;
-        }
-
-        . search-input {
-          width: 100%;
-          padding: 10px 10px 10px 40px;
-          border: 1px solid #e2e8f0;
-          border-radius:  8px;
-          font-size: 14px;
-          outline: none;
-        }
-
-        .search-icon {
-          position: absolute;
-          left: 12px;
-          top: 50%;
-          transform: translateY(-50%);
-          color: #94a3b8;
-        }
-
-        .save-btn {
-          padding: 10px 24px;
-          background: #3b82f6;
-          color: white;
-          border: none;
-          border-radius: 8px;
-          font-size: 14px;
-          font-weight: 600;
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          transition: all 0.2s;
-        }
-
-        .save-btn:hover: not(:disabled) {
-          background: #2563eb;
-          transform: translateY(-1px);
-        }
-
-        .save-btn:disabled {
-          background: #94a3b8;
-          cursor: not-allowed;
-        }
-
-        .students-table {
-          width: 100%;
-          border-collapse: separate;
-          border-spacing: 0;
-        }
-
-        .students-table thead th {
-          background: #f8fafc;
-          padding: 12px 16px;
-          text-align: left;
-          font-size: 12px;
-          font-weight:  700;
-          color: #64748b;
-          text-transform: uppercase;
-          border-bottom: 2px solid #e2e8f0;
-        }
-
-        .students-table tbody td {
-          padding: 16px;
-          border-bottom: 1px solid #f1f5f9;
-        }
-
-        .students-table tbody tr:hover {
-          background: #f8fafc;
-        }
-
-        .student-info {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-        }
-
-        . student-avatar {
-          width:  40px;
-          height:  40px;
-          border-radius: 50%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-weight: 700;
-          font-size: 14px;
-          color: white;
-        }
-
-        .student-details {
-          display: flex;
-          flex-direction: column;
-        }
-
-        .student-name {
-          font-weight: 600;
-          font-size: 14px;
-          color: #1e293b;
-        }
-
-        .student-id {
-          font-size: 12px;
-          color: #94a3b8;
-        }
-
-        .status-buttons {
-          display: flex;
-          gap: 8px;
-        }
-
-        .status-btn {
-          padding: 6px 16px;
-          border:  1px solid #e2e8f0;
-          border-radius: 6px;
-          font-size:  13px;
-          font-weight: 600;
-          cursor: pointer;
-          transition: all 0.2s;
-          background: white;
-        }
-
-        .status-btn.active. present {
-          background: #dcfce7;
-          border-color: #86efac;
-          color: #166534;
-        }
-
-        . status-btn.active.late {
-          background: #fef3c7;
-          border-color: #fde68a;
-          color: #92400e;
-        }
-
-        .status-btn.active.absent {
-          background: #fee2e2;
-          border-color: #fecaca;
-          color: #991b1b;
-        }
-
-        .remarks-input {
-          padding: 8px 12px;
-          border: 1px solid #e2e8f0;
-          border-radius: 6px;
-          font-size: 13px;
-          width: 100%;
-          outline:  none;
-        }
-
-        . empty-state {
-          text-align: center;
-          padding: 60px 20px;
-          color: #94a3b8;
-        }
-
-        .empty-icon {
-          font-size: 64px;
-          margin-bottom:  16px;
-          opacity: 0.3;
-        }
+        .card { background: white; border-radius: 12px; padding: 20px; border: 1px solid #edf2f7; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02); display: flex; flex-direction: column; min-width: 0; }
+        .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
+        .header-title-lg { font-size: 18px; color: #1e293b; font-weight: 800; }
+        .year-select { padding: 6px 12px; border-radius: 8px; border: 1px solid #e2e8f0; background: #fff; font-weight: 600; cursor: pointer; outline: none; }
+        
+        .chart-scroll-wrapper { overflow-x: auto; padding-bottom: 10px; min-width: 0; -webkit-overflow-scrolling: touch; }
+        .chart-container { height: 250px; display: flex; align-items: flex-end; gap: 24px; padding: 20px 10px 0 10px; min-width: 850px; border-bottom: 1px solid #f1f5f9; }
+        .chart-col { display: flex; flex-direction: column; align-items: center; width: 60px; height: 100%; justify-content: flex-end; cursor: pointer; position: relative; }
+        .bar-group { display: flex; align-items: flex-end; gap: 5px; height: 100%; }
+        .bar { width: 14px; border-radius: 4px 4px 0 0; transition: height 0.8s cubic-bezier(0.17, 0.67, 0.83, 0.67); height: 0; }
+        .bar-ac { background: #2144BA; }
+        .bar-ws { background: #F59E0B; }
+        .month-label { font-size: 11px; color: #94a3b8; font-weight: 700; margin-top: 10px; }
+        
+        .chart-tooltip { position: fixed; pointer-events: none; background: #1e293b; color: white; padding: 10px 14px; border-radius: 8px; font-size: 12px; z-index: 9999; box-shadow: 0 10px 15px rgba(0,0,0,0.2); transform: translate(-50%, -110%); line-height: 1.6; }
+        
+        .pagination-footer { display: flex; justify-content: space-between; align-items: center; padding-top: 20px; border-top: 1px solid #f1f5f9; margin-top: auto; flex-wrap: wrap; gap: 10px; }
+        .showing-text { color: #5e718d; font-size: 13px; }
+        .page-btn { border: 1px solid #e2e8f0; background: white; padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
+        
+        .stat-val { font-size: 32px; font-weight: 800; margin: 8px 0; }
+        @media (min-width: 768px) { .stat-val { font-size: 36px; } }
+        
+        .stat-sub { font-size: 13px; color: #64748b; font-weight: 500; }
+        .status-row { display: flex; align-items: center; justify-content: space-between; padding: 14px 0; border-bottom: 1px solid #f8fafc; }
+        .status-icon { padding: 8px; border-radius: 8px; display: flex; }
+        .bg-green { background: #DCFCE7; color: #166534; }
+        .bg-orange { background: #FEF3C7; color: #92400e; }
+        .bg-red { background: #FEE2E2; color: #991b1b; }
+        .progress-bg { height: 6px; background: #f1f5f9; border-radius: 10px; overflow: hidden; }
+        .progress-fill { height: 100%; transition: width 0.8s ease; }
       `}</style>
 
-      <div className="attendance-container">
-        {/* Header Controls */}
-        <div className="header-card">
-          <h2 style={{ margin: '0 0 20px 0', fontSize: '20px', fontWeight: '700', color: '#1e293b' }}>
-            Mark Attendance
-          </h2>
+      {hoveredData && (
+        <div className="chart-tooltip" style={{ left: mousePos.x, top: mousePos.y }}>
+          <strong style={{fontSize: '14px'}}>{hoveredData.month} {selectedYear}</strong><br/>
+          <span style={{color: '#93c5fd'}}>●</span> general: {hoveredData.general}%<br/>
+          <span style={{color: '#fcd34d'}}>●</span> skill: {hoveredData.skill}%
+        </div>
+      )}
 
-          <div className="controls-grid">
-            <div className="form-group">
-              <label className="form-label">
-                <SchoolIcon style={{ fontSize: 18 }} />
-                Select Venue
-              </label>
-              <select
-                className="form-select"
-                value={selectedVenue}
-                onChange={handleVenueChange}
-              >
-                <option value="">Choose a venue... </option>
-                {venues.map(venue => (
-                  <option key={`venue-${venue.venue_id}`} value={venue.venue_id}>
-                    {venue. venue_name} ({venue.student_count} students)
-                  </option>
+      {/* TOP SECTION */}
+      <div className="section-grid top-stats">
+        {dashboardData.overallStats.map((s, idx) => (
+          <div className="card" key={idx}>
+            <div className="card-title" style={{fontSize: '11px', fontWeight: 700, color: '#64748b', letterSpacing: '0.5px'}}>{s.title}</div>
+            <div className="stat-val" style={{ color: s.color }}>{s.value}</div>
+            <div className="stat-sub">{s.sub}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* MIDDLE SECTION */}
+      <div className="section-grid middle-content">
+        <div className="card chart-card">
+          <div className="card-header">
+            <div className="header-title-lg">Attendance Trends</div>
+            <div style={{display: 'flex', alignItems: 'center', gap: '15px', flexWrap: 'wrap'}}>
+              <div style={{ display: 'flex', gap: '12px', fontSize: '10px', fontWeight: 800 }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><div style={{ width: 8, height: 8, background: '#2144BA' }} /> GENERAL</span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><div style={{ width: 8, height: 8, background: '#F59E0B' }} /> SKILL</span>
+              </div>
+              <select className="year-select" value={selectedYear} onChange={(e) => setSelectedYear(e.target.value)}>
+                {availableYears.map(year => (
+                  <option key={year} value={year}>{year}</option>
                 ))}
               </select>
-              {/* Debug info */}
-              <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '4px' }}>
-                Selected: {selectedVenue || 'None'} | Venues loaded: {venues.length}
-              </div>
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">
-                <CalendarIcon style={{ fontSize: 18 }} />
-                Date
-              </label>
-              <input
-                type="date"
-                className="form-input"
-                value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
-              />
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">
-                <ScheduleIcon style={{ fontSize: 18 }} />
-                Time Slot
-              </label>
-              <select
-                className="form-select"
-                value={selectedTimeSlot}
-                onChange={(e) => setSelectedTimeSlot(e.target.value)}
-              >
-                <option value="Morning">Morning (9:00 AM - 12:00 PM)</option>
-                <option value="Afternoon">Afternoon (1:00 PM - 4:00 PM)</option>
-                <option value="Evening">Evening (4:00 PM - 7:00 PM)</option>
-              </select>
             </div>
           </div>
-
-          {/* Stats Row */}
-          {students.length > 0 && (
-            <div className="stats-row" style={{ marginTop: '20px' }}>
-              <div className="stat-card present">
-                <div className="stat-icon" style={{ background: '#86efac' }}>
-                  <CheckCircleIcon style={{ color: '#166534', fontSize: 22 }} />
+          
+          <div className="chart-scroll-wrapper">
+            <div className="chart-container">
+              {dashboardData.chartData.map((d, i) => (
+                <div 
+                  className="chart-col" 
+                  key={i} 
+                  onMouseEnter={() => setHoveredData(d)} 
+                  onMouseLeave={() => setHoveredData(null)} 
+                  onMouseMove={handleMouseMove}
+                >
+                  <div className="bar-group">
+                    <div className="bar bar-ac" style={{ height: isAnimate ? `${d.general}%` : '0%' }} />
+                    <div className="bar bar-ws" style={{ height: isAnimate ? `${d.skill}%` : '0%' }} />
+                  </div>
+                  <div className="month-label">{d.month}</div>
                 </div>
-                <div className="stat-content">
-                  <div className="stat-value" style={{ color: '#166534' }}>{stats.present}</div>
-                  <div className="stat-label" style={{ color: '#166534' }}>Present</div>
-                </div>
-              </div>
-
-              <div className="stat-card late">
-                <div className="stat-icon" style={{ background:  '#fde68a' }}>
-                  <AccessTimeIcon style={{ color: '#92400e', fontSize: 22 }} />
-                </div>
-                <div className="stat-content">
-                  <div className="stat-value" style={{ color:  '#92400e' }}>{stats.late}</div>
-                  <div className="stat-label" style={{ color: '#92400e' }}>Late</div>
-                </div>
-              </div>
-
-              <div className="stat-card absent">
-                <div className="stat-icon" style={{ background: '#fecaca' }}>
-                  <CancelIcon style={{ color: '#991b1b', fontSize: 22 }} />
-                </div>
-                <div className="stat-content">
-                  <div className="stat-value" style={{ color:  '#991b1b' }}>{stats.absent}</div>
-                  <div className="stat-label" style={{ color: '#991b1b' }}>Absent</div>
-                </div>
-              </div>
+              ))}
             </div>
-          )}
+          </div>
         </div>
 
-        {/* Students List */}
-        {selectedVenue && (
-          <div className="students-card">
-            <div className="students-header">
-              <div className="search-box">
-                <PersonIcon className="search-icon" style={{ fontSize: 20 }} />
-                <input
-                  type="text"
-                  className="search-input"
-                  placeholder="Search students..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-              </div>
-
-              <button
-                className="save-btn"
-                onClick={handleSaveAttendance}
-                disabled={saving || students.length === 0}
-              >
-                <SaveIcon style={{ fontSize: 20 }} />
-                {saving ?  'Saving...' : 'Save Attendance'}
-              </button>
-            </div>
-
-            {loading ?  (
-              <div className="empty-state">
-                <div>Loading students...</div>
-              </div>
-            ) : filteredStudents.length === 0 ? (
-              <div className="empty-state">
-                <div className="empty-icon">👥</div>
-                <div style={{ fontSize: '16px', fontWeight: '600', marginBottom: '8px' }}>
-                  No Students Found
+        <div className="card">
+          <div className="header-title-lg" style={{marginBottom: '20px'}}>Session Status ({selectedYear})</div>
+          {dashboardData.sessionStatus.map((item, i) => {
+            const icons = {
+              green: <CheckCircleOutlineIcon fontSize="small"/>,
+              orange: <AccessTimeIcon fontSize="small"/>,
+              red: <CancelOutlinedIcon fontSize="small"/>
+            };
+            return (
+              <div className="status-row" key={i}>
+                <div style={{display: 'flex', alignItems: 'center', gap: '12px', fontWeight: 600}}>
+                  <div className={`status-icon bg-${item.theme}`}>{icons[item.theme]}</div>
+                  <span style={{fontSize: '14px'}}>{item.label}</span>
                 </div>
-                <div style={{ fontSize: '14px' }}>
-                  {students.length === 0
-                    ? 'No students enrolled in this venue'
-                    :  'No students match your search'}
+                <div style={{ fontWeight: 800, fontSize: '16px' }}>{item.count}</div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* BOTTOM SECTION */}
+      <div className="section-grid bottom-content">
+        <div className="card">
+          <div className="header-title-lg" style={{marginBottom: '20px'}}>Subject Attendance</div>
+          <div style={{ flex: 1 }}>
+            {paginatedSubjects.map((sub, i) => {
+              const color = SUBJECT_SHADES[(subPage * LIMIT + i) % SUBJECT_SHADES.length];
+              return (
+                <div key={i} style={{ marginBottom: '20px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                    <span style={{ fontWeight: 700, fontSize: '13px' }}>{sub.name}</span>
+                    <span style={{ fontWeight: 900, fontSize: '13px' }}>{sub.percent}%</span>
+                  </div>
+                  <div className="progress-bg">
+                    <div className="progress-fill" style={{ width: isAnimate ? `${sub.percent}%` : '0%', background: color }} />
+                  </div>
                 </div>
-              </div>
-            ) : (
-              <table className="students-table">
-                <thead>
-                  <tr>
-                    <th>Student</th>
-                    <th>Department</th>
-                    <th>Status</th>
-                    <th>Remarks</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredStudents.map((student) => (
-                    <tr key={`student-${student.student_id}`}>
-                      <td>
-                        <div className="student-info">
-                          <div
-                            className="student-avatar"
-                            style={{ background: student.avatarColor }}
-                          >
-                            {student.name.split(' ').map(n => n[0]).join('').toUpperCase()}
-                          </div>
-                          <div className="student-details">
-                            <div className="student-name">{student.name}</div>
-                            <div className="student-id">ID: {student.id}</div>
-                          </div>
-                        </div>
-                      </td>
-
-                      <td>
-                        <span style={{ fontSize: '13px', color: '#64748b' }}>
-                          {student.department}
-                        </span>
-                      </td>
-
-                      <td>
-                        <div className="status-buttons">
-                          <button
-                            className={`status-btn present ${student.status === 'present' ? 'active' : ''}`}
-                            onClick={() => handleStatusChange(student.student_id, 'present')}
-                          >
-                            Present
-                          </button>
-                          <button
-                            className={`status-btn late ${student.status === 'late' ? 'active' : ''}`}
-                            onClick={() => handleStatusChange(student.student_id, 'late')}
-                          >
-                            Late
-                          </button>
-                          <button
-                            className={`status-btn absent ${student.status === 'absent' ? 'active' :  ''}`}
-                            onClick={() => handleStatusChange(student.student_id, 'absent')}
-                          >
-                            Absent
-                          </button>
-                        </div>
-                      </td>
-
-                      <td>
-                        <input
-                          type="text"
-                          className="remarks-input"
-                          placeholder="Add remarks..."
-                          value={student.remarks}
-                          onChange={(e) => handleRemarksChange(student.student_id, e.target.value)}
-                        />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
+              );
+            })}
           </div>
-        )}
+          <Pagination 
+            currentPage={subPage} 
+            totalCount={dashboardData.subjects.length} 
+            type="subjects" 
+            onNext={() => setSubPage(p => p + 1)} 
+            onPrev={() => setSubPage(p => p - 1)}
+          />
+        </div>
 
-        {! selectedVenue && (
-          <div className="students-card">
-            <div className="empty-state">
-              <div className="empty-icon">🎓</div>
-              <div style={{ fontSize: '16px', fontWeight: '600', marginBottom: '8px' }}>
-                Select a Venue to Begin
+        <div className="card">
+          <div className="header-title-lg" style={{marginBottom: '20px'}}>Recent Skills</div>
+          <div style={{ flex: 1 }}>
+            {paginatedSkills.map((w, i) => (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 0', borderBottom: '1px solid #f8fafc', gap: '10px' }}>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontWeight: 700, fontSize: '14px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{w.name}</div>
+                  <div style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 600, marginTop: '2px' }}>{w.type} • {w.date}</div>
+                </div>
+                <Badge status={w.status} />
               </div>
-              <div style={{ fontSize: '14px' }}>
-                Choose a venue from the dropdown above to view students and mark attendance
-              </div>
-            </div>
+            ))}
           </div>
-        )}
+          <Pagination 
+            currentPage={wsPage} 
+            totalCount={dashboardData.skills.length} 
+            type="skills" 
+            onNext={() => setWsPage(p => p + 1)} 
+            onPrev={() => setWsPage(p => p - 1)}
+          />
+        </div>
       </div>
     </div>
   );
 };
 
-const styles = {
-  container: {
-    width: '100%',
-    minHeight: '100vh'
-  }
+const Pagination = ({ currentPage, totalCount, type, onNext, onPrev }) => {
+  const LIMIT = 5;
+  const start = currentPage * LIMIT + 1;
+  const end = Math.min((currentPage + 1) * LIMIT, totalCount);
+
+  return (
+    <div className="pagination-footer">
+      <div className="showing-text">Showing <strong>{start}-{end}</strong> of {totalCount} {type}</div>
+      <div style={{ display: 'flex', gap: '8px' }}>
+        <button className={`page-btn ${currentPage === 0 ? 'disabled' : ''}`} onClick={currentPage > 0 ? onPrev : null}>Prev</button>
+        <button className={`page-btn ${end >= totalCount ? 'disabled' : ''}`} onClick={end < totalCount ? onNext : null}>Next</button>
+      </div>
+    </div>
+  );
 };
 
-export default AttendanceManagement;
+const Badge = ({ status }) => {
+  const themes = {
+    Present: { bg: '#DCFCE7', text: '#166534', icon: <DoneIcon sx={{fontSize: 14}}/> },
+    Late: { bg: '#FEF3C7', text: '#92400e', icon: <AccessTimeIcon sx={{fontSize: 14}}/> },
+    Absent: { bg: '#FEE2E2', text: '#991b1b', icon: <CancelOutlinedIcon sx={{fontSize: 14}}/> },
+  };
+  const theme = themes[status];
+  return (
+    <div style={{ backgroundColor: theme.bg, color: theme.text, padding: '4px 10px', borderRadius: '8px', fontSize: '10px', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}>
+      {theme.icon} {status.toUpperCase()}
+    </div>
+  );
+};
+
+export default AttendanceDashboard;
