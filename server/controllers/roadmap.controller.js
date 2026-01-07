@@ -831,6 +831,7 @@ export const getResourceFile = async (req, res) => {
 
     const userRole = user[0].role_id;
     let faculty_id = null;
+    let student_venue_id = null;
 
     // If user is faculty, get their faculty_id
     if (userRole === 2) {
@@ -847,7 +848,27 @@ export const getResourceFile = async (req, res) => {
       faculty_id = faculty[0].faculty_id;
     }
 
-    // Verify ownership before allowing download
+    // If user is student, get their venue_id
+    if (userRole === 3) {
+      const [student] = await db.query(`
+        SELECT g.venue_id
+        FROM students s
+        LEFT JOIN group_students gs ON s.student_id = gs.student_id AND gs.status = 'Active'
+        LEFT JOIN \`groups\` g ON gs.group_id = g.group_id
+        WHERE s.user_id = ?
+        LIMIT 1
+      `, [user_id]);
+
+      if (student.length === 0 || !student[0].venue_id) {
+        return res.status(403).json({
+          success: false,
+          message: 'Student not found or no venue assigned'
+        });
+      }
+      student_venue_id = student[0].venue_id;
+    }
+
+    // Verify access before allowing download
     let query = '';
     let params = [];
 
@@ -866,6 +887,14 @@ export const getResourceFile = async (req, res) => {
         WHERE rr.resource_id = ? AND r.faculty_id = ?
       `;
       params = [resource_id, faculty_id];
+    } else if (userRole === 3 && student_venue_id) { // Students can download resources from their venue
+      query = `
+        SELECT rr.resource_name, rr.file_path, rr.resource_type
+        FROM roadmap_resources rr
+        JOIN roadmap r ON rr.roadmap_id = r.roadmap_id
+        WHERE rr.resource_id = ? AND r.venue_id = ?
+      `;
+      params = [resource_id, student_venue_id];
     } else {
       return res.status(403).json({
         success: false,
