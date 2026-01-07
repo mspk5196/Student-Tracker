@@ -12,13 +12,11 @@ services:
     container_name: Student-Tracker-Frontend
     ports:
       - "8084:80"
-    env_file:
-      - ./Frontend/.env
     depends_on:
       - backend
     restart: unless-stopped
     networks:
-      - bitconnections-network
+      - stf-network
       - reverse-proxy
 
   # Backend Service
@@ -30,14 +28,14 @@ services:
     ports:
       - "5004:5000"
     env_file:
-      - ./server/.env
+      - /envs/stf-backend.env
     volumes:
       - ./server/uploads:/app/uploads
     depends_on:
       - mysql
     restart: unless-stopped
     networks:
-      - bitconnections-network
+      - stf-network
       - reverse-proxy
 
   mysql:
@@ -45,13 +43,13 @@ services:
     container_name: mysql
     restart: unless-stopped
     env_file:
-      - ./server/.env
+      - /envs/stf-mysql.env
     ports:
       - "3308:3306"
     volumes:
       - mysql_data:/var/lib/mysql
     networks:
-      - bitconnections-network
+      - stf-network
       - reverse-proxy
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
