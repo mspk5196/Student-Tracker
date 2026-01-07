@@ -23,6 +23,7 @@ app.use(express.json());
 
 // Optional API prefix (e.g. "/pbl" in production)
 const API_PREFIX = process.env.API_PREFIX || '';
+console.log(API_PREFIX);
 
 // Serve uploaded files statically
 app.use(`${API_PREFIX}/api/uploads`, express.static(path.join(__dirname, 'uploads')));
