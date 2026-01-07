@@ -21,17 +21,20 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Serve uploaded files statically
-app.use('/api/uploads', express.static(path.join(__dirname, 'uploads')));
+// Optional API prefix (e.g. "/pbl" in production)
+const API_PREFIX = process.env.API_PREFIX || '';
 
-app.use('/api/auth', authRoutes);
-app.use('/api/faculty', facultyRoutes);
-app.use('/api/students', studentRoutes);
-app.use('/api/attendance', attendanceRoutes);
-app.use('/api/groups', groupsRoutes);
-app.use('/api/tasks', tasksRoutes);
- app.use('/api/roadmap', roadmapRoutes);
-app.use('/api/dashboard', dashboardRoutes);
+// Serve uploaded files statically
+app.use(`${API_PREFIX}/api/uploads`, express.static(path.join(__dirname, 'uploads')));
+
+app.use(`${API_PREFIX}/api/auth`, authRoutes);
+app.use(`${API_PREFIX}/api/faculty`, facultyRoutes);
+app.use(`${API_PREFIX}/api/students`, studentRoutes);
+app.use(`${API_PREFIX}/api/attendance`, attendanceRoutes);
+app.use(`${API_PREFIX}/api/groups`, groupsRoutes);
+app.use(`${API_PREFIX}/api/tasks`, tasksRoutes);
+ app.use(`${API_PREFIX}/api/roadmap`, roadmapRoutes);
+app.use(`${API_PREFIX}/api/dashboard`, dashboardRoutes);
 // app.use('/api/faculty/dashboard', facultyDashboardRoutes); 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server running on ${PORT}`));
