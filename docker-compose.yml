@@ -40,22 +40,26 @@ services:
 
   mysql:
     image: mysql:8.4
-    container_name: Student-Tracker-mysql
+    container_name: mysql
     restart: unless-stopped
     env_file:
       - /envs/stf-mysql.env
+    command:
+      --bind-address=0.0.0.0
+      --default-authentication-plugin=mysql_native_password
     ports:
       - "3308:3306"
     volumes:
       - mysql_data:/var/lib/mysql
     networks:
-      - Student-Tracker-network
+      - stf-network
       - reverse-proxy
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
       interval: 10s
       timeout: 5s
       retries: 5
+
 
 volumes:
   mysql_data:
