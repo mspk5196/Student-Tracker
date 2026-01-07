@@ -1,0 +1,69 @@
+version: "3.9"
+
+services:
+  # Frontend Service
+  frontend:
+    build:
+      context: ./Frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_BASE_URL: ${VITE_BASE_URL}
+        VITE_GOOGLE_CLIENT_ID: ${VITE_GOOGLE_CLIENT_ID}
+    container_name: Student-Tracker-Frontend
+    ports:
+      - "8084:80"
+    env_file:
+      - ./Frontend/.env
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - bitconnections-network
+      - reverse-proxy
+
+  # Backend Service
+  backend:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: Student-Tracker-server
+    ports:
+      - "5004:5000"
+    env_file:
+      - ./server/.env
+    volumes:
+      - ./server/uploads:/app/uploads
+    depends_on:
+      - mysql
+    restart: unless-stopped
+    networks:
+      - bitconnections-network
+      - reverse-proxy
+
+  mysql:
+    image: mysql:8.4
+    container_name: mysql
+    restart: unless-stopped
+    env_file:
+      - ./server/.env
+    ports:
+      - "3308:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - bitconnections-network
+      - reverse-proxy
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  mysql_data:
+
+networks:
+  bitconnections-network:
+    driver: bridge
+  reverse-proxy:
+    external: true
