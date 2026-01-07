@@ -16,7 +16,7 @@ services:
       - backend
     restart: unless-stopped
     networks:
-      - stf-network
+      - Student-Tracker-network
       - reverse-proxy
 
   # Backend Service
@@ -35,7 +35,7 @@ services:
       - mysql
     restart: unless-stopped
     networks:
-      - stf-network
+      - Student-Tracker-network
       - reverse-proxy
 
   mysql:
@@ -49,7 +49,7 @@ services:
     volumes:
       - mysql_data:/var/lib/mysql
     networks:
-      - stf-network
+      - Student-Tracker-network
       - reverse-proxy
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
