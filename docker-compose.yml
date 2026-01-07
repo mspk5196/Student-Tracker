@@ -16,7 +16,6 @@ services:
       - backend
     restart: unless-stopped
     networks:
-      - Student-Tracker-network
       - reverse-proxy
 
   # Backend Service
@@ -35,7 +34,6 @@ services:
       - mysql
     restart: unless-stopped
     networks:
-      - Student-Tracker-network
       - reverse-proxy
 
   mysql:
