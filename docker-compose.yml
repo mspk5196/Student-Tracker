@@ -16,6 +16,7 @@ services:
       - backend
     restart: unless-stopped
     networks:
+      - Student-Tracker-network
       - reverse-proxy
 
   # Backend Service
@@ -34,6 +35,7 @@ services:
       - mysql
     restart: unless-stopped
     networks:
+      - Student-Tracker-network
       - reverse-proxy
 
   mysql:
@@ -59,7 +61,7 @@ volumes:
   mysql_data:
 
 networks:
-  bitconnections-network:
+  Student-Tracker-network:
     driver: bridge
   reverse-proxy:
     external: true
