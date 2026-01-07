@@ -38,7 +38,7 @@ const AttendanceManagement = () => {
     const fetchVenues = async () => {
         setLoading(true);
         try {
-            const response = await fetch(`${API_URL}/attendance/venues/${user.faculty_id}`, {
+            const response = await fetch(`${API_URL}/attendance/venues`, {
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
@@ -291,7 +291,6 @@ const AttendanceManagement = () => {
                     'Content-Type': 'application/json'
                 },
                 body:  JSON.stringify({
-                    facultyId: user.faculty_id,
                     venueId: selectedVenue.venue_id,
                     sessionId:  sessionId,
                     date,

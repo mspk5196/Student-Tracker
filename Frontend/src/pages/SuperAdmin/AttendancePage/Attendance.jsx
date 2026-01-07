@@ -63,13 +63,10 @@ const AttendanceManagement = () => {
             return;
         }
 
-        // Determine which ID to use
-        const userId = user.user_id || user.id || user.faculty_id || 1;
-
         setLoading(true);
         setError('');
         try {
-            const response = await fetch(`${API_URL}/attendance/venues/${userId}`, {
+            const response = await fetch(`${API_URL}/attendance/venues`, {
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
@@ -240,17 +237,8 @@ const AttendanceManagement = () => {
             alert('Please mark attendance for at least one student');
             return;
         }
-        
-        if (!selectedVenue) {
-            alert('Please select a venue');
-            return;
-        }
-
-        // Determine user ID to send
-        const userId = user?.user_id || user?.id || user?.faculty_id || 1;
 
         const attendanceData = {
-            facultyId: userId,
             venueId: selectedVenue.venue_id,
             sessionId: sessionId,
             date,

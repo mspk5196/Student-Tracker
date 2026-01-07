@@ -21,14 +21,14 @@ router.use(authenticate);
 // Test route
 router.get('/test', testAttendance);
 
-// Define the routes
-router.get('/venues/:facultyId', getVenueAllocations);
+// Define the routes - REMOVED facultyId and studentId from params
+router.get('/venues', getVenueAllocations);  // Uses JWT to get user
 router.get('/students/:venueId', getStudentsForVenue);
 router.post('/session', getOrCreateSession);
 router.get('/session/:sessionId/:venueId', getSessionAttendance);
-router.post('/save', saveAttendance);  // Make sure this is exactly '/save'
-router.get('/late-students/:facultyId', getLateStudents);
-router.get('/history/:studentId', getStudentAttendanceHistory);
-router.get('/dashboard/:studentId', getStudentAttendanceDashboard);
+router.post('/save', saveAttendance);
+router.get('/late-students', getLateStudents);  // Uses JWT to get faculty
+router.get('/history', getStudentAttendanceHistory);  // Uses JWT to get student
+router.get('/dashboard', getStudentAttendanceDashboard);  // Uses JWT to get student
 
 export default router;

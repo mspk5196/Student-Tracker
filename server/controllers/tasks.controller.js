@@ -42,7 +42,8 @@ export const upload = multer({
 
 export const getVenuesForFaculty = async (req, res) => {
   try {
-    const { faculty_id } = req.params;
+    // Get user ID from JWT token
+    const userId = req.user.user_id;
 
 
     // ✅ FIX: JOIN with role table to get role name
@@ -51,7 +52,7 @@ export const getVenuesForFaculty = async (req, res) => {
       FROM users u 
       JOIN role r ON u.role_id = r. role_id
       WHERE u.user_id = ?  
-    `, [faculty_id]);
+    `, [userId]);
 
     let query;
     let params;
@@ -76,7 +77,7 @@ export const getVenuesForFaculty = async (req, res) => {
     } else {
       
       // Get faculty_id from user_id
-      const [faculty] = await db.query('SELECT faculty_id FROM faculties WHERE user_id = ?', [faculty_id]);
+      const [faculty] = await db.query('SELECT faculty_id FROM faculties WHERE user_id = ?', [userId]);
       
       if (faculty.length === 0) {
         return res.status(404).json({
@@ -121,13 +122,33 @@ export const createTask = async (req, res) => {
   const connection = await db.getConnection();
   
   try {
-    const { title, description, venue_id, faculty_id, day, due_date, max_score, material_type, external_url } = req.body;
+    const { title, description, venue_id, day, due_date, max_score, material_type, external_url } = req.body;
 
-    if (!title || !venue_id || !faculty_id || !day || !max_score) {
+    if (!title || !venue_id || !day || !max_score) {
       return res.status(400).json({
         success: false,
-        message: 'Please provide all required fields:  title, venue, faculty, day, and max score'
+        message: 'Please provide all required fields: title, venue, day, and max score'
       });
+    }
+
+    // Get faculty_id from JWT token
+    const userId = req.user.user_id;
+    let faculty_id;
+
+    if (req.user.role === 'admin') {
+      // Admin can create tasks - try to get their faculty_id or use user_id
+      const [faculty] = await connection.query('SELECT faculty_id FROM faculties WHERE user_id = ?', [userId]);
+      faculty_id = faculty.length > 0 ? faculty[0].faculty_id : userId;
+    } else {
+      // Faculty must use their own faculty_id
+      const [faculty] = await connection.query('SELECT faculty_id FROM faculties WHERE user_id = ?', [userId]);
+      if (faculty.length === 0) {
+        return res.status(403).json({
+          success: false,
+          message: 'User is not registered as faculty'
+        });
+      }
+      faculty_id = faculty[0].faculty_id;
     }
 
     await connection.beginTransaction();
@@ -407,7 +428,14 @@ export const getTaskSubmissions = async (req, res) => {
 export const gradeSubmission = async (req, res) => {
   try {
     const { submission_id } = req.params;
-    const { grade, feedback, faculty_id } = req.body;
+    const { grade, feedback } = req.body;
+
+    // Get faculty_id from JWT token
+    const userId = req.user.user_id;
+    
+    // Get faculty_id from user_id
+    const [faculty] = await db.query('SELECT faculty_id FROM faculties WHERE user_id = ?', [userId]);
+    const faculty_id = faculty.length > 0 ? faculty[0].faculty_id : userId;
 
     // Validate grade
     const gradeNum = parseFloat(grade);

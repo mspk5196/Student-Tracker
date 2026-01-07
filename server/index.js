@@ -11,6 +11,7 @@ import attendanceRoutes from './routes/attendance.routes.js';
  import tasksRoutes from './routes/tasks.routes.js';
  import roadmapRoutes from './routes/roadmap.routes.js'; 
 import dashboardRoutes from './routes/dashboard.routes.js';
+import skillReportRoutes from './routes/skillReportRoutes.js';
 // import facultyDashboardRoutes from './routes/facultyDashboardRoutes.js';
 dotenv.config();
 
@@ -32,6 +33,7 @@ app.use('/api/groups', groupsRoutes);
 app.use('/api/tasks', tasksRoutes);
  app.use('/api/roadmap', roadmapRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/skill-reports', skillReportRoutes);
 // app.use('/api/faculty/dashboard', facultyDashboardRoutes); 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server running on ${PORT}`));

@@ -31,17 +31,8 @@ useEffect(() => {
     setError('');
     
     try {
-      let url;
-      
-      // Try to use user_id first, fallback to email
-      if (user.user_id) {
-        url = `${API_URL}/tasks/venues/${user.user_id}`;
-      } else if (user.email) {
-        url = `${API_URL}/tasks/venues/by-email/${encodeURIComponent(user.email)}`;
-      } else {
-        setError('Invalid user data.  Please log in again.');
-        return;
-      }
+      // Backend will use JWT to determine user and get their venues
+      const url = `${API_URL}/tasks/venues`;
       
       
       const response = await fetch(url, {

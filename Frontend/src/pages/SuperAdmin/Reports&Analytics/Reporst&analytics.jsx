@@ -164,8 +164,7 @@ const ReportsAnalytics = () => {
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
-                        grade: Number(submission.grade),
-                        faculty_id: user.user_id
+                        grade: Number(submission.grade)
                     })
                 });
 

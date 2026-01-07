@@ -19,7 +19,7 @@ import { authenticate } from '../middleware/auth.middleware.js';
 const router = express.Router();
 
 // ============ STUDENT ROUTES ============
-// Get all tasks for authenticated student
+// Get all tasks for authenticated student (uses JWT)
 router.get('/student', authenticate, getStudentTasks);
 
 // Submit task assignment (file or link)
@@ -29,9 +29,8 @@ router.post('/:task_id/submit', authenticate, upload.single('file'), submitTask)
 router.get('/submissions/:submission_id/download', authenticate, downloadSubmission);
 
 // ============ FACULTY/ADMIN ROUTES ============
-// Faculty/Admin routes - get venues
-router.get('/venues/:faculty_id', authenticate, getVenuesForFaculty);
-router.get('/venues/by-email/:email', authenticate, getVenuesByEmail);
+// Faculty/Admin routes - get venues (uses JWT to identify user)
+router.get('/venues', authenticate, getVenuesForFaculty);
 
 // Faculty/Admin routes - manage tasks
 router.post('/create', authenticate, upload.array('files', 10), createTask);

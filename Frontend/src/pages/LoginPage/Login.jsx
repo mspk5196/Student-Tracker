@@ -35,29 +35,34 @@ const Login = () => {
 
       const data = await res.json();
 
-      // data.user.role must be 1 | 2 | 3
-      login(data.user, data.token);
-
-      navigate("/"); // single entry point
+      // Login with JWT token - this will fetch user data automatically
+      const result = await login(data.token);
+      
+      if (result.success) {
+        navigate("/"); // single entry point
+      } else {
+        alert("Failed to load user data. Please try again.");
+      }
     } catch (err) {
       console.error("Login failed:", err);
+      alert("Login failed. Please try again.");
     }
   };
 
   return (
     <div style={styles.page}>
       <div style={styles.card}>
-        <h2 style={styles.heading}>Welcome Back!</h2>
+        <h2 style={styles.heading}>Welcome Back</h2>
 
         <img src={logo} alt="BIT Logo" style={styles.logo} />
 
-        <h3 style={styles.portalTitle}>STUDENT INFORMATION PORTAL</h3>
+        <h3 style={styles.portalTitle}>PBL PORTAL</h3>
         <div style={styles.divider}></div>
 
         <GoogleSignInButton onSuccess={handleGoogleSuccess} />
 
         <p style={styles.footerText}>
-          Sign in with your institutional Google account
+          Sign in with your BIT Google account
         </p>
       </div>
     </div>
