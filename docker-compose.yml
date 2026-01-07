@@ -52,7 +52,7 @@ services:
     volumes:
       - mysql_data:/var/lib/mysql
     networks:
-      - stf-network
+      - Student-Tracker-network
       - reverse-proxy
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
