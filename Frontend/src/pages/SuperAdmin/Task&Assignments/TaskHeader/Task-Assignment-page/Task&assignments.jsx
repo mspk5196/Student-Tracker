@@ -125,7 +125,6 @@ const AssignmentDashboard = ({ selectedVenueId, venueName, venues }) => {
     formData.append('title', title.trim());
     formData.append('description', description.trim());
     formData.append('venue_id', group); // Use 'group' (venue_id) for the API
-    formData.append('faculty_id', user.user_id);
     formData.append('day', day);
     formData.append('due_date', dueDate);
     formData.append('max_score', score);

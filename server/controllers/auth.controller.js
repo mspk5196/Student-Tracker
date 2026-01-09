@@ -40,17 +40,42 @@ export const googleAuth = async (req, res) => {
       { expiresIn: JWT_EXPIRES_IN }
     );
 
-    res.json({
-      token,
-      user: {
-        user_id: user.user_id, 
-        name: user.name,
-        email: user.email,
-        role: user.role,
-      },
-    });
+    // Only return token - user data fetched separately via /me endpoint
+    res.json({ token });
   } catch (err) {
     console.error(err);
     res.status(401).json({ message: 'Authentication failed' });
+  }
+};
+
+// Get authenticated user's data
+export const getMe = async (req, res) => {
+  try {
+    const [rows] = await db.query(
+      `SELECT u.user_id, u.name, u.email, u.ID, u.department, r.role
+       FROM users u
+       JOIN role r ON u.role_id = r.role_id
+       WHERE u.user_id = ? AND u.is_active = 1`,
+      [req.user.user_id]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    const user = rows[0];
+    res.json({
+      user: {
+        user_id: user.user_id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        ID: user.ID,
+        department: user.department
+      }
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Failed to fetch user data' });
   }
 };

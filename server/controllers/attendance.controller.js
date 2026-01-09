@@ -73,11 +73,12 @@ const ensureFacultyId = async (userId) => {
 // Get ALL venues (for any user)
 export const getVenueAllocations = async (req, res) => {
   try {
-    const { facultyId } = req.params;
+    // Get user ID from JWT token
+    const userId = req.user.user_id;
     
 
     // Get user info
-    const user = await getUserInfo(facultyId);
+    const user = await getUserInfo(userId);
     
     if (!user) {
       return res.status(404).json({ 
@@ -295,7 +296,6 @@ export const saveAttendance = async (req, res) => {
   
   try {
     const { 
-      facultyId,  // This can be user_id or faculty_id
       venueId, 
       sessionId, 
       date, 
@@ -303,8 +303,11 @@ export const saveAttendance = async (req, res) => {
       attendance 
     } = req.body;
 
+    // Get faculty_id from JWT token
+    const userId = req.user.user_id;
+
     // Validation
-    if (!facultyId || !venueId || !sessionId || !attendance || attendance.length === 0) {
+    if (!venueId || !sessionId || !attendance || attendance.length === 0) {
       return res.status(400).json({ 
         success: false, 
         message: 'Missing required fields' 
@@ -312,7 +315,7 @@ export const saveAttendance = async (req, res) => {
     }
 
     // Ensure user has faculty_id (create for admin if needed)
-    const actualFacultyId = await ensureFacultyId(facultyId);
+    const actualFacultyId = await ensureFacultyId(userId);
 
     // Verify session exists
     const [sessionCheck] = await connection.query(
@@ -477,7 +480,8 @@ export const getLateStudents = async (req, res) => {
 // Get attendance history for a student - ONLY for their assigned venues
 export const getStudentAttendanceHistory = async (req, res) => {
   try {
-    const { studentId } = req.params;
+    // Get user ID from JWT token
+    const userId = req.user.user_id;
 
     // Get only the latest attendance record for each session (in case faculty marked multiple times)
     const [history] = await db.query(`
@@ -511,7 +515,7 @@ export const getStudentAttendanceHistory = async (req, res) => {
         AND gs.status = 'Active'
       ORDER BY a.created_at DESC
       LIMIT 50
-    `, [studentId, studentId]);
+    `, [userId, userId]);
 
     res.status(200).json({ 
       success: true, 
@@ -531,7 +535,8 @@ export const getStudentAttendanceHistory = async (req, res) => {
 // Get attendance dashboard data for a student
 export const getStudentAttendanceDashboard = async (req, res) => {
   try {
-    const { studentId } = req.params;
+    // Get user ID from JWT token
+    const userId = req.user.user_id;
     const { year } = req.query;
 
     const currentYear = year || new Date().getFullYear();
@@ -554,7 +559,7 @@ export const getStudentAttendanceDashboard = async (req, res) => {
         AND gs.status = 'Active'
         AND YEAR(a.created_at) = ?
         AND DATE(a.created_at) >= ?
-    `, [studentId, currentYear, SEMESTER_START_DATE]);
+    `, [userId, currentYear, SEMESTER_START_DATE]);
 
     // Get daily breakdown to calculate present/late/absent days
     // Extract date from session name (format: Venue_YYYYMMDD_YYYY-MM-DD_Time)
@@ -577,7 +582,7 @@ export const getStudentAttendanceDashboard = async (req, res) => {
         AND YEAR(a.created_at) = ?
         AND DATE(a.created_at) >= ?
       GROUP BY SUBSTRING(ats.session_name, LOCATE('_20', ats.session_name) + 10, 10)
-    `, [studentId, currentYear, SEMESTER_START_DATE]);
+    `, [userId, currentYear, SEMESTER_START_DATE]);
 
     // Count days by status: only days with 4/4 hours present count as Present, everything else is Absent
     let presentDays = 0, lateDays = 0, absentDays = 0;
@@ -615,7 +620,7 @@ export const getStudentAttendanceDashboard = async (req, res) => {
         AND DATE(a.created_at) >= ?
       GROUP BY v.venue_id
       ORDER BY v.venue_name
-    `, [studentId, currentYear, SEMESTER_START_DATE]);
+    `, [userId, currentYear, SEMESTER_START_DATE]);
 
     // Recalculate current (days attended) based on percentage
     const subjects = subjectStats.map(sub => ({
@@ -647,7 +652,7 @@ export const getStudentAttendanceDashboard = async (req, res) => {
         AND DATE(a.created_at) >= ?
       ORDER BY a.created_at DESC
       LIMIT 10
-    `, [studentId, currentYear, SEMESTER_START_DATE]);
+    `, [userId, currentYear, SEMESTER_START_DATE]);
 
     // Get month-wise attendance for chart - ONLY student's assigned venues
     const [monthlyStats] = await db.query(`
@@ -666,7 +671,7 @@ export const getStudentAttendanceDashboard = async (req, res) => {
         AND YEAR(a.created_at) = ?
       GROUP BY MONTH(a.created_at), DATE_FORMAT(a.created_at, '%b')
       ORDER BY MONTH(a.created_at)
-    `, [studentId, currentYear]);
+    `, [userId, currentYear]);
 
     const stats = overallStats[0];
 
@@ -698,7 +703,7 @@ export const getStudentAttendanceDashboard = async (req, res) => {
     res.status(200).json({ 
       success: true, 
       data: dashboardData,
-      student_id: studentId,
+      user_id: userId,
       year: currentYear
     });
   } catch (error) {

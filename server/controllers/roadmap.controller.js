@@ -160,10 +160,10 @@ export const getRoadmapByVenue = async (req, res) => {
 // Create new roadmap module
 export const createRoadmapModule = async (req, res) => {
   try {
-    const { venue_id, faculty_id, day, title, description, status } = req.body;
+    const { venue_id, day, title, description, status } = req.body;
     const user_id = req.user.user_id; // Get user_id from JWT
 
-    console.log('Creating module:', { venue_id, faculty_id, day, title, user_id });
+    console.log('Creating module:', { venue_id, day, title, user_id });
 
     if (!venue_id || !day || !title) {
       return res.status(400).json({
@@ -172,49 +172,16 @@ export const createRoadmapModule = async (req, res) => {
       });
     }
 
-    // Get user role
-    const [user] = await db.query(`
-      SELECT role_id FROM users WHERE user_id = ?
-    `, [user_id]);
-
-    if (user.length === 0) {
-      return res.status(403).json({
-        success: false,
-        message: 'User not found'
-      });
-    }
-
-    const userRole = user[0].role_id;
+    // Get user role and determine faculty_id from JWT only
     let actual_faculty_id;
 
-    if (userRole === 1) { // Admin role (role_id: 1)
-      // Admin can create modules - they can specify any faculty_id or use their own
-      if (faculty_id) {
-        // Verify the faculty_id exists if provided
-        const [facultyCheck] = await db.query(`
-          SELECT faculty_id FROM faculties WHERE faculty_id = ?
-        `, [faculty_id]);
-
-        if (facultyCheck.length === 0) {
-          // If faculty_id doesn't exist, check if it's the admin's user_id
-          // (admin might be sending their user_id as faculty_id)
-          if (faculty_id == user_id) {
-            // Admin is using their user_id as faculty_id - this is allowed
-            actual_faculty_id = faculty_id;
-          } else {
-            return res.status(400).json({
-              success: false,
-              message: 'Invalid faculty_id'
-            });
-          }
-        } else {
-          actual_faculty_id = faculty_id;
-        }
-      } else {
-        // Admin didn't specify faculty_id - use their user_id
-        actual_faculty_id = user_id;
-      }
-    } else if (userRole === 2) { // Faculty role
+    if (req.user.role === 'admin') {
+      // Admin can create modules - use their user_id or get faculty_id if exists
+      const [faculty] = await db.query(`
+        SELECT faculty_id FROM faculties WHERE user_id = ?
+      `, [user_id]);
+      actual_faculty_id = faculty.length > 0 ? faculty[0].faculty_id : user_id;
+    } else if (req.user.role === 'faculty') {
       // Faculty must use their own faculty_id
       const [faculty] = await db.query(`
         SELECT faculty_id FROM faculties WHERE user_id = ?
@@ -227,7 +194,7 @@ export const createRoadmapModule = async (req, res) => {
         });
       }
 
-      // Always use the faculty's own faculty_id, ignore what's sent from frontend
+      // Always use the faculty's own faculty_id from JWT
       actual_faculty_id = faculty[0].faculty_id;
     } else {
       return res.status(403).json({

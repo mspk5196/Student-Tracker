@@ -26,6 +26,8 @@ import StudentHeader from "../pages/SuperAdmin/studentsPage/studentHeader/Studen
 import StudentPage from "../pages/SuperAdmin/studentsPage/AllStudents/studentsPage";
 //Super Admin -> Task & Assignments
 import TaskHeader from "../pages/SuperAdmin/Task&Assignments/TaskHeader/TaskHeader";
+//Super Admin -> Skill Reports
+import AdminSkillReport from "../pages/SuperAdmin/SkillReports/AdminSkillReport";
 
 // Faculty Pages
 import ClassHeader from "../pages/Faculty/Class&Group/ClassHeader/ClassHeader";
@@ -33,6 +35,8 @@ import MyClasses from "../pages/Faculty/Class&Group/MyClasses/MyClasses";
 import AllClasses from "../pages/Faculty/Class&Group/AllClasses/AllClasses";
 import StudentsPage from "../pages/SuperAdmin/studentsPage/AllStudents/studentsPage";
 import Reports from "../pages/SuperAdmin/Reports&Analytics/Reporst&analytics";
+//Faculty -> Skill Reports
+import FacultySkillReport from "../pages/Faculty/SkillReports/FacultySkillReport";
 
 // Student Pages
 import StudentDashboard from "../pages/Student/Dashboard/StudentDashboard";
@@ -66,6 +70,7 @@ const AppNavigator = () => {
             </Route>
             <Route path="attendance" element={<Attendance />} />
             <Route path="tasks" element={<TaskHeader />} />  {/* ✅ Already correct */}
+            <Route path="skill-reports" element={<AdminSkillReport />} />  {/* ✅ Skill Reports */}
             <Route path="reports" element={<ReportsAnalytics />} />  {/* ✅ Already correct */}
           </Route>
         )}
@@ -83,6 +88,7 @@ const AppNavigator = () => {
               {/* <Route path="all" element={<AllClasses />} /> */}
             {/* </Route> */}
             <Route path="/" element={<Attendance />} />
+            <Route path="skill-reports" element={<FacultySkillReport />} />  {/* ✅ Skill Reports */}
             <Route path="tasks" element={<TaskHeader />} />  {/* ✅ Already correct */}
             {/* <Route path="students" element={<div>Students</div>} /> */}
             <Route path="reports" element={<Reports />} />  {/* ✅ Faculty can also access reports */}

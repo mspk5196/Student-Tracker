@@ -51,7 +51,7 @@ const StudentAttendance = () => {
             try {
                 // Fetch dashboard data
                 const dashboardResponse = await fetch(
-                    `${API_URL}/attendance/dashboard/${user.user_id}`,
+                    `${API_URL}/attendance/dashboard`,
                     {
                         headers: {
                             'Authorization': `Bearer ${token}`,
@@ -96,7 +96,7 @@ const StudentAttendance = () => {
 
                 // Fetch attendance history
                 const historyResponse = await fetch(
-                    `${API_URL}/attendance/history/${user.user_id}`,
+                    `${API_URL}/attendance/history`,
                     {
                         headers: {
                             'Authorization': `Bearer ${token}`,

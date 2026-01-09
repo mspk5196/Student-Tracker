@@ -16,7 +16,8 @@ import {
   Map,
   Home,
   Menu,
-  X
+  X,
+  FileSpreadsheet
 } from 'lucide-react';
 
 const SideTab = () => {
@@ -42,6 +43,7 @@ const SideTab = () => {
       { id: 'students', label: 'Students', icon: Users, section: 'main' },
       { id: 'attendance', label: 'Attendance', icon: CalendarCheck, section: 'academic' },
       { id: 'tasks', label: 'Task & Assignment', icon: ClipboardCheck, section: 'academic' },
+      { id: 'skill-reports', label: 'Skill Reports', icon: FileSpreadsheet, section: 'academic' },
       { id: 'reports', label: 'Reports', icon: BarChart3, section: 'academic' },
       // { id: 'settings', label: 'Settings', icon: Settings, section: 'system' },
     ],
@@ -51,6 +53,7 @@ const SideTab = () => {
       { id: 'students', label: 'Students', icon: Users, section: 'main' },
       { id: 'attendance', label: 'Attendance', icon: CalendarCheck, section: 'academic' },
       { id: 'tasks', label: 'Task & Assignment', icon: ClipboardCheck, section: 'academic' },
+      { id: 'skill-reports', label: 'Skill Reports', icon: FileSpreadsheet, section: 'academic' },
       { id: 'reports', label: 'Reports', icon: BarChart3, section: 'academic' },
       // { id: 'settings', label: 'Settings', icon: Settings, section: 'system' },
     ],
@@ -73,6 +76,7 @@ const SideTab = () => {
     students: { title: 'Students' },
     attendance: { title: 'Attendance' },
     tasks: { title: 'Task & Assignment' },
+    'skill-reports': { title: 'Skill Reports' },
     reports: { title: 'Reports' },
     settings: { title: 'Settings' },
   };

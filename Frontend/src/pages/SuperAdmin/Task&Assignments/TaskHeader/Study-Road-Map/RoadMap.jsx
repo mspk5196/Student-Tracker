@@ -21,7 +21,6 @@ const StudyRoadmap = ({
     const [editData, setEditData] = useState({ title: '', description: '' });
     const [lastAddDayTrigger, setLastAddDayTrigger] = useState(0);
     const [loading, setLoading] = useState(false);
-    const [facultyId, setFacultyId] = useState(null);
 
     // Resource Modal State
     const [showResourceModal, setShowResourceModal] = useState(false);
@@ -35,20 +34,10 @@ const StudyRoadmap = ({
     const [isDragging, setIsDragging] = useState(false);
     const fileInputRef = useRef(null);
 
-    // Get faculty ID from user data
-    useEffect(() => {
-        if (user && user.faculty_id) {
-            setFacultyId(user.faculty_id);
-        } else if (user && user.user_id) {
-            // Fallback to user_id if faculty_id not in store
-            setFacultyId(user.user_id);
-        }
-    }, [user]);
-
     // Fetch roadmap data for selected venue
     useEffect(() => {
         const fetchRoadmapData = async () => {
-            if (!selectedVenueId || !facultyId) return;
+            if (!selectedVenueId) return;
 
             setLoading(true);
             try {
@@ -80,20 +69,20 @@ const StudyRoadmap = ({
             fetchRoadmapData();
             setEditingId(null);
         }
-    }, [selectedVenueId, facultyId, token, API_URL, isActiveTab]);
+    }, [selectedVenueId, token, API_URL, isActiveTab]);
 
     // Handle add day trigger from parent
     useEffect(() => {
-        if (addDayTrigger > lastAddDayTrigger && selectedVenueId && facultyId && isActiveTab) {
+        if (addDayTrigger > lastAddDayTrigger && selectedVenueId && isActiveTab) {
             addDay();
             setLastAddDayTrigger(addDayTrigger);
         }
-    }, [addDayTrigger, selectedVenueId, facultyId, lastAddDayTrigger, isActiveTab]);
+    }, [addDayTrigger, selectedVenueId, lastAddDayTrigger, isActiveTab]);
 
     /* ---------- DAY / MODULE HANDLERS ---------- */
     const addDay = async () => {
-        if (!selectedVenueId || !facultyId) {
-            console.error("No venue selected or faculty ID missing!");
+        if (!selectedVenueId) {
+            console.error("No venue selected!");
             alert('Please select a venue first');
             return;
         }
@@ -108,7 +97,6 @@ const StudyRoadmap = ({
 
             const newDay = {
                 venue_id: selectedVenueId,
-                faculty_id: facultyId,
                 day: nextDay,
                 title: `${venueName} - Day ${nextDay}`,
                 description: 'Enter module description here...',
