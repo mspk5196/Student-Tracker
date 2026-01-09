@@ -10,7 +10,7 @@ COPY package.json package-lock.json* ./
 RUN npm install
 
 # 👇 Build-time envs
-ARG VITE_API_URL
+ARG VITE_API_URL 
 ARG VITE_GOOGLE_CLIENT_ID
 
 ENV VITE_GOOGLE_CLIENT_ID=$VITE_GOOGLE_CLIENT_ID

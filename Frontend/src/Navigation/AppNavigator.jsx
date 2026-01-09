@@ -50,7 +50,7 @@ const AppNavigator = () => {
   const user = useAuthStore((s) => s.user);
 
   return (
-    <BrowserRouter>
+    <BrowserRouter basename="/pbl/">
       <Routes>
         {/* COMMON */}
         <Route path="/login" element={<Login />} />
