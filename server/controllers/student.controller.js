@@ -83,14 +83,14 @@ export const getAllStudents = async (req, res) => {
         ) as attendance,
         COALESCE(
           (SELECT COUNT(*)
-           FROM student_report sr
-           WHERE sr.student_id = s.student_id), 0
+           FROM task_submissions ts
+           WHERE ts.student_id = s.student_id AND ts.status = 'Graded'), 0
         ) as completedTasks,
         COALESCE(
           (SELECT COUNT(*)
-           FROM student_report sr
-           WHERE sr.student_id = s.student_id 
-           AND sr.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)), 0
+           FROM task_submissions ts
+           WHERE ts.student_id = s.student_id 
+           AND ts.submitted_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)), 0
         ) as totalTasks
       FROM students s
       INNER JOIN users u ON s.user_id = u.user_id
@@ -164,14 +164,14 @@ export const getStudentById = async (req, res) => {
         ) as attendance,
         COALESCE(
           (SELECT COUNT(*)
-           FROM student_report sr
-           WHERE sr. student_id = s.student_id), 0
+           FROM task_submissions ts
+           WHERE ts.student_id = s.student_id AND ts.status = 'Graded'), 0
         ) as completedTasks,
         COALESCE(
           (SELECT COUNT(*)
-           FROM student_report sr
-           WHERE sr.student_id = s.student_id 
-           AND sr.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)), 0
+           FROM task_submissions ts
+           WHERE ts.student_id = s.student_id 
+           AND ts.submitted_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)), 0
         ) as totalTasks
       FROM students s
       INNER JOIN users u ON s.user_id = u.user_id
@@ -238,8 +238,8 @@ export const downloadStudentReport = async (req, res) => {
            FROM attendance a
            WHERE a.student_id = s.student_id), 0
         ) as attendance,
-        (SELECT COUNT(*) FROM student_report sr WHERE sr.student_id = s.student_id) as completedTasks,
-        (SELECT AVG(sr.rating) FROM student_report sr WHERE sr.student_id = s.student_id) as avgRating
+        (SELECT COUNT(*) FROM task_submissions ts WHERE ts.student_id = s.student_id AND ts.status = 'Graded') as completedTasks,
+        (SELECT AVG(ts.grade) FROM task_submissions ts WHERE ts.student_id = s.student_id AND ts.grade IS NOT NULL) as avgRating
       FROM students s
       INNER JOIN users u ON s.user_id = u.user_id
       LEFT JOIN faculties f ON s.assigned_faculty_id = f.faculty_id

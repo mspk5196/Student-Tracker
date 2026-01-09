@@ -13,7 +13,7 @@ import {
   Calendar,
 } from 'lucide-react';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const API_URL = import.meta.env.VITE_API_URL;
 
 const FacultySkillReport = () => {
   // Table States
@@ -282,7 +282,7 @@ const FacultySkillReport = () => {
               <RefreshCw size={32} color="#3b82f6" style={{ animation: 'spin 1s linear infinite' }} />
               <p>Loading reports...</p>
             </div>
-          ) : filteredReports.length === 0 ? (
+          ) : reports.length === 0 ? (
             <div style={styles.emptyState}>
               <FileSpreadsheet size={48} color="#9ca3af" />
               <p style={styles.emptyText}>No skill reports found</p>
