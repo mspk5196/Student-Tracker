@@ -38,6 +38,8 @@ export const uploadSkillReport = async (req, res) => {
        JOIN users u ON s.user_id = u.user_id`
     );
 
+    console.log(allStudents);
+    
     const [allVenues] = await connection.execute(
       `SELECT venue_id, venue_name FROM venue`
     );
@@ -53,6 +55,13 @@ export const uploadSkillReport = async (req, res) => {
     });
     
     console.log(`Student map built with ${studentMap.size} entries from ${allStudents.length} records`);
+    
+    // DEBUG: Log specific student lookup for 7376242AL101
+    const debugRoll = '7376242al101';
+    const debugStudent = studentMap.get(debugRoll);
+    console.log(`DEBUG: Looking up '${debugRoll}' in map:`, debugStudent ? 
+      `Found - student_id: ${debugStudent.student_id}, user_id: ${debugStudent.user_id}, roll: ${debugStudent.roll_number}` : 
+      'NOT FOUND');
 
     const venueMap = new Map();
     allVenues.forEach(v => {
@@ -260,6 +269,8 @@ async function processRow(connection, row, rowIndex, studentMap, venueMap) {
 
   } else {
     // INSERT new record - each course_name is a separate row for the student
+    console.log(`INSERT: Excel roll_number: ${rollNumber} -> Using student_id: ${student.student_id} (from DB: user_id=${student.user_id}, roll=${student.roll_number})`);
+    
     await connection.execute(
       `INSERT INTO student_skills 
         (student_id, skill_id, course_name, excel_venue_name, student_venue_id, faculty_id,
