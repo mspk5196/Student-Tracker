@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import useAuthStore from '../../../../store/useAuthStore';
 import { Link } from 'react-router-dom';
 import { debounce } from 'lodash';
@@ -6,6 +6,7 @@ import { debounce } from 'lodash';
 const StudentsPage = () => {
   const { token } = useAuthStore();
   const API_URL = import.meta.env.VITE_API_URL;
+  const fileInputRef = useRef(null);
 
   // Responsive state
   const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' ? window.innerWidth <= 768 : false);
@@ -16,6 +17,7 @@ const StudentsPage = () => {
   const [yearFilter, setYearFilter] = useState('All Years');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
   
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -24,6 +26,12 @@ const StudentsPage = () => {
 
   const [departments, setDepartments] = useState(['All Departments']);
   const [years, setYears] = useState(['All Years']);
+
+  // Bulk upload states
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [uploadFile, setUploadFile] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadResult, setUploadResult] = useState(null);
 
   // Handle screen resize for responsiveness
   useEffect(() => {
@@ -130,6 +138,91 @@ const StudentsPage = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  // Bulk upload handlers
+  const handleFileSelect = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const validTypes = ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/vnd.ms-excel'];
+      if (!validTypes.includes(file.type)) {
+        setError('Only Excel files (.xlsx, .xls) are allowed');
+        return;
+      }
+      setUploadFile(file);
+      setUploadResult(null);
+    }
+  };
+
+  const handleBulkUpload = async () => {
+    if (!uploadFile) {
+      setError('Please select a file to upload');
+      return;
+    }
+
+    setUploading(true);
+    setError('');
+    setUploadResult(null);
+
+    try {
+      const formData = new FormData();
+      formData.append('file', uploadFile);
+
+      const response = await fetch(`${API_URL}/students/bulk-upload`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: formData
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setUploadResult(data.summary);
+        setSuccessMessage(data.message);
+        // Refresh students list
+        fetchStudents(1, '', 'All Departments', 'All Years');
+        fetchFilters();
+      } else {
+        setError(data.message || 'Upload failed');
+      }
+    } catch (err) {
+      console.error('Upload error:', err);
+      setError('Failed to upload file. Please try again.');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleCloseUploadModal = () => {
+    setShowUploadModal(false);
+    setUploadFile(null);
+    setUploadResult(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const downloadTemplate = () => {
+    const headers = ['name', 'email', 'rollNumber', 'department', 'year', 'semester'];
+    const sampleData = [
+      ['John Doe', 'john.doe@example.com', 'CSE2021001', 'CSE', '2', '3'],
+      ['Jane Smith', 'jane.smith@example.com', 'CSE2021002', 'IT', '1', '2']
+    ];
+    
+    let csvContent = headers.join(',') + '\n';
+    sampleData.forEach(row => {
+      csvContent += row.join(',') + '\n';
+    });
+
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'student_upload_template.csv';
+    a.click();
+    window.URL.revokeObjectURL(url);
+  };
+
   const getInitials = (name) => {
     return name.charAt(0).toUpperCase();
   };
@@ -165,7 +258,24 @@ const StudentsPage = () => {
         </div>
       )}
 
-      {/* Header with search and filters */}
+      {successMessage && (
+        <div style={{
+          backgroundColor: '#d1fae5',
+          color: '#065f46',
+          padding: '12px 16px',
+          borderRadius: '8px',
+          marginBottom: '20px',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          fontSize: '14px'
+        }}>
+          <span>✓ {successMessage}</span>
+          <button onClick={() => setSuccessMessage('')} style={{ background: 'none', border: 'none', fontSize: '24px', color: '#065f46', cursor: 'pointer', padding: '0 8px' }}>×</button>
+        </div>
+      )}
+
+      {/* Header with search, filters, and bulk upload button */}
       <div style={{
         marginBottom: '32px',
         display: 'flex',
@@ -253,11 +363,190 @@ const StudentsPage = () => {
           </div>
         </div>
 
-        {/* Results count */}
-        <div style={{ fontSize: '13px', color: '#6B7280', fontWeight: '500', alignSelf: isMobile ? 'flex-end' : 'center' }}>
-          {totalStudents} students found
+        {/* Results count and Bulk Upload Button */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <div style={{ fontSize: '13px', color: '#6B7280', fontWeight: '500' }}>
+            {totalStudents} students found
+          </div>
+          <button
+            onClick={() => setShowUploadModal(true)}
+            style={{
+              padding: '10px 16px',
+              backgroundColor: '#10B981',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              fontSize: '14px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="17 8 12 3 7 8" />
+              <line x1="12" y1="3" x2="12" y2="15" />
+            </svg>
+            Bulk Upload
+          </button>
         </div>
       </div>
+
+      {/* Bulk Upload Modal */}
+      {showUploadModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            backgroundColor: 'white',
+            borderRadius: '16px',
+            padding: '24px',
+            width: '90%',
+            maxWidth: '500px',
+            maxHeight: '90vh',
+            overflow: 'auto'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h2 style={{ margin: 0, fontSize: '20px', fontWeight: '600', color: '#111827' }}>Bulk Upload Students</h2>
+              <button onClick={handleCloseUploadModal} style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer', color: '#6B7280' }}>×</button>
+            </div>
+
+            {/* Instructions */}
+            <div style={{ backgroundColor: '#EFF6FF', padding: '16px', borderRadius: '8px', marginBottom: '20px' }}>
+              <h4 style={{ margin: '0 0 8px 0', fontSize: '14px', color: '#1E40AF' }}>Excel Format Required:</h4>
+              <div style={{ fontSize: '13px', color: '#1E40AF' }}>
+                <p style={{ margin: '4px 0' }}><strong>Required columns:</strong> name, email, rollNumber</p>
+                <p style={{ margin: '4px 0' }}><strong>Optional columns:</strong> department, year, semester</p>
+              </div>
+              <button
+                onClick={downloadTemplate}
+                style={{
+                  marginTop: '12px',
+                  padding: '8px 12px',
+                  backgroundColor: '#3B82F6',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  fontSize: '13px',
+                  cursor: 'pointer'
+                }}
+              >
+                📥 Download Template
+              </button>
+            </div>
+
+            {/* File Upload */}
+            <div style={{
+              border: '2px dashed #E5E7EB',
+              borderRadius: '12px',
+              padding: '32px',
+              textAlign: 'center',
+              marginBottom: '20px',
+              backgroundColor: uploadFile ? '#F0FDF4' : '#F9FAFB'
+            }}>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".xlsx,.xls"
+                onChange={handleFileSelect}
+                style={{ display: 'none' }}
+                id="bulk-upload-file"
+              />
+              <label htmlFor="bulk-upload-file" style={{ cursor: 'pointer' }}>
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke={uploadFile ? '#10B981' : '#9CA3AF'} strokeWidth="1.5" style={{ margin: '0 auto 12px' }}>
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="17 8 12 3 7 8" />
+                  <line x1="12" y1="3" x2="12" y2="15" />
+                </svg>
+                {uploadFile ? (
+                  <div>
+                    <p style={{ margin: '0 0 4px 0', fontSize: '14px', fontWeight: '600', color: '#10B981' }}>✓ {uploadFile.name}</p>
+                    <p style={{ margin: 0, fontSize: '12px', color: '#6B7280' }}>{(uploadFile.size / 1024).toFixed(1)} KB</p>
+                  </div>
+                ) : (
+                  <div>
+                    <p style={{ margin: '0 0 4px 0', fontSize: '14px', fontWeight: '500', color: '#374151' }}>Click to select Excel file</p>
+                    <p style={{ margin: 0, fontSize: '12px', color: '#9CA3AF' }}>or drag and drop (.xlsx, .xls)</p>
+                  </div>
+                )}
+              </label>
+            </div>
+
+            {/* Upload Result */}
+            {uploadResult && (
+              <div style={{
+                backgroundColor: uploadResult.errors > 0 ? '#FEF3C7' : '#D1FAE5',
+                padding: '16px',
+                borderRadius: '8px',
+                marginBottom: '20px'
+              }}>
+                <h4 style={{ margin: '0 0 8px 0', fontSize: '14px', color: uploadResult.errors > 0 ? '#92400E' : '#065F46' }}>Upload Summary:</h4>
+                <div style={{ fontSize: '13px', color: '#374151' }}>
+                  <p style={{ margin: '4px 0' }}>Total Records: {uploadResult.totalRecords}</p>
+                  <p style={{ margin: '4px 0', color: '#10B981' }}>✓ Added: {uploadResult.added}</p>
+                  <p style={{ margin: '4px 0', color: '#F59E0B' }}>⚠ Skipped: {uploadResult.skipped}</p>
+                </div>
+                {uploadResult.errorDetails && uploadResult.errorDetails.length > 0 && (
+                  <div style={{ marginTop: '12px', maxHeight: '150px', overflow: 'auto' }}>
+                    <p style={{ margin: '0 0 8px 0', fontSize: '12px', fontWeight: '600', color: '#991B1B' }}>Errors:</p>
+                    {uploadResult.errorDetails.slice(0, 10).map((err, idx) => (
+                      <p key={idx} style={{ margin: '2px 0', fontSize: '11px', color: '#991B1B' }}>Row {err.row}: {err.message}</p>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Actions */}
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+              <button
+                onClick={handleCloseUploadModal}
+                style={{
+                  padding: '10px 20px',
+                  backgroundColor: '#F3F4F6',
+                  color: '#374151',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  cursor: 'pointer'
+                }}
+              >
+                {uploadResult ? 'Close' : 'Cancel'}
+              </button>
+              {!uploadResult && (
+                <button
+                  onClick={handleBulkUpload}
+                  disabled={!uploadFile || uploading}
+                  style={{
+                    padding: '10px 20px',
+                    backgroundColor: uploadFile && !uploading ? '#10B981' : '#D1D5DB',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '8px',
+                    fontSize: '14px',
+                    fontWeight: '600',
+                    cursor: uploadFile && !uploading ? 'pointer' : 'not-allowed'
+                  }}
+                >
+                  {uploading ? 'Uploading...' : 'Upload Students'}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {loading && (
         <div style={{ textAlign: 'center', padding: '60px 20px', color: '#3B82F6', fontSize: '16px', fontWeight: '600' }}>

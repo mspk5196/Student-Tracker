@@ -42,3 +42,19 @@ A premium React application for Faculty to track student progress, attendance, a
 5. **Update Skills**: Go to "Skill Tracking" to update student progress.
 
 Note: Data is saved to your browser's LocalStorage.
+
+
+ Important Notes
+Student Upload - Creates new users if they don't exist
+Skill Reports - Students must already exist in the database
+Venue matching - Venue names must match exactly (case-insensitive)
+Date format - Preferred: YYYY-MM-DD (e.g., 2026-01-07)
+Time format - Preferred: HH:MM or HH:MM:SS (24-hour)
+Max file size - 10 MB
+Max records - 5000 rows per upload
+
+
+
+lc 3rd floor  balamurugan sir  student bulk upload 
+
+
