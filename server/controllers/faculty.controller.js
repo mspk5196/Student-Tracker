@@ -1,4 +1,5 @@
 import db from '../config/db.js';
+import xlsx from 'xlsx';
 
 // Get all faculties with user details
 export const getAllFaculties = async (req, res) => {
@@ -269,5 +270,152 @@ export const getFacultyById = async (req, res) => {
       success: false, 
       message: 'Failed to fetch faculty' 
     });
+  }
+};
+
+/**
+ * Bulk upload faculties from Excel - Admin only
+ * Inserts into users and faculties tables
+ * Excel columns: name, email, facultyId, department, designation
+ */
+export const bulkUploadFaculties = async (req, res) => {
+  // Check admin role
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ success: false, message: 'Only admins can bulk upload faculties' });
+  }
+
+  if (!req.file) {
+    return res.status(400).json({ success: false, message: 'No file uploaded' });
+  }
+
+  const connection = await db.getConnection();
+
+  try {
+    // Parse Excel
+    const workbook = xlsx.read(req.file.buffer, { type: 'buffer' });
+    const sheetName = workbook.SheetNames[0];
+    const worksheet = workbook.Sheets[sheetName];
+    const data = xlsx.utils.sheet_to_json(worksheet);
+
+    if (data.length === 0) {
+      return res.status(400).json({ success: false, message: 'Excel file is empty' });
+    }
+
+    if (data.length > 1000) {
+      return res.status(400).json({ success: false, message: 'Maximum 1000 records allowed per upload' });
+    }
+
+    await connection.beginTransaction();
+
+    let facultiesAdded = 0;
+    let facultiesSkipped = 0;
+    const errors = [];
+    const successfulFaculties = [];
+
+    for (let i = 0; i < data.length; i++) {
+      const row = data[i];
+      const rowIndex = i + 2; // Excel row number (1-indexed + header)
+
+      // Extract fields (support multiple column name formats)
+      const name = (row.name || row.Name || row.NAME || '').toString().trim();
+      const email = (row.email || row.Email || row.EMAIL || '').toString().trim();
+      const facultyId = (row.facultyId || row.faculty_id || row.FacultyId || row.FACULTY_ID || row.ID || row.id || '').toString().trim();
+      const department = (row.department || row.Department || row.DEPARTMENT || row.dept || 'General').toString().trim();
+      const designation = (row.designation || row.Designation || row.DESIGNATION || row.role || 'Assistant Professor').toString().trim();
+
+      // Validate required fields
+      if (!name || !email || !facultyId) {
+        errors.push({ row: rowIndex, message: `Missing required fields - name: ${name}, email: ${email}, facultyId: ${facultyId}` });
+        facultiesSkipped++;
+        continue;
+      }
+
+      // Validate email format
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        errors.push({ row: rowIndex, message: `Invalid email format: ${email}` });
+        facultiesSkipped++;
+        continue;
+      }
+
+      try {
+        // Check if user already exists by email or faculty ID
+        const [existingUser] = await connection.query(
+          'SELECT user_id, email, ID FROM users WHERE email = ? OR ID = ?',
+          [email, facultyId]
+        );
+
+        if (existingUser.length > 0) {
+          const existing = existingUser[0];
+          if (existing.email === email) {
+            errors.push({ row: rowIndex, message: `Email already exists: ${email}` });
+          } else {
+            errors.push({ row: rowIndex, message: `Faculty ID already exists: ${facultyId}` });
+          }
+          facultiesSkipped++;
+          continue;
+        }
+
+        // Insert new user with role_id = 2 (faculty)
+        const [userResult] = await connection.query(
+          `INSERT INTO users (role_id, name, email, ID, department, created_at, is_active) 
+           VALUES (2, ?, ?, ?, ?, NOW(), 1)`,
+          [name, email, facultyId, department]
+        );
+
+        const userId = userResult.insertId;
+
+        // Insert faculty record
+        const [facultyResult] = await connection.query(
+          'INSERT INTO faculties (user_id, designation) VALUES (?, ?)',
+          [userId, designation]
+        );
+
+        const newFacultyId = facultyResult.insertId;
+
+        facultiesAdded++;
+        successfulFaculties.push({
+          row: rowIndex,
+          name,
+          email,
+          facultyId,
+          department,
+          designation,
+          userId,
+          faculty_id: newFacultyId
+        });
+
+      } catch (err) {
+        console.error(`Error processing row ${rowIndex}:`, err);
+        errors.push({ row: rowIndex, message: `Database error: ${err.message}` });
+        facultiesSkipped++;
+      }
+    }
+
+    await connection.commit();
+
+    res.status(200).json({
+      success: true,
+      message: `Bulk upload completed! Added: ${facultiesAdded} faculties, Skipped: ${facultiesSkipped}`,
+      summary: {
+        totalRecords: data.length,
+        added: facultiesAdded,
+        skipped: facultiesSkipped,
+        errors: errors.length,
+        errorDetails: errors.slice(0, 50),
+        successfulFaculties: successfulFaculties.slice(0, 10)
+      }
+    });
+
+  } catch (error) {
+    await connection.rollback();
+    console.error('Bulk upload error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to process upload', 
+      error: error.message 
+    });
+  } finally {
+    connection.release();
   }
 };

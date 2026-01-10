@@ -1,5 +1,6 @@
 import db from '../config/db.js';
 import PDFDocument from 'pdfkit';
+import xlsx from 'xlsx';
 
 // Helper function to get year suffix
 function getYearSuffix(year) {
@@ -1082,5 +1083,154 @@ export const getStudentTaskGrade = async (req, res) => {
       message: 'Failed to fetch task grade data',
       error: error.message
     });
+  }
+};
+
+/**
+ * Bulk upload students from Excel - Admin only
+ * Inserts into users and students tables
+ * Excel columns: name, email, rollNumber, department, year, semester
+ */
+export const bulkUploadStudents = async (req, res) => {
+  // Check admin role
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ success: false, message: 'Only admins can bulk upload students' });
+  }
+
+  if (!req.file) {
+    return res.status(400).json({ success: false, message: 'No file uploaded' });
+  }
+
+  const connection = await db.getConnection();
+
+  try {
+    // Parse Excel
+    const workbook = xlsx.read(req.file.buffer, { type: 'buffer' });
+    const sheetName = workbook.SheetNames[0];
+    const worksheet = workbook.Sheets[sheetName];
+    const data = xlsx.utils.sheet_to_json(worksheet);
+
+    if (data.length === 0) {
+      return res.status(400).json({ success: false, message: 'Excel file is empty' });
+    }
+
+    if (data.length > 5000) {
+      return res.status(400).json({ success: false, message: 'Maximum 5000 records allowed per upload' });
+    }
+
+    await connection.beginTransaction();
+
+    let studentsAdded = 0;
+    let studentsSkipped = 0;
+    const errors = [];
+    const successfulStudents = [];
+
+    for (let i = 0; i < data.length; i++) {
+      const row = data[i];
+      const rowIndex = i + 2; // Excel row number (1-indexed + header)
+
+      // Extract fields (support multiple column name formats)
+      const name = (row.name || row.Name || row.NAME || '').toString().trim();
+      const email = (row.email || row.Email || row.EMAIL || '').toString().trim();
+      const rollNumber = (row.rollNumber || row.roll_number || row.RollNumber || row.ROLL_NUMBER || row.ID || row.id || row.studentId || '').toString().trim();
+      const department = (row.department || row.Department || row.DEPARTMENT || row.dept || 'General').toString().trim();
+      const year = parseInt(row.year || row.Year || row.YEAR || 1) || 1;
+      const semester = parseInt(row.semester || row.Semester || row.SEMESTER || 1) || 1;
+
+      // Validate required fields
+      if (!name || !email || !rollNumber) {
+        errors.push({ row: rowIndex, message: `Missing required fields - name: ${name}, email: ${email}, rollNumber: ${rollNumber}` });
+        studentsSkipped++;
+        continue;
+      }
+
+      // Validate email format
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        errors.push({ row: rowIndex, message: `Invalid email format: ${email}` });
+        studentsSkipped++;
+        continue;
+      }
+
+      try {
+        // Check if user already exists by email or roll number
+        const [existingUser] = await connection.query(
+          'SELECT user_id, email, ID FROM users WHERE email = ? OR ID = ?',
+          [email, rollNumber]
+        );
+
+        if (existingUser.length > 0) {
+          const existing = existingUser[0];
+          if (existing.email === email) {
+            errors.push({ row: rowIndex, message: `Email already exists: ${email}` });
+          } else {
+            errors.push({ row: rowIndex, message: `Roll number already exists: ${rollNumber}` });
+          }
+          studentsSkipped++;
+          continue;
+        }
+
+        // Insert new user with role_id = 3 (student)
+        const [userResult] = await connection.query(
+          `INSERT INTO users (role_id, name, email, ID, department, created_at, is_active) 
+           VALUES (3, ?, ?, ?, ?, NOW(), 1)`,
+          [name, email, rollNumber, department]
+        );
+
+        const userId = userResult.insertId;
+
+        // Insert student record
+        const [studentResult] = await connection.query(
+          'INSERT INTO students (user_id, year, semester, assigned_faculty_id) VALUES (?, ?, ?, 0)',
+          [userId, year, semester]
+        );
+
+        const studentId = studentResult.insertId;
+
+        studentsAdded++;
+        successfulStudents.push({
+          row: rowIndex,
+          name,
+          email,
+          rollNumber,
+          department,
+          year,
+          semester,
+          userId,
+          studentId
+        });
+
+      } catch (err) {
+        console.error(`Error processing row ${rowIndex}:`, err);
+        errors.push({ row: rowIndex, message: `Database error: ${err.message}` });
+        studentsSkipped++;
+      }
+    }
+
+    await connection.commit();
+
+    res.status(200).json({
+      success: true,
+      message: `Bulk upload completed! Added: ${studentsAdded} students, Skipped: ${studentsSkipped}`,
+      summary: {
+        totalRecords: data.length,
+        added: studentsAdded,
+        skipped: studentsSkipped,
+        errors: errors.length,
+        errorDetails: errors.slice(0, 50),
+        successfulStudents: successfulStudents.slice(0, 10)
+      }
+    });
+
+  } catch (error) {
+    await connection.rollback();
+    console.error('Bulk upload error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to process upload', 
+      error: error.message 
+    });
+  } finally {
+    connection.release();
   }
 };

@@ -18,10 +18,10 @@ export const uploadSkillReport = async (req, res) => {
 
   try {
     // Parse Excel
-    const workbook = xlsx.read(req.file. buffer, { type:  'buffer' });
+    const workbook = xlsx.read(req.file.buffer, { type: 'buffer' });
     const sheetName = workbook.SheetNames[0];
-    const worksheet = workbook. Sheets[sheetName];
-    const data = xlsx.utils. sheet_to_json(worksheet);
+    const worksheet = workbook.Sheets[sheetName];
+    const data = xlsx.utils.sheet_to_json(worksheet);
 
     if (data.length === 0) {
       return res.status(400).json({ message: 'Excel file is empty' });
@@ -33,7 +33,7 @@ export const uploadSkillReport = async (req, res) => {
 
     // Pre-fetch lookups for performance
     const [allStudents] = await connection.execute(
-      `SELECT s.student_id, u.ID as roll_number, u.name, u.email 
+      `SELECT s.student_id, u.ID as roll_number, u.name, u.email, u.user_id
        FROM students s 
        JOIN users u ON s.user_id = u.user_id`
     );
@@ -42,11 +42,17 @@ export const uploadSkillReport = async (req, res) => {
       `SELECT venue_id, venue_name FROM venue`
     );
 
-    // Create lookup maps
+    // Create lookup maps with validation
     const studentMap = new Map();
     allStudents.forEach(s => {
-      studentMap.set(s.roll_number.toLowerCase().trim(), s);
+      const key = s.roll_number.toLowerCase().trim();
+      if (studentMap.has(key)) {
+        console.warn(`Duplicate roll number found: ${s.roll_number} (student_id: ${s.student_id} vs ${studentMap.get(key).student_id})`);
+      }
+      studentMap.set(key, s);
     });
+    
+    console.log(`Student map built with ${studentMap.size} entries from ${allStudents.length} records`);
 
     const venueMap = new Map();
     allVenues.forEach(v => {
@@ -63,7 +69,7 @@ export const uploadSkillReport = async (req, res) => {
 
     // Process in batches
     for (let i = 0; i < data.length; i += BATCH_SIZE) {
-      const batch = data. slice(i, i + BATCH_SIZE);
+      const batch = data.slice(i, i + BATCH_SIZE);
       
       for (let j = 0; j < batch.length; j++) {
         const row = batch[j];
@@ -76,25 +82,31 @@ export const uploadSkillReport = async (req, res) => {
             if (result.isUpdate) updatedCount++;
             else insertedCount++;
           } else {
-            errors.push({ row:  rowIndex, message: result.error });
+            errors.push({ row: rowIndex, message: result.error });
           }
         } catch (error) {
-          errors. push({ row: rowIndex, message: error.message });
+          errors.push({ row: rowIndex, message: error.message });
         }
       }
     }
 
     await connection.commit();
 
+    // Log first few Excel column names for debugging
+    const firstRow = data[0];
+    const columnNames = firstRow ? Object.keys(firstRow) : [];
+    console.log('Excel columns detected:', columnNames);
+
     res.status(200).json({
       message: 'Skill reports uploaded successfully',
       summary: {
-        totalRecords: data. length,
+        totalRecords: data.length,
         processed: processedCount,
         inserted: insertedCount,
         updated: updatedCount,
         errors: errors.length,
-        errorDetails: errors. slice(0, 50)
+        errorDetails: errors.slice(0, 50),
+        columnsDetected: columnNames
       }
     });
 
@@ -103,17 +115,49 @@ export const uploadSkillReport = async (req, res) => {
     console.error('Upload error:', error);
     res.status(500).json({ message: 'Failed to process upload', error: error.message });
   } finally {
-    connection. release();
+    connection.release();
   }
 };
+
+/**
+ * Get roll number from row - handles various column name formats
+ */
+function getRollNumberFromRow(row) {
+  // Try various possible column names (case-insensitive check)
+  const possibleKeys = Object.keys(row);
+  
+  // Priority order: roll_number variants, then ID variants
+  const rollNumberPatterns = [
+    /^roll_?number$/i,
+    /^roll_?no$/i,
+    /^rollno$/i,
+    /^student_?id$/i,
+    /^reg_?no$/i,
+    /^registration_?number$/i,
+    /^id$/i,
+    /^user_?id$/i
+  ];
+  
+  for (const pattern of rollNumberPatterns) {
+    const matchedKey = possibleKeys.find(key => pattern.test(key.trim()));
+    if (matchedKey && row[matchedKey]) {
+      return row[matchedKey].toString().trim();
+    }
+  }
+  
+  // Direct property access as fallback
+  return (row.roll_number || row.Roll_Number || row['Roll Number'] || row.rollNumber || 
+          row.rollno || row.RollNo || row['Roll No'] || 
+          row.user_id || row.ID || row.id || '').toString().trim();
+}
 
 /**
  * Process single row from Excel
  * Expected columns: roll_number, name, email, course_name, venue, attendance, score, status, slot_date, start_time, end_time
  */
 async function processRow(connection, row, rowIndex, studentMap, venueMap) {
-  // Extract fields
-  const rollNumber = (row.roll_number || row.user_id || '').toString().trim();
+  // Extract fields - use flexible roll number extraction
+  const rollNumber = getRollNumberFromRow(row);
   const courseName = (row.course_name || '').toString().trim();
   const excelVenueName = (row.venue || '').toString().trim();
   const score = parseFloat(row.score) || 0;
@@ -131,11 +175,36 @@ async function processRow(connection, row, rowIndex, studentMap, venueMap) {
     };
   }
 
-  // Find student
-  const student = studentMap.get(rollNumber.toLowerCase().trim());
+  // Find student - first try from pre-fetched map
+  let student = studentMap.get(rollNumber.toLowerCase().trim());
+  
+  // If not found in map, try direct database lookup as fallback
+  // This handles edge cases like special characters, encoding issues, etc.
   if (!student) {
-    return { success: false, error: `Student not found: ${rollNumber}` };
+    try {
+      const [dbStudent] = await connection.execute(
+        `SELECT s.student_id, u.ID as roll_number, u.name, u.email 
+         FROM students s 
+         JOIN users u ON s.user_id = u.user_id
+         WHERE LOWER(TRIM(u.ID)) = LOWER(TRIM(?))`,
+        [rollNumber]
+      );
+      
+      if (dbStudent.length > 0) {
+        student = dbStudent[0];
+        console.log(`Row ${rowIndex}: Found student via DB lookup - Roll: ${rollNumber} -> student_id: ${student.student_id}`);
+      }
+    } catch (lookupError) {
+      console.error(`Row ${rowIndex}: DB lookup failed for ${rollNumber}:`, lookupError.message);
+    }
   }
+  
+  if (!student) {
+    return { success: false, error: `Student not found: ${rollNumber}. Please verify the roll number exists in the system.` };
+  }
+  
+  // Debug log to trace mapping issues
+  console.log(`Row ${rowIndex}: Processing - Excel Roll: ${rollNumber} -> DB student_id: ${student.student_id}, DB roll: ${student.roll_number}`);
 
   // Get student's current venue allocation and faculty through their group
   const [studentVenue] = await connection.execute(
@@ -237,11 +306,11 @@ function parseExcelDate(dateValue) {
   
   if (typeof dateValue === 'number') {
     const date = new Date((dateValue - 25569) * 86400 * 1000);
-    return date. toISOString().split('T')[0];
+    return date.toISOString().split('T')[0];
   }
   
   const parsed = new Date(dateValue);
-  if (! isNaN(parsed.getTime())) {
+  if (!isNaN(parsed.getTime())) {
     return parsed.toISOString().split('T')[0];
   }
   
@@ -252,26 +321,26 @@ function parseExcelDate(dateValue) {
  * Parse Excel time
  */
 function parseExcelTime(timeValue) {
-  if (! timeValue) return null;
+  if (!timeValue) return null;
   
   if (typeof timeValue === 'string') {
-    // Handle "HH:MM: SS" or "HH:MM"
+    // Handle "HH:MM:SS" or "HH:MM"
     if (/^\d{1,2}:\d{2}(:\d{2})?$/.test(timeValue)) {
-      return timeValue. length === 5 ?  `${timeValue}:00` : timeValue;
+      return timeValue.length === 5 ? `${timeValue}:00` : timeValue;
     }
     // Handle "09:00 AM" format
-    const match = timeValue. match(/(\d{1,2}):(\d{2})\s*(AM|PM)?/i);
+    const match = timeValue.match(/(\d{1,2}):(\d{2})\s*(AM|PM)?/i);
     if (match) {
       let hours = parseInt(match[1]);
       const minutes = match[2];
       const period = match[3];
       
       if (period) {
-        if (period. toUpperCase() === 'PM' && hours !== 12) hours += 12;
+        if (period.toUpperCase() === 'PM' && hours !== 12) hours += 12;
         if (period.toUpperCase() === 'AM' && hours === 12) hours = 0;
       }
       
-      return `${hours.toString().padStart(2, '0')}:${minutes}: 00`;
+      return `${hours.toString().padStart(2, '0')}:${minutes}:00`;
     }
   }
   
