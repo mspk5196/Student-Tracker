@@ -20,7 +20,6 @@ function romanToNumber(roman) {
     'II': 2,
     'III': 3,
     'IV': 4,
-    'V': 5
   };
   
   return romanMap[romanStr] || 2; // Default to 2 if not found
@@ -139,13 +138,18 @@ export const uploadSkillReport = async (req, res) => {
 /**
  * Process single row from Excel
  * Expected columns: id, roll_number, user_id, name, year, email, course_name, venue, attendance, score, attempt, status, slot_date, start_time, end_time
- * NOTE: user_id column in Excel contains the roll number (users.ID), NOT the database user_id
+ * 
+ * IMPORTANT: Excel column "user_id" is compared with database column "users.ID"
+ * Example: Excel user_id = "7376242AL101" matches users.ID = "7376242AL101"
  */
 async function processSkillRow(connection, row, rowIndex, studentMap) {
   // Extract fields from Excel
   const slotId = parseInt(row.id) || null;
-  // user_id in Excel is actually the roll number (users.ID column)
-  const excelUserId = (row.user_id || '').toString().trim();
+  
+  // Excel "user_id" column - THIS IS COMPARED WITH users.ID in database
+  // Example: Excel has user_id = "7376242AL101", we match it with users.ID = "7376242AL101"
+  const excelUserIdColumn = (row.user_id || '').toString().trim();
+  
   const rollNumber = (row.roll_number || '').toString().trim();
   const studentName = (row.name || '').toString().trim();
   const year = romanToNumber(row.year);
@@ -160,13 +164,13 @@ async function processSkillRow(connection, row, rowIndex, studentMap) {
   const startTime = parseExcelTime(row.start_time);
   const endTime = parseExcelTime(row.end_time);
 
-  // Use user_id from Excel to match against users.ID (this is the primary lookup)
-  // Fallback to roll_number if user_id is empty
-  const lookupId = excelUserId || rollNumber;
+  // PRIMARY LOOKUP: Use Excel column "user_id" to find student
+  // Excel "user_id" value (e.g., "7376242AL101") must match users.ID column in database
+  const lookupValue = excelUserIdColumn;
 
   // Validate required fields
-  if (!lookupId) {
-    return { success: false, error: `Row ${rowIndex}: Missing user_id (roll number)` };
+  if (!lookupValue) {
+    return { success: false, error: `Row ${rowIndex}: Missing user_id column value` };
   }
   if (!courseName) {
     return { success: false, error: `Row ${rowIndex}: Missing course_name` };
@@ -175,17 +179,17 @@ async function processSkillRow(connection, row, rowIndex, studentMap) {
     return { success: false, error: `Row ${rowIndex}: Missing venue` };
   }
 
-  // Find student by user_id (which matches users.ID column)
-  let student = studentMap.get(lookupId.toLowerCase().trim());
+  // Find student using Excel "user_id" column matched against users.ID
+  let student = studentMap.get(lookupValue.toLowerCase().trim());
   
-  // Fallback: try direct DB lookup using users.ID
+  // Fallback: try direct DB lookup - Excel "user_id" column matched against users.ID
   if (!student) {
     const [dbStudent] = await connection.execute(
       `SELECT s.student_id, u.ID as roll_number, u.name, u.email, u.user_id
        FROM students s 
        JOIN users u ON s.user_id = u.user_id
        WHERE LOWER(TRIM(u.ID)) = LOWER(TRIM(?))`,
-      [lookupId]
+      [lookupValue]
     );
     
     if (dbStudent.length > 0) {
@@ -194,7 +198,7 @@ async function processSkillRow(connection, row, rowIndex, studentMap) {
   }
   
   if (!student) {
-    return { success: false, error: `Student not found with ID: ${lookupId}` };
+    return { success: false, error: `Row ${rowIndex}: Student not found - Excel user_id "${lookupValue}" does not match any users.ID in database` };
   }
 
   // Check if record with same student + course + slot_date already exists
@@ -206,7 +210,7 @@ async function processSkillRow(connection, row, rowIndex, studentMap) {
 
   if (existing.length > 0) {
     // Same date exists - SKIP (don't insert or update)
-    console.log(`Row ${rowIndex}: Skipped - Record already exists for ${lookupId}, ${courseName}, ${slotDate}`);
+    console.log(`Row ${rowIndex}: Skipped - Record already exists for user_id=${lookupValue}, course=${courseName}, date=${slotDate}`);
     return { success: true, inserted: false, skipped: true };
   }
 
