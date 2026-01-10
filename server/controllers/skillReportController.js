@@ -140,14 +140,14 @@ export const uploadSkillReport = async (req, res) => {
  * Expected columns: id, roll_number, user_id, name, year, email, course_name, venue, attendance, score, attempt, status, slot_date, start_time, end_time
  * 
  * IMPORTANT: Excel column "user_id" is compared with database column "users.ID"
- * Example: Excel user_id = "7376242AL101" matches users.ID = "7376242AL101"
+ * Example: Excel user_id = "7376242AL132" matches users.ID = "7376242AL132"
  */
 async function processSkillRow(connection, row, rowIndex, studentMap) {
   // Extract fields from Excel
   const slotId = parseInt(row.id) || null;
   
   // Excel "user_id" column - THIS IS COMPARED WITH users.ID in database
-  // Example: Excel has user_id = "7376242AL101", we match it with users.ID = "7376242AL101"
+  // Example: Excel has user_id = "7376242AL132", we match it with users.ID = "7376242AL132"
   const excelUserIdColumn = (row.user_id || '').toString().trim();
   
   const rollNumber = (row.roll_number || '').toString().trim();
@@ -164,13 +164,16 @@ async function processSkillRow(connection, row, rowIndex, studentMap) {
   const startTime = parseExcelTime(row.start_time);
   const endTime = parseExcelTime(row.end_time);
 
-  // PRIMARY LOOKUP: Use Excel column "user_id" to find student
-  // Excel "user_id" value (e.g., "7376242AL101") must match users.ID column in database
+  // DEBUG: Log what we're reading from Excel
+  console.log(`Row ${rowIndex}: Excel user_id="${excelUserIdColumn}", roll_number="${rollNumber}"`);
+
+  // PRIMARY LOOKUP: Use Excel column "user_id" to find student via users.ID
+  // Excel user_id (e.g., "7376242AL132") must match users.ID (e.g., "7376242AL132")
   const lookupValue = excelUserIdColumn;
 
   // Validate required fields
   if (!lookupValue) {
-    return { success: false, error: `Row ${rowIndex}: Missing user_id column value` };
+    return { success: false, error: `Row ${rowIndex}: Missing user_id column - Excel user_id is empty` };
   }
   if (!courseName) {
     return { success: false, error: `Row ${rowIndex}: Missing course_name` };
