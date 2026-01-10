@@ -20,8 +20,8 @@ Create an Excel file with these columns:
 
 **Column Details:**
 - `id` - Slot ID (stored as slot_id in database)
-- `roll_number` - Student roll number (must match users.ID)
-- `user_id` - Optional user ID reference
+- `roll_number` - Optional, can be empty if user_id is provided
+- `user_id` - **PRIMARY LOOKUP** - Must match `users.ID` in database (e.g., 7376242AL101)
 - `name` - Student name from Excel
 - `year` - Student year (supports Roman numerals: I, II, III, IV or numbers 1, 2, 3, 4)
 - `email` - Student email
@@ -179,7 +179,7 @@ At the top of the page, you'll see:
 ## Excel File Rules
 
 ### Required Fields:
-- ✅ `roll_number` - Must exist in database (users.ID)
+- ✅ `user_id` - **PRIMARY** - Must match `users.ID` in database (e.g., 7376242AL101)
 - ✅ `course_name` - Course/skill name
 - ✅ `venue` - Venue name
 

@@ -20,7 +20,6 @@ function romanToNumber(roman) {
     'II': 2,
     'III': 3,
     'IV': 4,
-    'V': 5
   };
   
   return romanMap[romanStr] || 2; // Default to 2 if not found
@@ -139,12 +138,19 @@ export const uploadSkillReport = async (req, res) => {
 /**
  * Process single row from Excel
  * Expected columns: id, roll_number, user_id, name, year, email, course_name, venue, attendance, score, attempt, status, slot_date, start_time, end_time
+ * 
+ * IMPORTANT: Excel column "user_id" is compared with database column "users.ID"
+ * Example: Excel user_id = "7376242AL132" matches users.ID = "7376242AL132"
  */
 async function processSkillRow(connection, row, rowIndex, studentMap) {
   // Extract fields from Excel
   const slotId = parseInt(row.id) || null;
+  
+  // Excel "user_id" column - THIS IS COMPARED WITH users.ID in database
+  // Example: Excel has user_id = "7376242AL132", we match it with users.ID = "7376242AL132"
+  const excelUserIdColumn = (row.user_id || '').toString().trim();
+  
   const rollNumber = (row.roll_number || '').toString().trim();
-  const excelUserId = row.user_id ? parseInt(row.user_id) : null;
   const studentName = (row.name || '').toString().trim();
   const year = romanToNumber(row.year);
   const studentEmail = (row.email || '').toString().trim();
@@ -158,9 +164,16 @@ async function processSkillRow(connection, row, rowIndex, studentMap) {
   const startTime = parseExcelTime(row.start_time);
   const endTime = parseExcelTime(row.end_time);
 
+  // DEBUG: Log what we're reading from Excel
+  console.log(`Row ${rowIndex}: Excel user_id="${excelUserIdColumn}", roll_number="${rollNumber}"`);
+
+  // PRIMARY LOOKUP: Use Excel column "user_id" to find student via users.ID
+  // Excel user_id (e.g., "7376242AL132") must match users.ID (e.g., "7376242AL132")
+  const lookupValue = excelUserIdColumn;
+
   // Validate required fields
-  if (!rollNumber) {
-    return { success: false, error: `Row ${rowIndex}: Missing roll_number` };
+  if (!lookupValue) {
+    return { success: false, error: `Row ${rowIndex}: Missing user_id column - Excel user_id is empty` };
   }
   if (!courseName) {
     return { success: false, error: `Row ${rowIndex}: Missing course_name` };
@@ -169,17 +182,17 @@ async function processSkillRow(connection, row, rowIndex, studentMap) {
     return { success: false, error: `Row ${rowIndex}: Missing venue` };
   }
 
-  // Find student by roll_number
-  let student = studentMap.get(rollNumber.toLowerCase().trim());
+  // Find student using Excel "user_id" column matched against users.ID
+  let student = studentMap.get(lookupValue.toLowerCase().trim());
   
-  // Fallback: try direct DB lookup
+  // Fallback: try direct DB lookup - Excel "user_id" column matched against users.ID
   if (!student) {
     const [dbStudent] = await connection.execute(
       `SELECT s.student_id, u.ID as roll_number, u.name, u.email, u.user_id
        FROM students s 
        JOIN users u ON s.user_id = u.user_id
        WHERE LOWER(TRIM(u.ID)) = LOWER(TRIM(?))`,
-      [rollNumber]
+      [lookupValue]
     );
     
     if (dbStudent.length > 0) {
@@ -188,7 +201,7 @@ async function processSkillRow(connection, row, rowIndex, studentMap) {
   }
   
   if (!student) {
-    return { success: false, error: `Student not found: ${rollNumber}` };
+    return { success: false, error: `Row ${rowIndex}: Student not found - Excel user_id "${lookupValue}" does not match any users.ID in database` };
   }
 
   // Check if record with same student + course + slot_date already exists
@@ -200,7 +213,7 @@ async function processSkillRow(connection, row, rowIndex, studentMap) {
 
   if (existing.length > 0) {
     // Same date exists - SKIP (don't insert or update)
-    console.log(`Row ${rowIndex}: Skipped - Record already exists for ${rollNumber}, ${courseName}, ${slotDate}`);
+    console.log(`Row ${rowIndex}: Skipped - Record already exists for user_id=${lookupValue}, course=${courseName}, date=${slotDate}`);
     return { success: true, inserted: false, skipped: true };
   }
 
