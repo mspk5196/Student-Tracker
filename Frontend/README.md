@@ -55,6 +55,11 @@ Max records - 5000 rows per upload
 
 
 
-lc 3rd floor  balamurugan sir  student bulk upload 
+i want to display the student skill completeion in frontend there is no ui for that 
+
+in admin     want statistics  how many students present and then the student profile and then student skills completion status and then show how many students have not attended the ps till get it from  venue overall statistics and then display students in the venue and then students in that venue and then also in admin in students screens there is no showcase to the skill completion in shown keep it   for admin i want to display all data like analytics  all these are missing   should show skill stats       first show all venues and then when they click a venue then show  then venue statistics (skill progress , attendance , overall students not attended the ps still it should be like course box) and then they can see the students data 
 
 
+
+first admin:
+   statistics of all student data like skills completion student profile 
