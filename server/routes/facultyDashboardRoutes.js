@@ -1,3 +1,5 @@
+
+
 import express from 'express';
 import {
   getFacultyOverview,
@@ -9,10 +11,11 @@ import {
   getQuickActions,
   getDashboardData
 } from '../controllers/facultyDashboard.js';
-import { authenticate} from '../middleware/auth.middleware.js';
+import { authenticate } from '../middleware/auth.middleware.js';
+
 const router = express.Router();
 
-// All routes require authentication and faculty role
+// All routes require authentication
 router.use(authenticate);
 
 // Individual endpoints

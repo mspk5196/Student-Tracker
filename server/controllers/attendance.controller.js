@@ -1,6 +1,10 @@
 
 import db from '../config/db.js';
 
+// ====================== CONFIGURATION ======================
+// Semester start date - Change this to adjust when attendance tracking begins
+const SEMESTER_START_DATE = '2025-12-15';
+
 // ====================== HELPER FUNCTIONS ======================
 function getRandomColor() {
   const colors = ['#C0C6D8', '#9CA3AF', '#EBE0D9', '#D1D5DB', '#B4B8C5'];
@@ -69,11 +73,12 @@ const ensureFacultyId = async (userId) => {
 // Get ALL venues (for any user)
 export const getVenueAllocations = async (req, res) => {
   try {
-    const { facultyId } = req.params;
+    // Get user ID from JWT token
+    const userId = req.user.user_id;
     
 
     // Get user info
-    const user = await getUserInfo(facultyId);
+    const user = await getUserInfo(userId);
     
     if (!user) {
       return res.status(404).json({ 
@@ -239,6 +244,51 @@ export const getOrCreateSession = async (req, res) => {
   }
 };
 
+// Get existing attendance for a session
+export const getSessionAttendance = async (req, res) => {
+  try {
+    const { sessionId, venueId } = req.params;
+
+    // Get attendance records for this session
+    const [attendanceRecords] = await db.query(`
+      SELECT 
+        a.student_id,
+        a.is_present,
+        a.is_late
+      FROM attendance a
+      WHERE a.session_id = ? AND a.venue_id = ?
+    `, [sessionId, venueId]);
+
+    // Transform to frontend format
+    const attendanceMap = {};
+    attendanceRecords.forEach(record => {
+      let status = 'absent';
+      if (record.is_present === 1) {
+        status = record.is_late === 1 ? 'late' : 'present';
+      }
+      
+      attendanceMap[record.student_id] = {
+        status,
+        remarks: '' // remarks column doesn't exist in table
+      };
+    });
+
+    res.status(200).json({
+      success: true,
+      data: attendanceMap,
+      count: attendanceRecords.length
+    });
+
+  } catch (error) {
+    console.error('❌ Error fetching session attendance:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch session attendance',
+      error: error.message
+    });
+  }
+};
+
 // Save attendance - MAIN FUNCTION
 export const saveAttendance = async (req, res) => {
 
@@ -246,7 +296,6 @@ export const saveAttendance = async (req, res) => {
   
   try {
     const { 
-      facultyId,  // This can be user_id or faculty_id
       venueId, 
       sessionId, 
       date, 
@@ -254,8 +303,11 @@ export const saveAttendance = async (req, res) => {
       attendance 
     } = req.body;
 
+    // Get faculty_id from JWT token
+    const userId = req.user.user_id;
+
     // Validation
-    if (!facultyId || !venueId || !sessionId || !attendance || attendance.length === 0) {
+    if (!venueId || !sessionId || !attendance || attendance.length === 0) {
       return res.status(400).json({ 
         success: false, 
         message: 'Missing required fields' 
@@ -263,7 +315,7 @@ export const saveAttendance = async (req, res) => {
     }
 
     // Ensure user has faculty_id (create for admin if needed)
-    const actualFacultyId = await ensureFacultyId(facultyId);
+    const actualFacultyId = await ensureFacultyId(userId);
 
     // Verify session exists
     const [sessionCheck] = await connection.query(
@@ -301,7 +353,6 @@ export const saveAttendance = async (req, res) => {
       
       const isPresent = record.status === 'present' ? 1 : 0;
       const isLate = record.status === 'late' ? 1 : 0;
-      const remarks = record.remarks || null;
 
       // Check if attendance already exists for this student in this session
       const [existingRecord] = await connection.query(`
@@ -315,20 +366,19 @@ export const saveAttendance = async (req, res) => {
           UPDATE attendance 
           SET 
             is_present = ?, 
-            remarks = ?, 
             is_late = ?, 
             faculty_id = ?,
             updated_at = NOW()
           WHERE student_id = ? AND session_id = ?
-        `, [isPresent, remarks, isLate, actualFacultyId, record.student_id, sessionId]);
+        `, [isPresent, isLate, actualFacultyId, record.student_id, sessionId]);
         updatedCount++;
       } else {
         // Insert new record
         await connection.query(`
           INSERT INTO attendance 
-          (student_id, faculty_id, venue_id, session_id, is_present, is_late, remarks, created_at) 
-          VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
-        `, [record.student_id, actualFacultyId, venueId, sessionId, isPresent, isLate, remarks]);
+          (student_id, faculty_id, venue_id, session_id, is_present, is_late, created_at) 
+          VALUES (?, ?, ?, ?, ?, ?, NOW())
+        `, [record.student_id, actualFacultyId, venueId, sessionId, isPresent, isLate]);
         insertedCount++;
             }
     }
@@ -427,11 +477,13 @@ export const getLateStudents = async (req, res) => {
   }
 };
 
-// Get attendance history for a student
+// Get attendance history for a student - ONLY for their assigned venues
 export const getStudentAttendanceHistory = async (req, res) => {
   try {
-    const { studentId } = req.params;
+    // Get user ID from JWT token
+    const userId = req.user.user_id;
 
+    // Get only the latest attendance record for each session (in case faculty marked multiple times)
     const [history] = await db.query(`
       SELECT 
         a.attendance_id,
@@ -443,14 +495,27 @@ export const getStudentAttendanceHistory = async (req, res) => {
         v.venue_name,
         u.name as faculty_name
       FROM attendance a
+      INNER JOIN students s ON a.student_id = s.student_id
       INNER JOIN attendance_session ats ON a.session_id = ats.session_id
       INNER JOIN venue v ON a.venue_id = v.venue_id
+      INNER JOIN \`groups\` g ON v.venue_id = g.venue_id
+      INNER JOIN group_students gs ON g.group_id = gs.group_id AND gs.student_id = s.student_id
       INNER JOIN faculties f ON a.faculty_id = f.faculty_id
       INNER JOIN users u ON f.user_id = u.user_id
-      WHERE a.student_id = ? 
+      INNER JOIN (
+        SELECT a2.session_id, a2.student_id, MAX(a2.attendance_id) as max_attendance_id
+        FROM attendance a2
+        INNER JOIN students s2 ON a2.student_id = s2.student_id
+        WHERE s2.user_id = ?
+        GROUP BY a2.session_id, a2.student_id
+      ) latest ON a.session_id = latest.session_id 
+              AND a.student_id = latest.student_id 
+              AND a.attendance_id = latest.max_attendance_id
+      WHERE s.user_id = ?
+        AND gs.status = 'Active'
       ORDER BY a.created_at DESC
       LIMIT 50
-    `, [studentId]);
+    `, [userId, userId]);
 
     res.status(200).json({ 
       success: true, 
@@ -470,39 +535,102 @@ export const getStudentAttendanceHistory = async (req, res) => {
 // Get attendance dashboard data for a student
 export const getStudentAttendanceDashboard = async (req, res) => {
   try {
-    const { studentId } = req.params;
+    // Get user ID from JWT token
+    const userId = req.user.user_id;
     const { year } = req.query;
 
     const currentYear = year || new Date().getFullYear();
 
-    // Get overall attendance stats
+    // Get overall attendance stats - Calculate by hours per day (4 hours = 100%)
+    // Count distinct session dates (from session name), not created_at dates
     const [overallStats] = await db.query(`
       SELECT 
-        COUNT(*) as total_sessions,
-        SUM(CASE WHEN is_present = 1 THEN 1 ELSE 0 END) as present_count,
-        SUM(CASE WHEN is_late = 1 THEN 1 ELSE 0 END) as late_count,
-        ROUND((SUM(CASE WHEN is_present = 1 THEN 1 ELSE 0 END) / COUNT(*)) * 100, 0) as attendance_percentage
-      FROM attendance
-      WHERE student_id = ?
-        AND YEAR(created_at) = ?
-    `, [studentId, currentYear]);
+        COUNT(DISTINCT SUBSTRING(ats.session_name, LOCATE('_20', ats.session_name) + 10, 10)) as total_days,
+        SUM(CASE WHEN a.is_present = 1 THEN 1 ELSE 0 END) as total_hours_present,
+        COUNT(*) as total_hours,
+        ROUND((SUM(CASE WHEN a.is_present = 1 THEN 1 ELSE 0 END) / COUNT(*)) * 100, 0) as attendance_percentage
+      FROM attendance a
+      INNER JOIN students s ON a.student_id = s.student_id
+      INNER JOIN attendance_session ats ON a.session_id = ats.session_id
+      INNER JOIN venue v ON a.venue_id = v.venue_id
+      INNER JOIN \`groups\` g ON v.venue_id = g.venue_id
+      INNER JOIN group_students gs ON g.group_id = gs.group_id AND gs.student_id = s.student_id
+      WHERE s.user_id = ?
+        AND gs.status = 'Active'
+        AND YEAR(a.created_at) = ?
+        AND DATE(a.created_at) >= ?
+    `, [userId, currentYear, SEMESTER_START_DATE]);
 
-    // Get venue-wise (subject) attendance
+    // Get daily breakdown to calculate present/late/absent days
+    // Extract date from session name (format: Venue_YYYYMMDD_YYYY-MM-DD_Time)
+    const [dailyBreakdown] = await db.query(`
+      SELECT 
+        SUBSTRING(ats.session_name, LOCATE('_20', ats.session_name) + 10, 10) as attendance_date,
+        COUNT(*) as total_hours,
+        SUM(CASE WHEN a.is_present = 1 AND a.is_late = 0 THEN 1 ELSE 0 END) as present_hours,
+        SUM(CASE WHEN a.is_late = 1 THEN 1 ELSE 0 END) as late_hours,
+        SUM(CASE WHEN a.is_present = 0 THEN 1 ELSE 0 END) as absent_hours,
+        ROUND((SUM(CASE WHEN a.is_present = 1 THEN 1 ELSE 0 END) / COUNT(*)) * 100, 0) as day_percentage
+      FROM attendance a
+      INNER JOIN students s ON a.student_id = s.student_id
+      INNER JOIN attendance_session ats ON a.session_id = ats.session_id
+      INNER JOIN venue v ON a.venue_id = v.venue_id
+      INNER JOIN \`groups\` g ON v.venue_id = g.venue_id
+      INNER JOIN group_students gs ON g.group_id = gs.group_id AND gs.student_id = s.student_id
+      WHERE s.user_id = ?
+        AND gs.status = 'Active'
+        AND YEAR(a.created_at) = ?
+        AND DATE(a.created_at) >= ?
+      GROUP BY SUBSTRING(ats.session_name, LOCATE('_20', ats.session_name) + 10, 10)
+    `, [userId, currentYear, SEMESTER_START_DATE]);
+
+    // Count days by status: only days with 4/4 hours present count as Present, everything else is Absent
+    let presentDays = 0, lateDays = 0, absentDays = 0;
+    dailyBreakdown.forEach(day => {
+      const totalHours = parseInt(day.total_hours);
+      const presentHours = parseInt(day.present_hours);
+      
+      if (totalHours === 4 && presentHours === 4) {
+        presentDays++; // All 4 hours present = Present Day
+      } else {
+        absentDays++; // Less than 4 hours = Absent Day
+      }
+    });
+
+    // Calculate overall stats
+    const totalDays = dailyBreakdown.length;
+    const overallPercentage = totalDays > 0 ? Math.round((presentDays / totalDays) * 100) : 0;
+
+    // Get venue-wise (subject) attendance - Calculate by hours
     const [subjectStats] = await db.query(`
       SELECT 
         v.venue_name as name,
-        COUNT(*) as total,
-        SUM(CASE WHEN a.is_present = 1 THEN 1 ELSE 0 END) as current,
-        ROUND((SUM(CASE WHEN a.is_present = 1 THEN 1 ELSE 0 END) / COUNT(*)) * 100, 0) as percent
+        COUNT(DISTINCT DATE(a.created_at)) as total,
+        ROUND((SUM(CASE WHEN a.is_present = 1 THEN 1 ELSE 0 END) / COUNT(*)) * 100, 0) as percent,
+        SUM(CASE WHEN a.is_present = 1 THEN 1 ELSE 0 END) as current_hours,
+        COUNT(*) as total_hours
       FROM attendance a
+      INNER JOIN students s ON a.student_id = s.student_id
       INNER JOIN venue v ON a.venue_id = v.venue_id
-      WHERE a.student_id = ?
+      INNER JOIN \`groups\` g ON v.venue_id = g.venue_id
+      INNER JOIN group_students gs ON g.group_id = gs.group_id AND gs.student_id = s.student_id
+      WHERE s.user_id = ?
+        AND gs.status = 'Active'
         AND YEAR(a.created_at) = ?
+        AND DATE(a.created_at) >= ?
       GROUP BY v.venue_id
       ORDER BY v.venue_name
-    `, [studentId, currentYear]);
+    `, [userId, currentYear, SEMESTER_START_DATE]);
 
-    // Get recent skills/events attendance
+    // Recalculate current (days attended) based on percentage
+    const subjects = subjectStats.map(sub => ({
+      name: sub.name,
+      total: sub.total,
+      current: Math.round((sub.percent / 100) * sub.total),
+      percent: sub.percent
+    }));
+
+    // Get recent skills/events attendance - ONLY student's assigned venues
     const [recentSkills] = await db.query(`
       SELECT 
         v.venue_name as name,
@@ -514,50 +642,60 @@ export const getStudentAttendanceDashboard = async (req, res) => {
           ELSE 'Absent'
         END as status
       FROM attendance a
+      INNER JOIN students s ON a.student_id = s.student_id
       INNER JOIN venue v ON a.venue_id = v.venue_id
-      WHERE a.student_id = ?
+      INNER JOIN \`groups\` g ON v.venue_id = g.venue_id
+      INNER JOIN group_students gs ON g.group_id = gs.group_id AND gs.student_id = s.student_id
+      WHERE s.user_id = ?
+        AND gs.status = 'Active'
         AND YEAR(a.created_at) = ?
+        AND DATE(a.created_at) >= ?
       ORDER BY a.created_at DESC
       LIMIT 10
-    `, [studentId, currentYear]);
+    `, [userId, currentYear, SEMESTER_START_DATE]);
 
-    // Get month-wise attendance for chart
+    // Get month-wise attendance for chart - ONLY student's assigned venues
     const [monthlyStats] = await db.query(`
       SELECT 
-        DATE_FORMAT(created_at, '%b') as month,
-        ROUND((SUM(CASE WHEN is_present = 1 THEN 1 ELSE 0 END) / COUNT(*)) * 100, 0) as general,
-        ROUND((SUM(CASE WHEN is_present = 1 THEN 1 ELSE 0 END) / COUNT(*)) * 100, 0) as skill
-      FROM attendance
-      WHERE student_id = ?
-        AND YEAR(created_at) = ?
-      GROUP BY MONTH(created_at)
-      ORDER BY MONTH(created_at)
-    `, [studentId, currentYear]);
+        DATE_FORMAT(a.created_at, '%b') as month,
+        MONTH(a.created_at) as month_num,
+        ROUND((SUM(CASE WHEN a.is_present = 1 THEN 1 ELSE 0 END) / COUNT(*)) * 100, 0) as general,
+        ROUND((SUM(CASE WHEN a.is_present = 1 THEN 1 ELSE 0 END) / COUNT(*)) * 100, 0) as skill
+      FROM attendance a
+      INNER JOIN students s ON a.student_id = s.student_id
+      INNER JOIN venue v ON a.venue_id = v.venue_id
+      INNER JOIN \`groups\` g ON v.venue_id = g.venue_id
+      INNER JOIN group_students gs ON g.group_id = gs.group_id AND gs.student_id = s.student_id
+      WHERE s.user_id = ?
+        AND gs.status = 'Active'
+        AND YEAR(a.created_at) = ?
+      GROUP BY MONTH(a.created_at), DATE_FORMAT(a.created_at, '%b')
+      ORDER BY MONTH(a.created_at)
+    `, [userId, currentYear]);
 
     const stats = overallStats[0];
-    const absentCount = stats.total_sessions - stats.present_count - stats.late_count;
 
     const dashboardData = {
       overallStats: [
         {
           title: "OVERALL ATTENDANCE",
-          value: `${stats.attendance_percentage}%`,
-          sub: `Total days: ${stats.present_count} / ${stats.total_sessions}`,
-          color: stats.attendance_percentage >= 75 ? "#10B981" : "#F59E0B"
+          value: `${overallPercentage}%`,
+          sub: `Total days: ${totalDays} (${stats?.total_hours_present || 0}/${stats?.total_hours || 0} hours)`,
+          color: overallPercentage >= 75 ? "#10B981" : "#F59E0B"
         },
         {
           title: "SKILL ATTENDANCE",
-          value: `${stats.attendance_percentage}%`,
-          sub: `Skill Attended: ${stats.present_count} / ${stats.total_sessions}`,
+          value: `${overallPercentage}%`,
+          sub: `Days Attended: ${presentDays + lateDays}/${totalDays}`,
           color: "#1e293b"
         }
       ],
       sessionStatus: [
-        { label: "Present", count: stats.present_count, theme: "green" },
-        { label: "Late", count: stats.late_count, theme: "orange" },
-        { label: "Absent", count: absentCount, theme: "red" }
+        { label: "Present", count: presentDays, theme: "green" },
+        { label: "Late", count: lateDays, theme: "orange" },
+        { label: "Absent", count: absentDays, theme: "red" }
       ],
-      subjects: subjectStats,
+      subjects: subjects,
       skills: recentSkills,
       chartData: monthlyStats
     };
@@ -565,7 +703,7 @@ export const getStudentAttendanceDashboard = async (req, res) => {
     res.status(200).json({ 
       success: true, 
       data: dashboardData,
-      student_id: studentId,
+      user_id: userId,
       year: currentYear
     });
   } catch (error) {

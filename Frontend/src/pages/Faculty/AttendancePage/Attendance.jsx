@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
     Search,
     CheckCircle2,
@@ -23,6 +23,9 @@ const AttendanceManagement = () => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [sessionId, setSessionId] = useState(null);
+    
+    // Track the last initialized session to prevent loops
+    const lastInitializedRef = useRef(null);
 
     const TIME_SLOTS = [
         '09:00 AM - 10:30 AM',
@@ -35,7 +38,7 @@ const AttendanceManagement = () => {
     const fetchVenues = async () => {
         setLoading(true);
         try {
-            const response = await fetch(`${API_URL}/attendance/venues/${user.faculty_id}`, {
+            const response = await fetch(`${API_URL}/attendance/venues`, {
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
@@ -75,7 +78,16 @@ const AttendanceManagement = () => {
 
             const data = await response.json();
             if (data.success) {
-                setStudents(data.data);
+                console.log('👥 Students loaded:', data.data.length);
+                // Ensure each student has status and remarks fields initialized
+                const studentsWithDefaults = data.data.map(s => ({
+                    ...s,
+                    status: s.status || '',
+                    remarks: s.remarks || ''
+                }));
+                setStudents(studentsWithDefaults);
+                // After students are loaded, initialize the session
+                await initializeSessionWithAttendance(studentsWithDefaults);
             } else {
                 setError(data.message || 'Failed to fetch students');
             }
@@ -87,9 +99,18 @@ const AttendanceManagement = () => {
         }
     };
 
-    // Get or create session
-    const initializeSession = async () => {
+    // Combined function: Get/create session and load existing attendance
+    const initializeSessionWithAttendance = async (studentsList) => {
         if (!selectedVenue) return;
+
+        // Check if we've already initialized this exact session
+        const sessionKey = `${selectedVenue.venue_id}-${date}-${timeSlot}`;
+        if (lastInitializedRef.current === sessionKey) {
+            console.log('⏭️ Session already initialized, skipping...');
+            return;
+        }
+
+        console.log('🔄 Initializing session...', { venue: selectedVenue.venue_name, date, timeSlot });
 
         try {
             const response = await fetch(`${API_URL}/attendance/session`, {
@@ -98,7 +119,7 @@ const AttendanceManagement = () => {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
                 },
-                body:  JSON.stringify({
+                body: JSON.stringify({
                     sessionName: selectedVenue.venue_name,
                     date,
                     timeSlot
@@ -106,11 +127,75 @@ const AttendanceManagement = () => {
             });
 
             const data = await response.json();
+            console.log('📋 Session response:', data);
+
             if (data.success) {
-                setSessionId(data. data.session_id);
+                setSessionId(data.data.session_id);
+                console.log('✅ Session ID set:', data.data.session_id);
+                lastInitializedRef.current = sessionKey;
+
+                // If session already exists, fetch and merge existing attendance
+                if (data.data.existing) {
+                    console.log('📚 Existing session detected, fetching attendance...');
+                    await loadExistingAttendance(data.data.session_id, studentsList);
+                } else {
+                    console.log('🆕 New session created');
+                }
             }
         } catch (err) {
-            console.error('Error initializing session:', err);
+            console.error('❌ Error initializing session:', err);
+        }
+    };
+
+    // Load existing attendance and merge with students
+    const loadExistingAttendance = async (sessionIdToFetch, studentsList) => {
+        if (!selectedVenue) return;
+
+        console.log('🔍 Fetching existing attendance...', { 
+            sessionId: sessionIdToFetch, 
+            venueId: selectedVenue.venue_id,
+            studentsCount: studentsList.length 
+        });
+
+        try {
+            const response = await fetch(
+                `${API_URL}/attendance/session/${sessionIdToFetch}/${selectedVenue.venue_id}`,
+                {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                }
+            );
+
+            const data = await response.json();
+            console.log('📊 Existing attendance response:', data);
+
+            if (data.success && Object.keys(data.data).length > 0) {
+                console.log('✅ Found existing attendance records:', data.count);
+                console.log('📋 Attendance data:', data.data);
+
+                // Merge attendance with students
+                const updatedStudents = studentsList.map(student => {
+                    const existingRecord = data.data[student.student_id];
+                    if (existingRecord) {
+                        console.log(`👤 Restoring attendance for ${student.name}:`, existingRecord);
+                        return {
+                            ...student,
+                            status: existingRecord.status,
+                            remarks: existingRecord.remarks || ''
+                        };
+                    }
+                    return student;
+                });
+
+                console.log('✅ Updated students:', updatedStudents.filter(s => s.status).length, 'with status');
+                setStudents(updatedStudents);
+            } else {
+                console.log('ℹ️ No existing attendance found');
+            }
+        } catch (err) {
+            console.error('❌ Error fetching existing attendance:', err);
         }
     };
 
@@ -120,10 +205,13 @@ const AttendanceManagement = () => {
         }
     }, [token, user]);
 
+    // Load students when venue/date/time changes
     useEffect(() => {
         if (selectedVenue) {
+            console.log('📚 Venue/date/time changed, loading students and session...');
+            // Reset the last initialized ref when changing venue/date/time
+            lastInitializedRef.current = null;
             fetchStudents();
-            initializeSession();
         }
     }, [selectedVenue, date, timeSlot]);
 
@@ -146,9 +234,12 @@ const AttendanceManagement = () => {
 
     /* -------- HANDLERS -------- */
     const updateStatus = (id, status) => {
-        setStudents(prev =>
-            prev.map(s => (s.id === id ? { ... s, status } : s))
-        );
+        console.log(`🔘 Updating status for student ${id} to:`, status);
+        setStudents(prev => {
+            const updated = prev.map(s => (s.id === id ? { ...s, status } : s));
+            console.log('✅ Students after update:', updated.filter(s => s.id === id)[0]);
+            return updated;
+        });
     };
 
     const updateRemark = (id, value) => {
@@ -165,13 +256,8 @@ const AttendanceManagement = () => {
 
     const handleTimeSlotChange = (slot) => {
         setTimeSlot(slot);
-        setStudents(prev =>
-            prev. map(s => ({
-                ...s,
-                status: '',
-                remarks: ''
-            }))
-        );
+        // Don't reset attendance - it will be loaded from backend if exists
+        // When session initializes, it will fetch existing attendance
     };
 
     const saveAttendance = async () => {
@@ -179,6 +265,20 @@ const AttendanceManagement = () => {
             alert('Session not initialized');
             return;
         }
+
+        console.log('💾 Saving attendance...');
+        console.log('Session ID:', sessionId);
+        console.log('Venue ID:', selectedVenue.venue_id);
+        console.log('Faculty ID:', user.faculty_id);
+        console.log('Date:', date);
+        console.log('Time Slot:', timeSlot);
+        
+        const attendanceData = students.map(s => ({
+            student_id: s.student_id,
+            status: s.status,
+            remarks: s.remarks
+        }));
+        console.log('Attendance data:', attendanceData);
 
         setLoading(true);
         setError('');
@@ -191,32 +291,28 @@ const AttendanceManagement = () => {
                     'Content-Type': 'application/json'
                 },
                 body:  JSON.stringify({
-                    facultyId: user.faculty_id,
                     venueId: selectedVenue.venue_id,
                     sessionId:  sessionId,
                     date,
                     timeSlot,
-                    attendance: students.map(s => ({
-                        student_id: s.student_id,
-                        status:  s.status,
-                        remarks: s.remarks
-                    }))
+                    attendance: attendanceData
                 })
             });
 
             const data = await response.json();
+            console.log('💾 Save response:', data);
 
             if (data.success) {
-                alert('Attendance saved successfully!');
-                // Reset form
-                setStudents(prev =>
-                    prev.map(s => ({ ...s, status: '', remarks: '' }))
-                );
+                console.log('✅ Attendance saved successfully!');
+                alert('Attendance saved successfully! ✓');
+                // Don't reset the form - keep the attendance state
+                // This way, faculty can review or modify if needed
             } else {
+                console.error('❌ Save failed:', data.message);
                 setError(data.message || 'Failed to save attendance');
             }
         } catch (err) {
-            console.error('Error saving attendance:', err);
+            console.error('❌ Error saving attendance:', err);
             setError('Failed to save attendance');
         } finally {
             setLoading(false);

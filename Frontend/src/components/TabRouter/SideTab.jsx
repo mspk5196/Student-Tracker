@@ -16,7 +16,8 @@ import {
   Map,
   Home,
   Menu,
-  X
+  X,
+  FileSpreadsheet
 } from 'lucide-react';
 
 const SideTab = () => {
@@ -42,25 +43,27 @@ const SideTab = () => {
       { id: 'students', label: 'Students', icon: Users, section: 'main' },
       { id: 'attendance', label: 'Attendance', icon: CalendarCheck, section: 'academic' },
       { id: 'tasks', label: 'Task & Assignment', icon: ClipboardCheck, section: 'academic' },
+      { id: 'skill-reports', label: 'Skill Reports', icon: FileSpreadsheet, section: 'academic' },
       { id: 'reports', label: 'Reports', icon: BarChart3, section: 'academic' },
-      { id: 'settings', label: 'Settings', icon: Settings, section: 'system' },
+      // { id: 'settings', label: 'Settings', icon: Settings, section: 'system' },
     ],
     "faculty": [
-      { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, section: 'main' },
-      { id: 'classes', label: 'My Classes / Groups', icon: Layers, section: 'main' },
+      // { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, section: 'main' },
+      // { id: 'classes', label: 'My Classes / Groups', icon: Layers, section: 'main' },
       { id: 'students', label: 'Students', icon: Users, section: 'main' },
       { id: 'attendance', label: 'Attendance', icon: CalendarCheck, section: 'academic' },
       { id: 'tasks', label: 'Task & Assignment', icon: ClipboardCheck, section: 'academic' },
+      { id: 'skill-reports', label: 'Skill Reports', icon: FileSpreadsheet, section: 'academic' },
       { id: 'reports', label: 'Reports', icon: BarChart3, section: 'academic' },
-      { id: 'settings', label: 'Settings', icon: Settings, section: 'system' },
+      // { id: 'settings', label: 'Settings', icon: Settings, section: 'system' },
     ],
     "student": [
-      { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, section: 'main' },
-      { id: 'classes', label: 'My Class Room', icon: Home, section: 'main' },
+      // { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, section: 'main' },
+      // { id: 'classroom', label: 'My Class Room', icon: Home, section: 'main' },
       { id: 'roadmap', label: 'Roadmap & Material', icon: Map, section: 'academic' },
       { id: 'tasks', label: 'Tasks & Assignments', icon: ClipboardCheck, section: 'academic' },
       { id: 'attendance', label: 'Attendance', icon: CalendarCheck, section: 'academic' },
-      { id: 'performance', label: 'Performance', icon: BarChart3, section: 'system' },
+      // { id: 'performance', label: 'Performance', icon: BarChart3, section: 'system' },
     ],
   };
 
@@ -73,6 +76,7 @@ const SideTab = () => {
     students: { title: 'Students' },
     attendance: { title: 'Attendance' },
     tasks: { title: 'Task & Assignment' },
+    'skill-reports': { title: 'Skill Reports' },
     reports: { title: 'Reports' },
     settings: { title: 'Settings' },
   };

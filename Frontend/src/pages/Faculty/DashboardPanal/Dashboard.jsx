@@ -2,17 +2,17 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import {
     BookOpen, Calendar, Clock, ClipboardCheck,
-    MapPin, Users, ChevronRight, Plus,
-    BarChart3, PieChart, MoreVertical, CheckCircle,
+    MapPin, Users, ChevronRight,
+    BarChart3, PieChart,
     AlertCircle, TrendingUp, TrendingDown
 } from 'lucide-react';
 
-// API Configuration
-const API_BASE = 'http://localhost:5000/api/faculty/dashboard';
+// API Configuration - Use environment variable
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 // Create axios instance with auth interceptor
 const api = axios.create({
-    baseURL: API_BASE,
+    baseURL: API_BASE + '/faculty/dashboard',
     headers: {
         'Content-Type': 'application/json',
     }
@@ -60,7 +60,7 @@ const BarChart = ({ data }) => {
                 position: 'relative'
             }}>
                 {data.labels.map((label, index) => {
-                    const value = data.datasets[0].data[index];
+                    const value = data.datasets[0].data[index] || 0;
                     const height = (value / baseline) * 100;
 
                     return (
@@ -321,7 +321,10 @@ const Dashboard = () => {
             setError(null);
             
             try {
+                console.log('Fetching dashboard data from:', api.defaults.baseURL);
                 const response = await api.get('/');
+                console.log('Dashboard response received:', response.data);
+                
                 const data = response.data;
 
                 setStats(data.stats || []);
@@ -341,18 +344,23 @@ const Dashboard = () => {
                 });
                 setEngagementData(data.engagementData || {
                     attendance: {
-                        labels: [],
-                        datasets: [{ data: [], label: 'Attendance %', color: '#2563eb' }]
+                        labels: data.engagementData?.attendance?.labels || [],
+                        datasets: [{
+                            data: data.engagementData?.attendance?.datasets?.[0]?.data || [],
+                            label: 'Attendance %',
+                            color: '#2563eb'
+                        }]
                     },
                     taskCompletion: {
                         labels: ['Submitted', 'Pending', 'Overdue'],
-                        data: [0, 0, 0],
+                        data: data.engagementData?.taskCompletion?.data || [0, 0, 0],
                         colors: ['#10b981', '#f59e0b', '#ef4444']
                     }
                 });
             } catch (err) {
                 console.error('Failed to load dashboard:', err);
-                setError(err.response?.data?.message || 'Failed to load dashboard data');
+                console.error('Error details:', err.response?.data);
+                setError(err.response?.data?.message || err.message || 'Failed to load dashboard data');
                 
                 // If it's an auth error, redirect to login
                 if (err.response?.status === 401) {
@@ -575,19 +583,41 @@ const Dashboard = () => {
                     <AlertCircle size={20} />
                     <span>Error: {error}</span>
                 </div>
-                <button 
-                    onClick={() => window.location.reload()}
-                    style={{
-                        background: '#2563eb',
-                        color: 'white',
-                        border: 'none',
-                        padding: '10px 20px',
-                        borderRadius: '10px',
-                        cursor: 'pointer'
-                    }}
-                >
-                    Retry
-                </button>
+                <div style={{ display: 'flex', gap: '12px', marginTop: '20px' }}>
+                    <button 
+                        onClick={() => window.location.reload()}
+                        style={{
+                            background: '#2563eb',
+                            color: 'white',
+                            border: 'none',
+                            padding: '10px 20px',
+                            borderRadius: '10px',
+                            cursor: 'pointer',
+                            fontWeight: '600'
+                        }}
+                    >
+                        Retry
+                    </button>
+                    <button 
+                        onClick={() => {
+                            console.log('API Base URL:', API_BASE);
+                            console.log('Full API URL:', api.defaults.baseURL);
+                            console.log('Token exists:', !!localStorage.getItem('token'));
+                            alert(`API URL: ${api.defaults.baseURL}\n\nCheck browser console for details.`);
+                        }}
+                        style={{
+                            background: '#10b981',
+                            color: 'white',
+                            border: 'none',
+                            padding: '10px 20px',
+                            borderRadius: '10px',
+                            cursor: 'pointer',
+                            fontWeight: '600'
+                        }}
+                    >
+                        Debug Info
+                    </button>
+                </div>
             </div>
         );
     }
@@ -927,7 +957,7 @@ const Dashboard = () => {
                     </div>
 
                     <div className="class-list">
-                        {classes.map(c => (
+                        {classes.length > 0 ? classes.map(c => (
                             <div className="class-card" key={c.id}>
                                 <div>
                                     <div className="class-info-top">
@@ -953,7 +983,7 @@ const Dashboard = () => {
                                     </div>
                                 </div>
                                 <div className="actions">
-                                    {c.actions.map((a, index) => (
+                                    {c.actions?.map((a, index) => (
                                         <button
                                             key={index}
                                             className="btn-action"
@@ -965,7 +995,18 @@ const Dashboard = () => {
                                     ))}
                                 </div>
                             </div>
-                        ))}
+                        )) : (
+                            <div className="class-card">
+                                <div>
+                                    <div className="class-info-top">
+                                        <span className="class-name">No classes scheduled for today</span>
+                                    </div>
+                                    <div className="meta-row">
+                                        <span>Check back tomorrow or create a new class</span>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                     </div>
 
                     {/* Engagement Graphs */}
@@ -978,7 +1019,13 @@ const Dashboard = () => {
                                 <div className="graph-title">
                                     <BarChart3 size={18} /> Class-wise Attendance
                                 </div>
-                                <BarChart data={engagementData.attendance} />
+                                {engagementData.attendance.labels.length > 0 ? (
+                                    <BarChart data={engagementData.attendance} />
+                                ) : (
+                                    <div style={{ padding: '40px', textAlign: 'center', color: '#6b7280' }}>
+                                        No attendance data available
+                                    </div>
+                                )}
                             </div>
                             <div className="graph-card">
                                 <div className="graph-title">
@@ -1008,7 +1055,7 @@ const Dashboard = () => {
                                 </tr>
                             </thead>
                             <tbody>
-                                {groups.map(g => (
+                                {groups.length > 0 ? groups.map(g => (
                                     <tr key={g.id} onClick={() => handleGroupClick(g.id)}>
                                         <td>
                                             <div className="grp-title">{g.id} {g.title}</div>
@@ -1026,7 +1073,13 @@ const Dashboard = () => {
                                             </span>
                                         </td>
                                     </tr>
-                                ))}
+                                )) : (
+                                    <tr>
+                                        <td colSpan="5" style={{ textAlign: 'center', padding: '40px', color: '#6b7280' }}>
+                                            No groups found
+                                        </td>
+                                    </tr>
+                                )}
                             </tbody>
                         </table>
                     </div>
@@ -1059,7 +1112,7 @@ const Dashboard = () => {
                                 </div>
                             </div>
                             <div>
-                                {taskReview.tasks.map(task => (
+                                {taskReview.tasks.length > 0 ? taskReview.tasks.map(task => (
                                     <div
                                         key={task.id}
                                         style={{
@@ -1085,7 +1138,11 @@ const Dashboard = () => {
                                             {task.status === 'review' ? 'Review' : 'In progress'}
                                         </span>
                                     </div>
-                                ))}
+                                )) : (
+                                    <div style={{ textAlign: 'center', padding: '20px', color: '#6b7280' }}>
+                                        No tasks pending review
+                                    </div>
+                                )}
                             </div>
                             <div className="blue-link" onClick={handleGoToTasks}>
                                 Go to Tasks & Submissions

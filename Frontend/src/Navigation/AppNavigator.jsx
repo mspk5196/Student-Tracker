@@ -27,15 +27,17 @@ import StudentHeader from "../pages/SuperAdmin/studentsPage/studentHeader/Studen
 import StudentPage from "../pages/SuperAdmin/studentsPage/AllStudents/studentsPage";
 //Super Admin -> Task & Assignments
 import TaskHeader from "../pages/SuperAdmin/Task&Assignments/TaskHeader/TaskHeader";
+//Super Admin -> Skill Reports
+import AdminSkillReport from "../pages/SuperAdmin/SkillReports/AdminSkillReport";
 
 // Faculty Pages
-import FacultyDashboard from '../pages/Faculty/DashboardPanal/Dashboard';
 import ClassHeader from "../pages/Faculty/Class&Group/ClassHeader/ClassHeader";
 import MyClasses from "../pages/Faculty/Class&Group/MyClasses/MyClasses";
 import AllClasses from "../pages/Faculty/Class&Group/AllClasses/AllClasses";
 import StudentsPage from "../pages/SuperAdmin/studentsPage/AllStudents/studentsPage";
 import Reports from "../pages/SuperAdmin/Reports&Analytics/Reporst&analytics";
-import ClassDetails from "../pages/SuperAdmin/Classes&Groups/ClassDetails/ClassDetails";
+//Faculty -> Skill Reports
+import FacultySkillReport from "../pages/Faculty/SkillReports/FacultySkillReport";
 
 // Student Pages
 import StudentDashboard from "../pages/Student/Dashboard/StudentDashboard";
@@ -72,40 +74,40 @@ const AppNavigator = () => {
             </Route>
             <Route path="attendance" element={<Attendance />} />
             <Route path="tasks" element={<TaskHeader />} />  {/* ✅ Already correct */}
+            <Route path="skill-reports" element={<AdminSkillReport />} />  {/* ✅ Skill Reports */}
             <Route path="reports" element={<ReportsAnalytics />} />  {/* ✅ Already correct */}
-            <Route path="settings" element={<div>Settings</div>} />
           </Route>
         )}
 
         {/* FACULTY (role === "faculty") */}
         {user?.role === "faculty" && (
           <Route path="/" element={<SideTab />}>
-            <Route index element={<FacultyDashboard />} />
+            {/* <Route index element={<FacultyDashboard />} /> */}
             <Route path="students">
               <Route index element={<StudentsPage />} />
               <Route path=":studentId" element={<StudentHeader />} />
             </Route>
-            <Route path="classes" element={<ClassHeader />}>
-              <Route index element={<MyClasses />} />
-              <Route path="all" element={<AllClasses />} />
-            </Route>
-            <Route path="attendance" element={<Attendance />} />
+            {/* <Route path="classes" element={<ClassHeader />}> */}
+              {/* <Route index element={<MyClasses />} /> */}
+              {/* <Route path="all" element={<AllClasses />} /> */}
+            {/* </Route> */}
+            <Route path="/" element={<Attendance />} />
+            <Route path="skill-reports" element={<FacultySkillReport />} />  {/* ✅ Skill Reports */}
             <Route path="tasks" element={<TaskHeader />} />  {/* ✅ Already correct */}
-            <Route path="students" element={<div>Students</div>} />
+            {/* <Route path="students" element={<div>Students</div>} /> */}
             <Route path="reports" element={<Reports />} />  {/* ✅ Faculty can also access reports */}
-            <Route path="settings" element={<div>Settings</div>} />
           </Route>
         )}
 
         {/* STUDENT (role === "student") */}
         {user?.role === "student" && (
           <Route path="/" element={<SideTab />}>
-            <Route index element={<StudentDashboard/>} />
-            <Route path="classes" element={<MyClassRoom/>}/>
-            <Route path="attendance" element={<StudentAttendance/>}/>
-            <Route path="roadmap" element={<StudentRoadmap/>}/>
-            <Route path="tasks" element={<TasksAssignments/>} />
-            <Route path="performance" element={<Performance/>} />
+            {/* <Route index element={<StudentDashboard/>} /> */}
+            {/* <Route path="classes" element={<MyClassRoom />}/> */}
+            <Route path="attendance" element={<StudentAttendance />}/>
+            <Route path="/" element={<StudentRoadmap />}/>
+            <Route path="tasks" element={<TasksAssignments />} />
+            {/* <Route path="performance" element={<Performance />} /> */}
           </Route>
         )}
 

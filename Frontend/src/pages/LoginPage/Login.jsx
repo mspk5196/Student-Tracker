@@ -35,76 +35,35 @@ const Login = () => {
 
       const data = await res.json();
 
-      // data.user.role must be 1 | 2 | 3
-      login(data.user, data.token);
-      console.log("Login successful:", data.user);
-      console.log("jwt token:", data.token);
-
-      navigate("/"); // single entry point
+      // Login with JWT token - this will fetch user data automatically
+      const result = await login(data.token);
+      
+      if (result.success) {
+        navigate("/"); // single entry point
+      } else {
+        alert("Failed to load user data. Please try again.");
+      }
     } catch (err) {
       console.error("Login failed:", err);
+      alert("Login failed. Please try again.");
     }
   };
 
   return (
     <div style={styles.page}>
       <div style={styles.card}>
-        <h2 style={styles.heading}>Welcome Back!</h2>
+        <h2 style={styles.heading}>Welcome Back</h2>
 
         <img src={logo} alt="BIT Logo" style={styles.logo} />
 
-        <h3 style={styles.portalTitle}>STUDENT INFORMATION PORTAL</h3>
+        <h3 style={styles.portalTitle}>PBL PORTAL</h3>
         <div style={styles.divider}></div>
 
         <GoogleSignInButton onSuccess={handleGoogleSuccess} />
 
         <p style={styles.footerText}>
-          Sign in with your institutional Google account
+          Sign in with your BIT Google account
         </p>
-
-        {/* ================= DUMMY LOGIN ================= */}
-        <div style={styles.dummyContainer}>
-          <p style={styles.dummyTitle}>Dummy Login (Testing)</p>
-
-          <button
-            style={styles.button}
-            onClick={() => {
-              login(
-                { user_id: 999,  name: "Student", email: "student@test.com", role: "student" },
-                "dummy"
-              );
-              navigate("/");
-            }}
-          >
-            Login as Student
-          </button>
-
-          <button
-            style={styles.button}
-            onClick={() => {
-              login(
-                {  user_id: 998, name: "Faculty", email: "faculty@test.com", role: "faculty" },
-                "dummy"
-              );
-              navigate("/");
-            }}
-          >
-            Login as Faculty
-          </button>
-
-          <button
-            style={styles.button}
-            onClick={() => {
-              login(
-                { user_id: 997, name: "Admin", email: "admin@test.com", role: "admin" },
-                "dummy"
-              );
-              navigate("/");
-            }}
-          >
-            Login as Admin
-          </button>
-        </div>
       </div>
     </div>
   );
@@ -166,21 +125,6 @@ const styles = {
     fontSize: "13px",
     color: "#777",
     marginTop: "10px",
-  },
-
-  dummyContainer: {
-    marginTop: "22px",
-    padding: "14px",                // 🔹 reduced
-    border: "1px solid #e0e0e0",
-    borderRadius: "10px",
-    backgroundColor: "#fafafa",
-  },
-
-  dummyTitle: {
-    fontSize: "13px",
-    marginBottom: "12px",
-    fontWeight: "600",
-    color: "#555",
   },
 
   button: {

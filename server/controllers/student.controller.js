@@ -587,24 +587,48 @@ export const getStudentAttendanceDashboard = async (req, res) => {
       };
     });
 
-    // Simple subjects - no complex joins
-    const subjects = [
-      { name: "Data Structures & Algorithms", current: 24, total: 24, percent: 100 },
-      { name: "Database Management Systems", current: 22, total:  24, percent: 91 },
-      { name: "Computer Networks", current: 20, total: 22, percent: 90 },
-      { name: "Software Engineering", current: 22, total: 22, percent: 100 },
-      { name: "Operating Systems", current: 18, total: 24, percent: 75 },
-      { name: "Machine Learning", current: 20, total: 20, percent: 100 }
-    ];
+    // Get subjects from groups the student is enrolled in
+    const [subjectsRaw] = await db.query(`
+      SELECT 
+        g.group_name as name,
+        COUNT(DISTINCT a.attendance_id) as total,
+        COUNT(DISTINCT CASE WHEN a.is_present = 1 THEN a.attendance_id END) as current
+      FROM group_students gs
+      INNER JOIN \`groups\` g ON gs.group_id = g.group_id
+      LEFT JOIN attendance a ON a.student_id = gs.student_id 
+        AND a.venue_id = g.venue_id
+        AND YEAR(a.created_at) = ?
+      WHERE gs.student_id = ? AND gs.status = 'Active'
+      GROUP BY g.group_id, g.group_name
+      HAVING total > 0
+    `, [year, studentId]);
 
-    // Simple skills - no complex joins
-    const skills = [
-      { name:  "Advanced React Patterns", type: "Workshop", date: "Jan 15, 2025", status: "Present" },
-      { name: "UI/UX Design Sprint", type: "Event", date: "Jan 12, 2025", status: "Present" },
-      { name: "Cloud Architecture", type: "Seminar", date: "Jan 08, 2025", status: "Late" },
-      { name:  "Hackathon Kickoff", type: "Event", date: "Jan 05, 2025", status: "Absent" },
-      { name:  "Node.js Performance", type: "Workshop", date:  "Dec 28, 2024", status: "Present" }
-    ];
+    const subjects = subjectsRaw.map(s => ({
+      name: s.name,
+      current: s.current,
+      total: s.total,
+      percent: s.total > 0 ? Math.round((s.current / s.total) * 100) : 0
+    }));
+
+    // Get recent workshop/venue attendance
+    const [skillsRaw] = await db.query(`
+      SELECT 
+        v.venue_name as name,
+        'Workshop' as type,
+        DATE_FORMAT(a.created_at, '%b %d, %Y') as date,
+        CASE 
+          WHEN a.is_present = 0 THEN 'Absent'
+          WHEN a.is_late = 1 THEN 'Late'
+          ELSE 'Present'
+        END as status
+      FROM attendance a
+      INNER JOIN venue v ON a.venue_id = v.venue_id
+      WHERE a.student_id = ? AND YEAR(a.created_at) = ?
+      ORDER BY a.created_at DESC
+      LIMIT 5
+    `, [studentId, year]);
+
+    const skills = skillsRaw.length > 0 ? skillsRaw : [];
 
     res.status(200).json({
       success: true,
@@ -665,22 +689,30 @@ export const getStudentOverview = async (req, res) => {
     // Get basic overview stats
     const [overview] = await db.query(`
       SELECT 
-        COALESCE(ROUND((SUM(CASE WHEN a. is_present = 1 THEN 1 ELSE 0 END) / NULLIF(COUNT(DISTINCT a.attendance_id), 0)) * 100, 0), 0) as overallAttendance
+        COALESCE(ROUND((SUM(CASE WHEN a.is_present = 1 THEN 1 ELSE 0 END) / NULLIF(COUNT(DISTINCT a.attendance_id), 0)) * 100, 0), 0) as overallAttendance
       FROM attendance a
       WHERE a.student_id = ? 
     `, [studentId]);
 
-    // Simple skills
-    const skills = [
-      { name: "Data Structures", rating: 84 },
-      { name: "Python Programming", rating: 94 },
-      { name: "SQL & Databases", rating: 84 },
-      { name: "Web Development", rating: 84 },
-      { name: "Research Methodology", rating: 82 },
-      { name: "Team Leadership", rating: 84 },
-      { name: "Cloud Computing", rating: 78 },
-      { name: "Machine Learning", rating: 92 },
-      { name: "Cyber Security", rating: 85 }
+    // Get student skills from database
+    const [skillsRaw] = await db.query(`
+      SELECT 
+        sk.skill_name as name,
+        CASE ss.proficiency_level
+          WHEN 'Beginner' THEN 40
+          WHEN 'Intermediate' THEN 60
+          WHEN 'Advanced' THEN 80
+          WHEN 'Expert' THEN 95
+          ELSE 50
+        END as rating
+      FROM student_skills ss
+      INNER JOIN skills sk ON ss.skill_id = sk.skill_id
+      WHERE ss.student_id = ?
+      ORDER BY ss.created_at DESC
+    `, [studentId]);
+
+    const skills = skillsRaw.length > 0 ? skillsRaw : [
+      { name: "No skills added yet", rating: 0 }
     ];
 
     // Get weekly activity - COMPLETELY FIXED - Proper GROUP BY
@@ -716,26 +748,53 @@ export const getStudentOverview = async (req, res) => {
       { day: 'Sun', value: 48 }
     ];
 
-    const taskStatus = {
-      completed: 8,
-      inProgress: 4,
-      total: 14
-    };
+    // Get task status from submissions
+    const [taskStatusRaw] = await db.query(`
+      SELECT 
+        COUNT(DISTINCT CASE WHEN ts.status = 'Graded' THEN ts.task_id END) as completed,
+        COUNT(DISTINCT CASE WHEN ts.status = 'Pending Review' THEN ts.task_id END) as inProgress,
+        COUNT(DISTINCT ts.task_id) as total
+      FROM task_submissions ts
+      WHERE ts.student_id = ?
+    `, [studentId]);
 
-    const performance = [
-      { subject: "DSA", individual: 92, average: 75 },
-      { subject: "Web", individual: 88, average: 78 },
-      { subject: "SQL", individual: 95, average: 82 },
-      { subject: "Math", individual: 78, average: 85 },
-      { subject: "Algo", individual: 85, average:  72 },
-      { subject: "Python", individual: 94, average: 80 },
-      { subject: "Network", individual: 88, average: 78 },
-      { subject: "Leader", individual: 96, average: 85 },
-      { subject: "OS", individual: 82, average: 74 },
-      { subject: "AI", individual: 91, average: 79 }
+    const taskStatus = taskStatusRaw.length > 0 ? {
+      completed: taskStatusRaw[0].completed || 0,
+      inProgress: taskStatusRaw[0].inProgress || 0,
+      total: taskStatusRaw[0].total || 0
+    } : { completed: 0, inProgress: 0, total: 0 };
+
+    // Get performance from task submissions
+    const [performanceRaw] = await db.query(`
+      SELECT 
+        SUBSTRING(t.title, 1, 10) as subject,
+        COALESCE(AVG(CASE WHEN ts.student_id = ? THEN ts.grade END), 0) as individual,
+        COALESCE(AVG(ts.grade), 0) as average
+      FROM tasks t
+      LEFT JOIN task_submissions ts ON t.task_id = ts.task_id AND ts.grade IS NOT NULL
+      WHERE t.status = 'Active'
+      GROUP BY t.task_id, t.title
+      HAVING individual > 0 OR average > 0
+      LIMIT 10
+    `, [studentId]);
+
+    const performance = performanceRaw.length > 0 ? performanceRaw : [
+      { subject: "No grades", individual: 0, average: 0 }
     ];
 
-    const credits = { earned: 18, total: 20 };
+    // Calculate credits based on completed tasks (each task = 1 credit for demo)
+    const [creditsRaw] = await db.query(`
+      SELECT 
+        COUNT(CASE WHEN ts.status = 'Graded' AND ts.grade >= 50 THEN 1 END) as earned,
+        COUNT(*) as total
+      FROM task_submissions ts
+      WHERE ts.student_id = ?
+    `, [studentId]);
+
+    const credits = creditsRaw.length > 0 ? {
+      earned: creditsRaw[0].earned || 0,
+      total: creditsRaw[0].total || 1
+    } : { earned: 0, total: 1 };
 
     res.status(200).json({
       success: true,
@@ -751,17 +810,17 @@ export const getStudentOverview = async (req, res) => {
         overview: {
           overallAttendance: overview[0].overallAttendance,
           classAverage: 88,
-          taskCompletion: 85,
-          tasksSubmitted: "12/14",
-          cgpa: 3.8,
-          cgpaRank: "Top 5% of Class"
+          taskCompletion: taskStatus.total > 0 ? Math.round((taskStatus.completed / taskStatus.total) * 100) : 0,
+          tasksSubmitted: `${taskStatus.completed}/${taskStatus.total}`,
+          cgpa: taskStatus.completed > 0 ? (3.0 + (taskStatus.completed / taskStatus.total) * 1.0).toFixed(2) : 0,
+          cgpaRank: "Calculated from tasks"
         },
         skills: skills,
-        weeklyActivity: weeklyActivity. length > 0 ? weeklyActivity : defaultWeeklyActivity,
+        weeklyActivity: weeklyActivity.length > 0 ? weeklyActivity : defaultWeeklyActivity,
         taskStatus: taskStatus,
         performance: performance,
         credits: credits,
-        semesterGPA: 3.92
+        semesterGPA: taskStatus.completed > 0 ? (3.0 + (taskStatus.completed / taskStatus.total) * 1.0).toFixed(2) : 0
       }
     });
   } catch (error) {
@@ -773,58 +832,79 @@ export const getStudentOverview = async (req, res) => {
     });
   }
 };
+
 // Get student ranking data
 export const getStudentRanking = async (req, res) => {
   try {
-    const { studentId } = req. params;
+    const { studentId } = req.params;
 
-    // Get all students with global points
+    // Get all students with points from task submissions
     const [students] = await db.query(`
       SELECT 
         s.student_id as id,
         u.name,
         '' as profilePic,
-        COALESCE(SUM(sr.rating * 10), 0) as globalPoints,
-        COALESCE(SUM(CASE WHEN sr.task_type = 'React' THEN sr.rating * 10 ELSE 0 END), 0) as reactPoints,
-        COALESCE(SUM(CASE WHEN sr.task_type = 'HTML' THEN sr.rating * 10 ELSE 0 END), 0) as htmlPoints,
-        COALESCE(SUM(CASE WHEN sr. task_type = 'UIUX' THEN sr.rating * 10 ELSE 0 END), 0) as uiuxPoints,
-        COALESCE(SUM(CASE WHEN sr.task_type = 'JS' THEN sr.rating * 10 ELSE 0 END), 0) as jsPoints,
-        COALESCE(SUM(CASE WHEN sr. task_type = 'Node' THEN sr.rating * 10 ELSE 0 END), 0) as nodePoints
+        COALESCE(SUM(ts.grade), 0) as globalPoints
       FROM students s
       INNER JOIN users u ON s.user_id = u.user_id
-      LEFT JOIN student_report sr ON sr.student_id = s.student_id
+      LEFT JOIN task_submissions ts ON ts.student_id = s.student_id AND ts.status = 'Graded'
       WHERE u.role_id = 3
       GROUP BY s.student_id, u.name
       ORDER BY globalPoints DESC
     `);
 
-    // Format students data
-    const formattedStudents = students.map(s => ({
-      id: s. id. toString(),
-      name: s.name + (s.id. toString() === studentId ? " (You)" : ""),
-      profilePic: s.profilePic,
-      points: {
-        global: s.globalPoints,
-        react: s.reactPoints,
-        html: s.htmlPoints,
-        uiux: s. uiuxPoints,
-        js: s.jsPoints,
-        node: s.nodePoints
+    // Get workshop-specific points from different venues
+    const [workshopPoints] = await db.query(`
+      SELECT 
+        s.student_id,
+        v.venue_id,
+        v.venue_name,
+        COALESCE(SUM(ts.grade), 0) as points
+      FROM students s
+      CROSS JOIN venue v
+      LEFT JOIN tasks t ON t.venue_id = v.venue_id
+      LEFT JOIN task_submissions ts ON ts.task_id = t.task_id AND ts.student_id = s.student_id AND ts.status = 'Graded'
+      WHERE v.status = 'Active'
+      GROUP BY s.student_id, v.venue_id, v.venue_name
+    `);
+
+    // Build points object for each student
+    const studentPointsMap = {};
+    students.forEach(s => {
+      studentPointsMap[s.id] = {
+        ...s,
+        points: { global: s.globalPoints }
+      };
+    });
+
+    workshopPoints.forEach(wp => {
+      if (studentPointsMap[wp.student_id]) {
+        // Create a safe ID for the venue (first 20 chars, lowercase, no spaces)
+        const venueKey = wp.venue_name.substring(0, 20).toLowerCase().replace(/[^a-z0-9]/g, '');
+        studentPointsMap[wp.student_id].points[venueKey] = wp.points;
       }
+    });
+
+    const formattedStudents = Object.values(studentPointsMap).map(s => ({
+      id: s.id.toString(),
+      name: s.name + (s.id.toString() === studentId ? " (You)" : ""),
+      profilePic: s.profilePic,
+      points: s.points
     }));
 
-    // Get workshops
+    // Get active workshops/venues
     const [workshops] = await db.query(`
       SELECT 
-        'react' as id, 'Advanced React' as title, 'In Progress (Day 3)' as status
-      UNION ALL
-      SELECT 'html', 'HTML & CSS Basics', 'Jan 10 - Jan 12'
-      UNION ALL
-      SELECT 'uiux', 'UI/UX Sprint', 'Jan 05 - Jan 08'
-      UNION ALL
-      SELECT 'js', 'JS Fundamentals', 'Dec 15 - Dec 20'
-      UNION ALL
-      SELECT 'node', 'Node.js Backend', 'Nov 20 - Nov 25'
+        SUBSTRING(LOWER(REPLACE(venue_name, ' ', '')), 1, 20) as id,
+        venue_name as title,
+        CASE 
+          WHEN assigned_faculty_id IS NOT NULL THEN 'Active'
+          ELSE 'Available'
+        END as status
+      FROM venue
+      WHERE status = 'Active'
+      ORDER BY venue_name
+      LIMIT 5
     `);
 
     res.status(200).json({
@@ -832,7 +912,7 @@ export const getStudentRanking = async (req, res) => {
       data: {
         me: { 
           id: studentId, 
-          name: formattedStudents. find(s => s.id === studentId)?.name || "You" 
+          name: formattedStudents.find(s => s.id === studentId)?.name || "You" 
         },
         students: formattedStudents,
         workshops: workshops
@@ -840,7 +920,7 @@ export const getStudentRanking = async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching ranking:', error);
-    res.status(500).json({ success: false, message: 'Failed to fetch ranking' });
+    res.status(500).json({ success: false, message: 'Failed to fetch ranking', error: error.message });
   }
 };
 
@@ -850,77 +930,143 @@ export const getStudentTaskGrade = async (req, res) => {
   try {
     const { studentId } = req.params;
 
-    // Verify student exists
+    // Verify student exists and get student info
     const [studentCheck] = await db.query(`
-      SELECT student_id FROM students WHERE student_id = ?
+      SELECT s.student_id, u.name
+      FROM students s
+      INNER JOIN users u ON s.user_id = u.user_id
+      WHERE s.student_id = ?
     `, [studentId]);
 
     if (studentCheck.length === 0) {
-      return res.status(404).json({ success: false, message:  'Student not found' });
+      return res.status(404).json({ success: false, message: 'Student not found' });
     }
 
-    // Sample current workshop - hardcoded for now
-    const currentWorkshop = {
-      id: 'W001',
-      title: 'Advanced React Patterns',
-      faculty: 'Dr. Sarah Smith',
-      venue: 'Lab 304 (Center Block)',
-      duration: '10 Days (Dec 20 - Dec 30, 2025)',
-      tasks: [
-        { day: 1, date: '2025-12-20', title: 'Higher Order Components', points: 50, grade: 'A+', status: 'Completed' },
-        { day: 2, date: '2025-12-21', title: 'Render Props & Context', points: 45, grade: 'A', status: 'Completed' },
-        { day: 3, date: '2025-12-22', title: 'Compound Components', points: 55, grade: 'A+', status: 'Completed' },
-        { day: 4, date: '2025-12-23', title: 'Control Props Pattern', points: 50, grade: 'A+', status: 'Completed' },
-        { day: 5, date: '2025-12-24', title: 'Custom Hooks Logic', points: 45, grade: 'A', status: 'Completed' },
-        { day: 6, date: '2025-12-25', title: 'State Management Systems', points: 0, grade: 'In Progress', status: 'Active' },
-        { day: 7, date: '2025-12-26', title: 'Performance Optimization', points: 0, grade: 'Locked', status: 'Upcoming' },
-        { day: 8, date: '2025-12-27', title: 'Error Boundaries', points: 0, grade:  'Locked', status: 'Upcoming' }
-      ]
-    };
+    // Get current/recent workshop from groups
+    const [currentWorkshopRaw] = await db.query(`
+      SELECT 
+        g.group_id as id,
+        g.group_name as title,
+        CONCAT(u.name) as faculty,
+        CONCAT(v.venue_name, ' (', v.location, ')') as venue,
+        CONCAT(g.schedule_days, ' - ', g.schedule_time) as duration
+      FROM group_students gs
+      INNER JOIN \`groups\` g ON gs.group_id = g.group_id
+      INNER JOIN venue v ON g.venue_id = v.venue_id
+      INNER JOIN faculties f ON g.faculty_id = f.faculty_id
+      INNER JOIN users u ON f.user_id = u.user_id
+      WHERE gs.student_id = ? AND gs.status = 'Active'
+      LIMIT 1
+    `, [studentId]);
 
-    // Sample history
-    const history = [
-      {
-        id: 'H001',
-        title: 'UI/UX Design Sprint',
-        date: 'Nov 10 - Nov 12, 2025',
-        duration: '3 Days',
-        faculty: 'Prof. Alan Kay',
-        grade: 'A+',
-        points: 120,
-        tasks: [
-          { day: 1, date: '2025-11-10', title: 'User Research', points: 40, grade: 'A', status: 'Completed' },
-          { day: 2, date: '2025-11-11', title: 'Wireframing', points: 40, grade: 'A+', status: 'Completed' },
-          { day: 3, date: '2025-11-12', title: 'High-Fidelity Prototyping', points: 40, grade: 'A+', status: 'Completed' }
-        ]
-      },
-      {
-        id: 'H002',
-        title: 'Node.js Backend Mastery',
-        date: 'Oct 15 - Oct 20, 2025',
-        duration: '6 Days',
-        faculty: 'Ryan Dahl',
-        grade:  'A',
-        points:  180,
-        tasks: [
-          { day: 1, date: '2025-10-15', title: 'Express Basics', points: 30, grade: 'A', status: 'Completed' },
-          { day: 2, date: '2025-10-16', title: 'REST APIs', points: 30, grade: 'A', status: 'Completed' },
-          { day: 3, date: '2025-10-17', title: 'Middleware', points: 30, grade:  'A', status: 'Completed' }
-        ]
-      },
-      {
-        id: 'H003',
-        title:  'Cloud Architecture Seminar',
-        date: 'Aug 05, 2025',
-        duration:  '1 Day',
-        faculty: 'Dr. Werner Vogels',
-        grade:  'Participated',
-        points: 50,
-        tasks: [
-          { day: 1, date:  '2025-08-05', title: 'Serverless Concepts', points: 50, grade: 'A+', status: 'Completed' }
-        ]
-      }
-    ];
+    let currentWorkshop = null;
+
+    if (currentWorkshopRaw.length > 0) {
+      const workshop = currentWorkshopRaw[0];
+      
+      // Get tasks for this workshop
+      const [tasksRaw] = await db.query(`
+        SELECT 
+          t.day,
+          t.due_date as date,
+          t.title,
+          COALESCE(ts.grade, 0) as points,
+          CASE 
+            WHEN ts.grade >= 90 THEN 'A+'
+            WHEN ts.grade >= 80 THEN 'A'
+            WHEN ts.grade >= 70 THEN 'B+'
+            WHEN ts.grade >= 60 THEN 'B'
+            WHEN ts.grade IS NOT NULL THEN 'C'
+            WHEN t.due_date > CURDATE() THEN 'Locked'
+            ELSE 'In Progress'
+          END as grade,
+          CASE 
+            WHEN ts.status = 'Graded' THEN 'Completed'
+            WHEN t.due_date > CURDATE() THEN 'Upcoming'
+            ELSE 'Active'
+          END as status
+        FROM tasks t
+        LEFT JOIN task_submissions ts ON t.task_id = ts.task_id AND ts.student_id = ?
+        WHERE t.venue_id = (
+          SELECT g.venue_id FROM group_students gs
+          INNER JOIN \`groups\` g ON gs.group_id = g.group_id
+          WHERE gs.student_id = ? AND gs.status = 'Active'
+          LIMIT 1
+        ) AND t.status = 'Active'
+        ORDER BY t.day
+      `, [studentId, studentId]);
+
+      currentWorkshop = {
+        ...workshop,
+        tasks: tasksRaw.map(t => ({
+          day: t.day,
+          date: t.date,
+          title: t.title,
+          points: t.points,
+          grade: t.grade,
+          status: t.status
+        }))
+      };
+    }
+
+    // Get history from completed groups
+    const [historyRaw] = await db.query(`
+      SELECT 
+        g.group_id as id,
+        g.group_name as title,
+        DATE_FORMAT(g.created_at, '%b %d - %b %d, %Y') as date,
+        g.schedule_days as duration,
+        CONCAT(u.name) as faculty,
+        ROUND(AVG(ts.grade), 0) as avgGrade,
+        SUM(ts.grade) as totalPoints
+      FROM group_students gs
+      INNER JOIN \`groups\` g ON gs.group_id = g.group_id
+      INNER JOIN faculties f ON g.faculty_id = f.faculty_id
+      INNER JOIN users u ON f.user_id = u.user_id
+      LEFT JOIN tasks t ON t.venue_id = g.venue_id
+      LEFT JOIN task_submissions ts ON t.task_id = ts.task_id AND ts.student_id = gs.student_id
+      WHERE gs.student_id = ? AND gs.status IN ('Completed', 'Dropped')
+      GROUP BY g.group_id, g.group_name, g.created_at, g.schedule_days, u.name
+      ORDER BY g.created_at DESC
+      LIMIT 5
+    `, [studentId]);
+
+    const history = [];
+    for (const h of historyRaw) {
+      // Get tasks for each historical workshop
+      const [historyTasks] = await db.query(`
+        SELECT 
+          t.day,
+          t.due_date as date,
+          t.title,
+          COALESCE(ts.grade, 0) as points,
+          CASE 
+            WHEN ts.grade >= 90 THEN 'A+'
+            WHEN ts.grade >= 80 THEN 'A'
+            WHEN ts.grade >= 70 THEN 'B+'
+            ELSE 'B'
+          END as grade,
+          'Completed' as status
+        FROM tasks t
+        LEFT JOIN task_submissions ts ON t.task_id = ts.task_id AND ts.student_id = ?
+        WHERE t.venue_id = (
+          SELECT venue_id FROM \`groups\` WHERE group_id = ?
+        ) AND ts.status = 'Graded'
+        ORDER BY t.day
+        LIMIT 10
+      `, [studentId, h.id]);
+
+      history.push({
+        id: h.id.toString(),
+        title: h.title,
+        date: h.date,
+        duration: h.duration,
+        faculty: h.faculty,
+        grade: h.avgGrade >= 90 ? 'A+' : h.avgGrade >= 80 ? 'A' : h.avgGrade >= 70 ? 'B+' : 'B',
+        points: h.totalPoints || 0,
+        tasks: historyTasks
+      });
+    }
 
     res.status(200).json({
       success: true,
