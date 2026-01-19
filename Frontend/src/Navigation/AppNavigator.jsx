@@ -93,7 +93,7 @@ const AppNavigator = () => {
               <Route index element={<StudentsPage />} />
               <Route path=":studentId" element={<StudentHeader />} />
             </Route>
-            <Route path="/" element={<Attendance />} />
+            <Route path="attendance" element={<Attendance />} />
             <Route path="skill-reports" element={<FacultySkillReport />} />  {/* ✅ Skill Reports */}
             <Route path="group-insights" element={<GroupInsights />} />  {/* ✅ Group Insights for Faculty */}
             <Route path="tasks" element={<TaskHeader />} />  {/* ✅ Already correct */}
