@@ -3,6 +3,7 @@ import AttendanceView from './AttendanceView/AttendanceView';
 import SkillProficiencyView from './SkillProficiencyView/SkillProficiencyView';
 import useAuthStore from '../../../store/useAuthStore';
 import axios from 'axios';
+import { MapPin, BarChart3 } from 'lucide-react';
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -86,7 +87,8 @@ const GroupInsights = () => {
           {/* Show selected venue name badge
           {selectedVenueName && (
             <div style={styles.venueBadge}>
-              📍 {selectedVenueName}
+              <MapPin size={16} style={{ marginRight: '6px' }} />
+              {selectedVenueName}
             </div>
           )} */}
         </div>
@@ -110,7 +112,9 @@ const GroupInsights = () => {
       <div style={styles.contentContainer}>
         {!selectedVenue ? (
           <div style={styles.noVenueMessage}>
-            <div style={styles.noVenueIcon}>📊</div>
+            <div style={styles.noVenueIcon}>
+              <BarChart3 size={64} />
+            </div>
             <h3 style={styles.noVenueTitle}>Select a Venue to View Insights</h3>
             <p style={styles.noVenueText}>
               {user?.role === 'admin' 
@@ -202,6 +206,8 @@ const styles = {
     fontSize: '13px',
     fontWeight: '500',
     border: '1px solid #bfdbfe',
+    display: 'flex',
+    alignItems: 'center',
   },
   topBarTabs: {
     display: 'flex',
@@ -251,7 +257,7 @@ const styles = {
     marginTop: '20px',
   },
   noVenueIcon: {
-    fontSize: '48px',
+    color: '#9ca3af',
     marginBottom: '16px',
   },
   noVenueTitle: {

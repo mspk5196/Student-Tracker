@@ -36,6 +36,7 @@ import GroupInsights from "../pages/SuperAdmin/GroupInsights/GroupInsights";
 import ClassHeader from "../pages/Faculty/Class&Group/ClassHeader/ClassHeader";
 import MyClasses from "../pages/Faculty/Class&Group/MyClasses/MyClasses";
 import AllClasses from "../pages/Faculty/Class&Group/AllClasses/AllClasses";
+import FacultyClassDetails from "../pages/Faculty/Class&Group/ClassDetails/ClassDetails";
 import StudentsPage from "../pages/SuperAdmin/studentsPage/AllStudents/studentsPage";
 import Reports from "../pages/SuperAdmin/Reports&Analytics/Reporst&analytics";
 //Faculty -> Skill Reports
@@ -86,14 +87,11 @@ const AppNavigator = () => {
         {user?.role === "faculty" && (
           <Route path="/" element={<SideTab />}>
             {/* <Route index element={<FacultyDashboard />} /> */}
+            <Route path="classes" element={<FacultyClassDetails />} />
             <Route path="students">
               <Route index element={<StudentsPage />} />
               <Route path=":studentId" element={<StudentHeader />} />
             </Route>
-            {/* <Route path="classes" element={<ClassHeader />}> */}
-              {/* <Route index element={<MyClasses />} /> */}
-              {/* <Route path="all" element={<AllClasses />} /> */}
-            {/* </Route> */}
             <Route path="/" element={<Attendance />} />
             <Route path="skill-reports" element={<FacultySkillReport />} />  {/* ✅ Skill Reports */}
             <Route path="group-insights" element={<GroupInsights />} />  {/* ✅ Group Insights for Faculty */}
