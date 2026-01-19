@@ -29,6 +29,8 @@ import StudentPage from "../pages/SuperAdmin/studentsPage/AllStudents/studentsPa
 import TaskHeader from "../pages/SuperAdmin/Task&Assignments/TaskHeader/TaskHeader";
 //Super Admin -> Skill Reports
 import AdminSkillReport from "../pages/SuperAdmin/SkillReports/AdminSkillReport";
+//Super Admin -> Group Insights
+import GroupInsights from "../pages/SuperAdmin/GroupInsights/GroupInsights";
 
 // Faculty Pages
 import ClassHeader from "../pages/Faculty/Class&Group/ClassHeader/ClassHeader";
@@ -75,6 +77,7 @@ const AppNavigator = () => {
             <Route path="attendance" element={<Attendance />} />
             <Route path="tasks" element={<TaskHeader />} />  {/* ✅ Already correct */}
             <Route path="skill-reports" element={<AdminSkillReport />} />  {/* ✅ Skill Reports */}
+            <Route path="group-insights" element={<GroupInsights />} /> {/* ✅ Group Insights */}
             <Route path="reports" element={<ReportsAnalytics />} />  {/* ✅ Already correct */}
           </Route>
         )}
@@ -103,7 +106,7 @@ const AppNavigator = () => {
         {user?.role === "student" && (
           <Route path="/" element={<SideTab />}>
             {/* <Route index element={<StudentDashboard/>} /> */}
-            {/* <Route path="classes" element={<MyClassRoom />}/> */}
+            <Route path="classes" element={<MyClassRoom />}/>
             <Route path="attendance" element={<StudentAttendance />}/>
             <Route path="/" element={<StudentRoadmap />}/>
             <Route path="tasks" element={<TasksAssignments />} />
