@@ -70,7 +70,7 @@ const ensureFacultyId = async (userId) => {
 
 // ====================== CONTROLLER FUNCTIONS ======================
 
-// Get ALL venues (for any user)
+// Get venues for attendance marking (faculty sees only assigned, admin sees all)
 export const getVenueAllocations = async (req, res) => {
   try {
     // Get user ID from JWT token
@@ -87,24 +87,65 @@ export const getVenueAllocations = async (req, res) => {
       });
     }
 
-    // Get ALL active venues
-    const [allocations] = await db.query(`
-      SELECT 
-        v.venue_id,
-        v.venue_name,
-        v.capacity,
-        v.assigned_faculty_id,
-        COUNT(DISTINCT gs.student_id) as student_count,
-        u.name as assigned_faculty_name
-      FROM venue v
-      LEFT JOIN \`groups\` g ON v.venue_id = g.venue_id
-      LEFT JOIN group_students gs ON g.group_id = gs.group_id AND gs.status = 'Active'
-      LEFT JOIN faculties f ON v.assigned_faculty_id = f.faculty_id
-      LEFT JOIN users u ON f.user_id = u.user_id
-      WHERE v.status = 'Active'
-      GROUP BY v.venue_id
-      ORDER BY v.venue_name
-    `);
+    let allocations;
+    
+    // If user is admin, show all venues
+    if (req.user.role === 'admin') {
+      [allocations] = await db.query(`
+        SELECT 
+          v.venue_id,
+          v.venue_name,
+          v.capacity,
+          v.assigned_faculty_id,
+          COUNT(DISTINCT gs.student_id) as student_count,
+          u.name as assigned_faculty_name
+        FROM venue v
+        LEFT JOIN \`groups\` g ON v.venue_id = g.venue_id
+        LEFT JOIN group_students gs ON g.group_id = gs.group_id AND gs.status = 'Active'
+        LEFT JOIN faculties f ON v.assigned_faculty_id = f.faculty_id
+        LEFT JOIN users u ON f.user_id = u.user_id
+        WHERE v.status = 'Active'
+        GROUP BY v.venue_id
+        ORDER BY v.venue_name
+      `);
+    } else {
+      // Faculty: Only show venues they are assigned to
+      // Get faculty_id first
+      const [faculty] = await db.query(
+        'SELECT faculty_id FROM faculties WHERE user_id = ?',
+        [userId]
+      );
+      
+      if (faculty.length === 0) {
+        return res.status(403).json({
+          success: false,
+          message: 'Faculty record not found'
+        });
+      }
+      
+      const facultyId = faculty[0].faculty_id;
+      
+      // Get venues where faculty is assigned (via venue.assigned_faculty_id or venue_allocation)
+      [allocations] = await db.query(`
+        SELECT DISTINCT
+          v.venue_id,
+          v.venue_name,
+          v.capacity,
+          v.assigned_faculty_id,
+          COUNT(DISTINCT gs.student_id) as student_count,
+          u.name as assigned_faculty_name
+        FROM venue v
+        LEFT JOIN \`groups\` g ON v.venue_id = g.venue_id
+        LEFT JOIN group_students gs ON g.group_id = gs.group_id AND gs.status = 'Active'
+        LEFT JOIN faculties f ON v.assigned_faculty_id = f.faculty_id
+        LEFT JOIN users u ON f.user_id = u.user_id
+        LEFT JOIN venue_allocation va ON v.venue_id = va.venue_id
+        WHERE v.status = 'Active'
+          AND (v.assigned_faculty_id = ? OR va.faculty_id = ?)
+        GROUP BY v.venue_id
+        ORDER BY v.venue_name
+      `, [facultyId, facultyId]);
+    }
 
 
     res.status(200).json({ 
