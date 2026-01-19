@@ -85,13 +85,13 @@ const SideTab = () => {
         icon: ClipboardCheck,
         section: "academic",
       },
+      { id: "reports", label: "Reports", icon: BarChart3, section: "academic" },
       {
         id: "skill-reports",
-        label: "Skill Reports",
+        label: "Progress Import",
         icon: FileSpreadsheet,
         section: "academic",
       },
-      { id: "reports", label: "Reports", icon: BarChart3, section: "academic" },
       // { id: 'settings', label: 'Settings', icon: Settings, section: 'system' },
     ],
     faculty: [
@@ -104,7 +104,7 @@ const SideTab = () => {
       // Academic Section
       { id: 'attendance', label: 'Attendance', icon: CalendarCheck, section: 'academic' },
       { id: 'tasks', label: 'Task & Assignment', icon: ClipboardCheck, section: 'academic' },
-      { id: 'skill-reports', label: 'Skill Reports', icon: FileSpreadsheet, section: 'setting' },
+      { id: 'skill-reports', label: 'Course Progress', icon: FileSpreadsheet, section: 'academic' },
       { id: 'group-insights', label: 'Group Insights', icon: BarChart3, section: 'classes' },
       { id: 'reports', label: 'Reports', icon: BarChart3, section: 'academic' },
       // { id: 'settings', label: 'Settings', icon: Settings, section: 'system' },
@@ -143,7 +143,7 @@ const SideTab = () => {
     students: { title: "Students" },
     attendance: { title: "Attendance" },
     tasks: { title: "Task & Assignment" },
-    "skill-reports": { title: "Skill Reports" },
+    "skill-reports": { title: "Progress Import" },
     "group-insights": { title: "Group Insights" },
     reports: { title: "Reports" },
     roadmap: { title: "Roadmap & Material" },

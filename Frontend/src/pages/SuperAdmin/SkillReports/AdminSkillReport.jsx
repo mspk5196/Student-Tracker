@@ -193,8 +193,8 @@ const AdminSkillReport = () => {
     <div style={styles.container}>
       <div style={styles.header}>
         <div>
-          <h1 style={styles.title}>Skill Reports Management</h1>
-          <p style={styles.subtitle}>Upload and manage student skill reports</p>
+          <h1 style={styles.title}>Progress Import</h1>
+          <p style={styles.subtitle}>Import progress from Excel</p>
         </div>
       </div>
 
@@ -204,7 +204,7 @@ const AdminSkillReport = () => {
           <div style={styles.cardHeader}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               <FileSpreadsheet size={24} color="#3b82f6" />
-              <h2 style={styles.cardTitle}>Upload Skill Report</h2>
+              <h2 style={styles.cardTitle}>Upload Excel</h2>
             </div>
           </div>
 
@@ -234,62 +234,68 @@ const AdminSkillReport = () => {
               </button>
             )}
 
-            {uploading && (
-              <div style={styles.progressContainer}>
-                <div style={styles.progressBar}>
-                  <div style={{ ...styles.progressFill, width: `${uploadProgress}%` }} />
-                </div>
-                <p style={styles.progressText}>{uploadProgress}% Uploaded</p>
-              </div>
-            )}
+            {(uploading || uploadResult || error) && (
+              <div style={styles.statusSection}>
+                <div style={styles.statusHeader}>Import Status</div>
 
-            {uploadResult && (
-              <div style={styles.resultCard}>
-                <div style={styles.resultHeader}>
-                  <CheckCircle size={24} color="#10b981" />
-                  <h3 style={styles.resultTitle}>Upload Complete</h3>
-                </div>
-                <div style={styles.resultStats}>
-                  <div style={styles.statItem}>
-                    <span style={styles.statLabel}>Total Records:</span>
-                    <span style={styles.statValue}>{uploadResult.summary?.totalRecords || 0}</span>
-                  </div>
-                  <div style={styles.statItem}>
-                    <span style={styles.statLabel}>Processed:</span>
-                    <span style={{ ...styles.statValue, color: '#10b981' }}>{uploadResult.summary?.processed || 0}</span>
-                  </div>
-                  <div style={styles.statItem}>
-                    <span style={styles.statLabel}>Inserted:</span>
-                    <span style={{ ...styles.statValue, color: '#3b82f6' }}>{uploadResult.summary?.inserted || 0}</span>
-                  </div>
-                  <div style={styles.statItem}>
-                    <span style={styles.statLabel}>Updated:</span>
-                    <span style={{ ...styles.statValue, color: '#f59e0b' }}>{uploadResult.summary?.updated || 0}</span>
-                  </div>
-                  <div style={styles.statItem}>
-                    <span style={styles.statLabel}>Errors:</span>
-                    <span style={{ ...styles.statValue, color: '#ef4444' }}>{uploadResult.summary?.errors || 0}</span>
-                  </div>
-                </div>
-                {uploadResult.summary?.errorDetails && uploadResult.summary.errorDetails.length > 0 && (
-                  <div style={styles.errorDetails}>
-                    <p style={styles.errorTitle}>Error Details:</p>
-                    <ul style={styles.errorList}>
-                      {uploadResult.summary.errorDetails.map((err, idx) => (
-                        <li key={idx} style={styles.errorItem}>
-                          Row {err.row}: {err.message}
-                        </li>
-                      ))}
-                    </ul>
+                {uploading && (
+                  <div style={styles.progressContainer}>
+                    <div style={styles.progressBar}>
+                      <div style={{ ...styles.progressFill, width: `${uploadProgress}%` }} />
+                    </div>
+                    <p style={styles.progressText}>{uploadProgress}% Uploaded</p>
                   </div>
                 )}
-              </div>
-            )}
 
-            {error && (
-              <div style={styles.errorCard}>
-                <AlertCircle size={20} color="#ef4444" />
-                <span>{error}</span>
+                {uploadResult && (
+                  <div style={styles.resultCard}>
+                    <div style={styles.resultHeader}>
+                      <CheckCircle size={24} color="#10b981" />
+                      <h3 style={styles.resultTitle}>Upload Complete</h3>
+                    </div>
+                    <div style={styles.resultStats}>
+                      <div style={styles.statItem}>
+                        <span style={styles.statLabel}>Total Records:</span>
+                        <span style={styles.statValue}>{uploadResult.summary?.totalRecords || 0}</span>
+                      </div>
+                      <div style={styles.statItem}>
+                        <span style={styles.statLabel}>Processed:</span>
+                        <span style={{ ...styles.statValue, color: '#10b981' }}>{uploadResult.summary?.processed || 0}</span>
+                      </div>
+                      <div style={styles.statItem}>
+                        <span style={styles.statLabel}>Inserted:</span>
+                        <span style={{ ...styles.statValue, color: '#3b82f6' }}>{uploadResult.summary?.inserted || 0}</span>
+                      </div>
+                      <div style={styles.statItem}>
+                        <span style={styles.statLabel}>Updated:</span>
+                        <span style={{ ...styles.statValue, color: '#f59e0b' }}>{uploadResult.summary?.updated || 0}</span>
+                      </div>
+                      <div style={styles.statItem}>
+                        <span style={styles.statLabel}>Errors:</span>
+                        <span style={{ ...styles.statValue, color: '#ef4444' }}>{uploadResult.summary?.errors || 0}</span>
+                      </div>
+                    </div>
+                    {uploadResult.summary?.errorDetails && uploadResult.summary.errorDetails.length > 0 && (
+                      <div style={styles.errorDetails}>
+                        <p style={styles.errorTitle}>Error Details:</p>
+                        <ul style={styles.errorList}>
+                          {uploadResult.summary.errorDetails.map((err, idx) => (
+                            <li key={idx} style={styles.errorItem}>
+                              Row {err.row}: {err.message}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {error && (
+                  <div style={styles.errorCard}>
+                    <AlertCircle size={20} color="#ef4444" />
+                    <span>{error}</span>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -397,6 +403,19 @@ const styles = {
     transition: 'background-color 0.3s ease',
     width: '100%',
     justifyContent: 'center',
+  },
+  statusSection: {
+    marginTop: '18px',
+    paddingTop: '14px',
+    borderTop: '1px solid #e5e7eb',
+  },
+  statusHeader: {
+    fontSize: '13px',
+    fontWeight: '700',
+    letterSpacing: '0.06em',
+    color: '#374151',
+    textTransform: 'uppercase',
+    marginBottom: '10px',
   },
   progressContainer: {
     marginTop: '16px',

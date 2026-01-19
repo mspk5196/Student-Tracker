@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import AttendanceView from './AttendanceView/AttendanceView';
 import SkillProficiencyView from './SkillProficiencyView/SkillProficiencyView';
 import useAuthStore from '../../../store/useAuthStore';
@@ -9,10 +10,18 @@ const API_URL = import.meta.env.VITE_API_URL;
 
 const GroupInsights = () => {
   const { user, token } = useAuthStore();
-  const [activeTab, setActiveTab] = useState('attendance');
-  const [selectedVenue, setSelectedVenue] = useState('');
+  const [searchParams, setSearchParams] = useSearchParams();
+  
+  // Get URL parameters
+  const urlVenue = searchParams.get('venue');
+  const urlSkill = searchParams.get('skill');
+  const urlTab = searchParams.get('tab');
+  
+  const [activeTab, setActiveTab] = useState(urlTab === 'skills' ? 'skills' : 'attendance');
+  const [selectedVenue, setSelectedVenue] = useState(urlVenue || '');
   const [venues, setVenues] = useState([]);
   const [venuesLoading, setVenuesLoading] = useState(true);
+  const [selectedSkill, setSelectedSkill] = useState(urlSkill || '');
   
   // Date picker state for attendance
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
@@ -25,12 +34,20 @@ const GroupInsights = () => {
       
       setVenuesLoading(true);
       try {
-        // This endpoint handles role-based access internally
-        const response = await axios.get(`${API_URL}/skill-reports/faculty/venues`, {
+        // Use different endpoint based on user role
+        const endpoint = user?.role === 'admin' 
+          ? `${API_URL}/groups/venues`
+          : `${API_URL}/skill-reports/faculty/venues`;
+        
+        const response = await axios.get(endpoint, {
           headers: { Authorization: `Bearer ${token}` }
         });
         
-        const venueList = response.data.venues || [];
+        // Handle different response structures
+        const venueList = user?.role === 'admin'
+          ? response.data.data || []
+          : response.data.venues || [];
+        
         setVenues(venueList);
         
         // Auto-select first venue for faculty if they have only one
@@ -46,6 +63,17 @@ const GroupInsights = () => {
     
     fetchVenues();
   }, [token, user?.role]);
+
+  // Clear URL parameters after initial load
+  useEffect(() => {
+    if (urlVenue || urlSkill || urlTab) {
+      // Clear the search params after they've been used
+      const timer = setTimeout(() => {
+        setSearchParams({});
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [urlVenue, urlSkill, urlTab, setSearchParams]);
 
   // Get venue name for display
   const selectedVenueName = selectedVenue === 'all'
@@ -130,11 +158,14 @@ const GroupInsights = () => {
             setSelectedDate={setSelectedDate}
             selectedSession={selectedSession}
             setSelectedSession={setSelectedSession}
+            userRole={user?.role}
           />
         ) : (
           <SkillProficiencyView 
             selectedVenue={selectedVenue}
             selectedVenueName={selectedVenueName}
+            initialSkill={selectedSkill}
+            userRole={user?.role}
           />
         )}
       </div>

@@ -4,10 +4,10 @@ import axios from 'axios';
 
 const API_URL = import.meta.env.VITE_API_URL;
 
-const SkillProficiencyView = ({ selectedVenue, selectedVenueName }) => {
+const SkillProficiencyView = ({ selectedVenue, selectedVenueName, initialSkill = '' }) => {
   
   // Selected skill (single dropdown selection)
-  const [selectedSkill, setSelectedSkill] = useState('');
+  const [selectedSkill, setSelectedSkill] = useState(initialSkill);
   const [statusFilter, setStatusFilter] = useState('All Status');
   
   // Backend data states
@@ -52,6 +52,13 @@ const SkillProficiencyView = ({ selectedVenue, selectedVenueName }) => {
 
     fetchSkillReports();
   }, [selectedVenue]);
+
+  // Update selectedSkill when initialSkill changes
+  useEffect(() => {
+    if (initialSkill) {
+      setSelectedSkill(initialSkill);
+    }
+  }, [initialSkill]);
 
   // Extract unique skills from reports
   const availableSkills = Array.from(

@@ -1,247 +1,167 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import {
   Search,
-  Filter,
   RefreshCw,
-  FileSpreadsheet,
+  Filter,
+  AlertCircle,
   CheckCircle,
   XCircle,
   Clock,
-  TrendingUp,
-  Users,
-  Calendar,
 } from 'lucide-react';
 
-const API_URL = import.meta.env.VITE_API_URL;
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+
+const LIMIT = 10;
 
 const FacultySkillReport = () => {
-  // Table States
   const [venues, setVenues] = useState([]);
-  const [selectedVenue, setSelectedVenue] = useState(null);
+  const [selectedVenue, setSelectedVenue] = useState('');
+
   const [reports, setReports] = useState([]);
   const [statistics, setStatistics] = useState(null);
+  const [pagination, setPagination] = useState(null);
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // Filter States
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [dateFilter, setDateFilter] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const [pagination, setPagination] = useState(null);
-  const limit = 5;
 
-  // Define loadReports first to avoid initialization errors
-  const loadReports = useCallback(async () => {
-    if (!selectedVenue) return;
-
-    setLoading(true);
-    setError('');
-    try {
-      const token = localStorage.getItem('token');
-      const response = await axios.post(
-        `${API_URL}/skill-reports/faculty/venue/reports`,
-        {
-          venueId: selectedVenue,
-          page: currentPage,
-          limit,
-          status: statusFilter,
-          date: dateFilter,
-          search: searchTerm,
-          sortBy: 'updated_at',
-          sortOrder: 'DESC',
-        },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-
-      setReports(response.data.reports || []);
-      setStatistics(response.data.statistics);
-      setPagination(response.data.pagination);
-    } catch (err) {
-      setError(err.response?.data?.message || 'Failed to load reports');
-    } finally {
-      setLoading(false);
-    }
-  }, [selectedVenue, currentPage, statusFilter, dateFilter, searchTerm]);
+  const authHeaders = useMemo(() => {
+    const token = localStorage.getItem('token');
+    return { Authorization: `Bearer ${token}` };
+  }, []);
 
   const loadVenues = useCallback(async () => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get(`${API_URL}/skill-reports/faculty/venues`, {
-        headers: { Authorization: `Bearer ${token}` }
+      const res = await axios.get(`${API_URL}/skill-reports/faculty/venues`, {
+        headers: authHeaders,
       });
-      setVenues(response.data.venues || []);
-      if (response.data.venues && response.data.venues.length > 0) {
-        setSelectedVenue(response.data.venues[0].venue_id);
-      }
-    } catch (err) {
-      setError(err.response?.data?.message || 'Failed to load venues');
+      setVenues(Array.isArray(res.data?.venues) ? res.data.venues : []);
+    } catch (e) {
+      // Non-blocking: faculty can still load reports without venue list.
+      console.error('Failed to load venues', e);
     }
-  }, []);
+  }, [authHeaders]);
 
-  // Load venues on mount
+  const loadReports = useCallback(async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const payload = {
+        venueId: selectedVenue ? selectedVenue : null,
+        page: currentPage,
+        limit: LIMIT,
+        status: statusFilter || undefined,
+        date: dateFilter || undefined,
+        search: searchTerm || undefined,
+        sortBy: 'last_slot_date',
+        sortOrder: 'DESC',
+      };
+
+      const res = await axios.post(`${API_URL}/skill-reports/faculty/venue/reports`, payload, {
+        headers: authHeaders,
+      });
+
+      setReports(Array.isArray(res.data?.reports) ? res.data.reports : []);
+      setStatistics(res.data?.statistics || null);
+      setPagination(res.data?.pagination || null);
+    } catch (e) {
+      setError(e?.response?.data?.message || 'Failed to load course progress');
+    } finally {
+      setLoading(false);
+    }
+  }, [authHeaders, currentPage, dateFilter, searchTerm, selectedVenue, statusFilter]);
+
   useEffect(() => {
     loadVenues();
   }, [loadVenues]);
 
-  // Load reports when venue/filters change
   useEffect(() => {
-    if (selectedVenue) {
-      loadReports();
-    }
+    loadReports();
   }, [loadReports]);
 
-  // Reset to page 1 when filters change
+  // Reset paging when filters change
   useEffect(() => {
     setCurrentPage(1);
   }, [selectedVenue, statusFilter, dateFilter, searchTerm]);
 
-  const handleSearch = () => {
-    // Search is now integrated into loadReports
-    setCurrentPage(1);
-    loadReports();
-  };
-
-  const getStatusBadge = (status) => {
-    const styles = {
-      Cleared: { bg: '#10b981', icon: CheckCircle },
-      'Not Cleared': { bg: '#ef4444', icon: XCircle },
-      Ongoing: { bg: '#f59e0b', icon: Clock },
+  const statusBadge = (status) => {
+    const map = {
+      Cleared: { color: '#10b981', Icon: CheckCircle, bg: '#ecfdf5', border: '#a7f3d0' },
+      'Not Cleared': { color: '#ef4444', Icon: XCircle, bg: '#fef2f2', border: '#fecaca' },
+      Ongoing: { color: '#f59e0b', Icon: Clock, bg: '#fffbeb', border: '#fde68a' },
     };
-
-    const config = styles[status] || styles.Ongoing;
-    const Icon = config.icon;
+    const cfg = map[status] || map.Ongoing;
+    const Icon = cfg.Icon;
 
     return (
-      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: config.bg }}>
-        <Icon size={16} />
-        <span style={{ fontWeight: '500' }}>{status}</span>
-      </div>
+      <span style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 6,
+        padding: '4px 10px',
+        borderRadius: 999,
+        fontSize: 12,
+        fontWeight: 600,
+        color: cfg.color,
+        background: cfg.bg,
+        border: `1px solid ${cfg.border}`,
+        whiteSpace: 'nowrap',
+      }}>
+        <Icon size={14} />
+        {status || 'Ongoing'}
+      </span>
     );
-  };
-
-  const resetFilters = () => {
-    setSearchTerm('');
-    setStatusFilter('');
-    setDateFilter('');
-    setCurrentPage(1);
-    if (selectedVenue) {
-      loadReports();
-    }
   };
 
   return (
     <div style={styles.container}>
       <div style={styles.header}>
         <div>
-          <h1 style={styles.title}>Student Skill Reports</h1>
-          <p style={styles.subtitle}>View and track student performance</p>
+          <h1 style={styles.title}>Course Progress</h1>
+          <p style={styles.subtitle}>View student course/skill progress (latest attempt per course)</p>
         </div>
+        <button
+          style={styles.refreshButton}
+          onClick={() => loadReports()}
+          disabled={loading}
+          title="Refresh"
+        >
+          <RefreshCw size={18} />
+          Refresh
+        </button>
       </div>
 
-      {/* Reports Table Section */}
       <div style={styles.card}>
         <div style={styles.cardHeader}>
-          <h2 style={styles.cardTitle}>Skill Reports</h2>
-          <button onClick={loadReports} style={styles.refreshButton} disabled={loading}>
-            <RefreshCw size={18} style={{ animation: loading ? 'spin 1s linear infinite' : 'none' }} />
-            Refresh
-          </button>
+          <div style={styles.cardHeaderLeft}>
+            <Filter size={18} />
+            <span style={styles.cardHeaderTitle}>Filters</span>
+          </div>
         </div>
 
-        {/* Statistics */}
-        {statistics && (
-          <div style={styles.statsGrid}>
-            <div style={{ ...styles.statCard, borderLeft: '4px solid #3b82f6' }}>
-              <Users size={24} color="#3b82f6" />
-              <div>
-                <p style={styles.statCardValue}>{statistics.total || 0}</p>
-                <p style={styles.statCardLabel}>Total Students</p>
-              </div>
-            </div>
-            <div style={{ ...styles.statCard, borderLeft: '4px solid #10b981' }}>
-              <CheckCircle size={24} color="#10b981" />
-              <div>
-                <p style={styles.statCardValue}>{statistics.cleared || 0}</p>
-                <p style={styles.statCardLabel}>Cleared</p>
-              </div>
-            </div>
-            <div style={{ ...styles.statCard, borderLeft: '4px solid #ef4444' }}>
-              <XCircle size={24} color="#ef4444" />
-              <div>
-                <p style={styles.statCardValue}>{statistics.not_cleared || 0}</p>
-                <p style={styles.statCardLabel}>Not Cleared</p>
-              </div>
-            </div>
-            <div style={{ ...styles.statCard, borderLeft: '4px solid #f59e0b' }}>
-              <Clock size={24} color="#f59e0b" />
-              <div>
-                <p style={styles.statCardValue}>{statistics.ongoing || 0}</p>
-                <p style={styles.statCardLabel}>Ongoing</p>
-              </div>
-            </div>
-            <div style={{ ...styles.statCard, borderLeft: '4px solid #8b5cf6' }}>
-              <TrendingUp size={24} color="#8b5cf6" />
-              <div>
-                <p style={styles.statCardValue}>{statistics.avg_best_score || 0}</p>
-                <p style={styles.statCardLabel}>Avg. Best Score</p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Filters */}
-        <div style={styles.filtersContainer}>
-          <div style={styles.filterRow}>
-            <div style={styles.searchBox}>
-              <Search size={20} color="#6b7280" />
-              <input
-                type="text"
-                placeholder="Search by name or roll number..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-                style={styles.searchInput}
-              />
-              {searchTerm && (
-                <button
-                  onClick={() => {
-                    setSearchTerm('');
-                    loadReports();
-                  }}
-                  style={styles.clearButton}
-                >
-                  ×
-                </button>
-              )}
-            </div>
-
+        <div style={styles.cardBody}>
+          <div style={styles.filtersRow}>
             <select
-              value={selectedVenue || ''}
-              onChange={(e) => {
-                setSelectedVenue(e.target.value);
-                setCurrentPage(1);
-              }}
+              value={selectedVenue}
+              onChange={(e) => setSelectedVenue(e.target.value)}
               style={styles.select}
             >
-              {venues.length === 0 ? (
-                <option value="">No Venues Assigned</option>
-              ) : (
-                venues.map((venue) => (
-                  <option key={venue.venue_id} value={venue.venue_id}>
-                    {venue.venue_name}
-                  </option>
-                ))
-              )}
+              <option value="">All My Venues</option>
+              {venues.map((v) => (
+                <option key={v.venue_id} value={String(v.venue_id)}>
+                  {v.venue_name}
+                </option>
+              ))}
             </select>
 
             <select
               value={statusFilter}
-              onChange={(e) => {
-                setStatusFilter(e.target.value);
-                setCurrentPage(1);
-              }}
+              onChange={(e) => setStatusFilter(e.target.value)}
               style={styles.select}
             >
               <option value="">All Status</option>
@@ -253,335 +173,370 @@ const FacultySkillReport = () => {
             <input
               type="date"
               value={dateFilter}
-              onChange={(e) => {
-                setDateFilter(e.target.value);
-                setCurrentPage(1);
-              }}
-              style={styles.select}
-              placeholder="Filter by date"
+              onChange={(e) => setDateFilter(e.target.value)}
+              style={styles.dateInput}
             />
 
-            <button onClick={resetFilters} style={styles.resetButton}>
-              <RefreshCw size={16} />
+            <div style={styles.searchBox}>
+              <Search size={16} color="#6b7280" />
+              <input
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Search name / roll no / course"
+                style={styles.searchInput}
+              />
+              {searchTerm && (
+                <button style={styles.clearButton} onClick={() => setSearchTerm('')} aria-label="Clear search">
+                  ×
+                </button>
+              )}
+            </div>
+
+            <button
+              style={styles.resetButton}
+              onClick={() => {
+                setSelectedVenue('');
+                setStatusFilter('');
+                setDateFilter('');
+                setSearchTerm('');
+                setCurrentPage(1);
+              }}
+              disabled={loading}
+            >
               Reset
             </button>
           </div>
-        </div>
 
-        {error && (
-          <div style={styles.errorCard}>
-            <XCircle size={20} color="#ef4444" />
-            <span>{error}</span>
-          </div>
-        )}
+          {error && (
+            <div style={styles.errorBar}>
+              <AlertCircle size={18} />
+              <span>{error}</span>
+            </div>
+          )}
 
-        {/* Student Skill Reports Table Removed - Data now available in Group Insights */}
-        <div style={{ 
-          padding: '40px', 
-          textAlign: 'center',
-          backgroundColor: '#fff',
-          borderRadius: '12px',
-          border: '1px solid #e5e7eb'
-        }}>
-          <FileSpreadsheet size={48} color="#3b82f6" style={{ marginBottom: '16px' }} />
-          <h3 style={{ margin: '0 0 8px 0', color: '#1e293b', fontSize: '18px', fontWeight: '600' }}>
-            Skill Reports Now in Group Insights
-          </h3>
-          <p style={{ margin: 0, color: '#64748b', fontSize: '14px' }}>
-            Student skill proficiency data has been moved to the Group Insights page for better organization and analysis.
-          </p>
+          {statistics && (
+            <div style={styles.statsRow}>
+              <div style={styles.statCard}>
+                <div style={styles.statLabel}>Total</div>
+                <div style={styles.statValue}>{statistics.total ?? 0}</div>
+              </div>
+              <div style={styles.statCard}>
+                <div style={styles.statLabel}>Cleared</div>
+                <div style={styles.statValue}>{statistics.cleared ?? 0}</div>
+              </div>
+              <div style={styles.statCard}>
+                <div style={styles.statLabel}>Not Cleared</div>
+                <div style={styles.statValue}>{statistics.not_cleared ?? 0}</div>
+              </div>
+              <div style={styles.statCard}>
+                <div style={styles.statLabel}>Ongoing</div>
+                <div style={styles.statValue}>{statistics.ongoing ?? 0}</div>
+              </div>
+              <div style={styles.statCard}>
+                <div style={styles.statLabel}>Avg Best Score</div>
+                <div style={styles.statValue}>{statistics.avg_best_score ?? 0}</div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
-      <style>{keyframes}</style>
+      <div style={styles.card}>
+        <div style={styles.cardHeader}>
+          <div style={styles.cardHeaderLeft}>
+            <span style={styles.cardHeaderTitle}>Progress Report</span>
+            {pagination?.total != null && (
+              <span style={styles.smallMuted}>({pagination.total} records)</span>
+            )}
+          </div>
+        </div>
+
+        <div style={styles.tableWrap}>
+          {loading ? (
+            <div style={styles.loading}>Loading…</div>
+          ) : reports.length === 0 ? (
+            <div style={styles.empty}>No records found for current filters.</div>
+          ) : (
+            <table style={styles.table}>
+              <thead>
+                <tr style={styles.theadRow}>
+                  <th style={styles.th}>Student</th>
+                  <th style={styles.th}>Course</th>
+                  <th style={styles.th}>Attempts</th>
+                  <th style={styles.th}>Best</th>
+                  <th style={styles.th}>Latest</th>
+                  <th style={styles.th}>Status</th>
+                  <th style={styles.th}>Last Slot</th>
+                </tr>
+              </thead>
+              <tbody>
+                {reports.map((r) => (
+                  <tr key={r.id} style={styles.tr}>
+                    <td style={styles.td}>
+                      <div style={styles.studentName}>{r.student_name}</div>
+                      <div style={styles.smallMuted}>{r.roll_number}</div>
+                    </td>
+                    <td style={styles.td}>
+                      <div style={styles.courseName}>{r.course_name}</div>
+                      {r.excel_venue_name && (
+                        <div style={styles.smallMuted}>{r.excel_venue_name}</div>
+                      )}
+                    </td>
+                    <td style={styles.td}>{r.total_attempts ?? '-'}</td>
+                    <td style={styles.td}>{r.best_score ?? '-'}</td>
+                    <td style={styles.td}>{r.latest_score ?? '-'}</td>
+                    <td style={styles.td}>{statusBadge(r.status)}</td>
+                    <td style={styles.td}>{r.last_slot_date ? String(r.last_slot_date).slice(0, 10) : '-'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+
+        {pagination?.totalPages > 1 && (
+          <div style={styles.pagination}>
+            <button
+              style={styles.pageButton}
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              disabled={loading || currentPage <= 1}
+            >
+              Prev
+            </button>
+            <div style={styles.smallMuted}>
+              Page {pagination.page} of {pagination.totalPages}
+            </div>
+            <button
+              style={styles.pageButton}
+              onClick={() => setCurrentPage((p) => Math.min(pagination.totalPages, p + 1))}
+              disabled={loading || currentPage >= pagination.totalPages}
+            >
+              Next
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 };
 
+export default FacultySkillReport;
+
 const styles = {
   container: {
-    padding: '24px',
-    maxWidth: '1600px',
+    padding: 24,
+    maxWidth: 1600,
     margin: '0 auto',
-    backgroundColor: '#f9fafb',
-    minHeight: '100vh',
   },
   header: {
-    marginBottom: '24px',
     display: 'flex',
+    alignItems: 'flex-end',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    gap: 16,
+    marginBottom: 18,
   },
   title: {
-    fontSize: '28px',
-    fontWeight: '700',
+    margin: 0,
+    fontSize: 28,
+    fontWeight: 800,
     color: '#111827',
-    margin: '0 0 8px 0',
   },
   subtitle: {
-    fontSize: '14px',
+    margin: '6px 0 0 0',
     color: '#6b7280',
-    margin: 0,
-  },
-  exportButton: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-    padding: '10px 20px',
-    backgroundColor: '#10b981',
-    color: 'white',
-    border: 'none',
-    borderRadius: '8px',
-    fontSize: '14px',
-    fontWeight: '500',
-    cursor: 'pointer',
-    transition: 'background-color 0.3s ease',
-  },
-  card: {
-    backgroundColor: 'white',
-    borderRadius: '12px',
-    boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-    overflow: 'hidden',
-  },
-  cardHeader: {
-    padding: '20px 24px',
-    borderBottom: '1px solid #e5e7eb',
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  cardTitle: {
-    fontSize: '18px',
-    fontWeight: '600',
-    color: '#111827',
-    margin: 0,
+    fontSize: 14,
   },
   refreshButton: {
-    display: 'flex',
+    display: 'inline-flex',
     alignItems: 'center',
-    gap: '8px',
-    padding: '8px 16px',
-    backgroundColor: '#f3f4f6',
-    border: '1px solid #d1d5db',
-    borderRadius: '6px',
-    fontSize: '14px',
-    fontWeight: '500',
-    color: '#374151',
+    gap: 8,
+    border: '1px solid #e5e7eb',
+    background: 'white',
+    padding: '10px 14px',
+    borderRadius: 10,
     cursor: 'pointer',
-    transition: 'all 0.3s ease',
+    fontWeight: 600,
+    color: '#111827',
   },
-  statsGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-    gap: '16px',
-    padding: '24px',
-    borderBottom: '1px solid #e5e7eb',
+  card: {
+    background: 'white',
+    border: '1px solid #e5e7eb',
+    borderRadius: 14,
+    overflow: 'hidden',
+    marginBottom: 18,
   },
-  statCard: {
+  cardHeader: {
+    padding: '14px 16px',
+    borderBottom: '1px solid #f3f4f6',
+    background: '#fbfbfb',
+  },
+  cardHeaderLeft: {
     display: 'flex',
     alignItems: 'center',
-    gap: '16px',
-    padding: '16px',
-    backgroundColor: '#f9fafb',
-    borderRadius: '8px',
+    gap: 8,
   },
-  statCardValue: {
-    fontSize: '24px',
-    fontWeight: '700',
+  cardHeaderTitle: {
+    fontWeight: 800,
     color: '#111827',
-    margin: 0,
   },
-  statCardLabel: {
-    fontSize: '13px',
-    color: '#6b7280',
-    margin: 0,
+  cardBody: {
+    padding: 16,
   },
-  filtersContainer: {
-    padding: '24px',
-    borderBottom: '1px solid #e5e7eb',
-  },
-  filterRow: {
+  filtersRow: {
     display: 'flex',
-    gap: '12px',
+    gap: 12,
     flexWrap: 'wrap',
+    alignItems: 'center',
+  },
+  select: {
+    padding: '10px 12px',
+    borderRadius: 10,
+    border: '1px solid #e5e7eb',
+    minWidth: 180,
+    background: 'white',
+  },
+  dateInput: {
+    padding: '10px 12px',
+    borderRadius: 10,
+    border: '1px solid #e5e7eb',
+    minWidth: 160,
   },
   searchBox: {
     display: 'flex',
     alignItems: 'center',
-    gap: '8px',
-    flex: '1 1 300px',
-    padding: '8px 12px',
-    backgroundColor: '#f9fafb',
-    border: '1px solid #d1d5db',
-    borderRadius: '6px',
+    gap: 8,
+    borderRadius: 10,
+    border: '1px solid #e5e7eb',
+    padding: '10px 12px',
+    minWidth: 320,
+    flex: '1 1 320px',
+    background: 'white',
   },
   searchInput: {
-    flex: 1,
     border: 'none',
-    backgroundColor: 'transparent',
     outline: 'none',
-    fontSize: '14px',
-    color: '#111827',
+    width: '100%',
+    fontSize: 14,
   },
   clearButton: {
-    background: 'none',
     border: 'none',
-    fontSize: '20px',
-    color: '#9ca3af',
+    background: 'transparent',
     cursor: 'pointer',
-    padding: '0 4px',
-  },
-  select: {
-    padding: '8px 12px',
-    border: '1px solid #d1d5db',
-    borderRadius: '6px',
-    fontSize: '14px',
-    color: '#374151',
-    backgroundColor: 'white',
-    cursor: 'pointer',
-    outline: 'none',
-    minWidth: '150px',
+    fontSize: 18,
+    lineHeight: 1,
+    color: '#6b7280',
   },
   resetButton: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '6px',
-    padding: '8px 16px',
-    backgroundColor: 'white',
-    border: '1px solid #d1d5db',
-    borderRadius: '6px',
-    fontSize: '14px',
-    fontWeight: '500',
-    color: '#374151',
+    padding: '10px 12px',
+    borderRadius: 10,
+    border: '1px solid #e5e7eb',
+    background: 'white',
     cursor: 'pointer',
-    transition: 'all 0.3s ease',
+    fontWeight: 700,
+    color: '#111827',
   },
-  errorCard: {
+  errorBar: {
+    marginTop: 12,
     display: 'flex',
     alignItems: 'center',
-    gap: '12px',
-    padding: '12px 24px',
-    backgroundColor: '#fef2f2',
+    gap: 10,
+    padding: '10px 12px',
+    borderRadius: 12,
+    background: '#fef2f2',
     border: '1px solid #fecaca',
     color: '#991b1b',
-    fontSize: '14px',
-    margin: '0 24px 16px 24px',
-    borderRadius: '6px',
+    fontWeight: 600,
   },
-  tableContainer: {
-    overflowX: 'auto',
+  statsRow: {
+    marginTop: 14,
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))',
+    gap: 12,
   },
-  loadingContainer: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: '60px 20px',
-    gap: '16px',
+  statCard: {
+    border: '1px solid #e5e7eb',
+    borderRadius: 12,
+    padding: 12,
+    background: 'white',
   },
-  emptyState: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: '60px 20px',
-    gap: '12px',
-  },
-  emptyText: {
-    fontSize: '16px',
-    fontWeight: '500',
+  statLabel: {
     color: '#6b7280',
-    margin: 0,
+    fontSize: 12,
+    fontWeight: 700,
+    textTransform: 'uppercase',
+    letterSpacing: '0.06em',
   },
-  emptyHint: {
-    fontSize: '14px',
-    color: '#9ca3af',
-    margin: 0,
+  statValue: {
+    marginTop: 6,
+    fontSize: 20,
+    fontWeight: 900,
+    color: '#111827',
+  },
+  tableWrap: {
+    overflowX: 'auto',
   },
   table: {
     width: '100%',
     borderCollapse: 'collapse',
   },
-  tableHeaderRow: {
-    backgroundColor: '#f9fafb',
+  theadRow: {
+    background: '#f9fafb',
   },
-  tableHeader: {
-    padding: '12px 16px',
+  th: {
     textAlign: 'left',
-    fontSize: '13px',
-    fontWeight: '600',
+    padding: '12px 14px',
+    fontSize: 12,
+    fontWeight: 900,
     color: '#6b7280',
     textTransform: 'uppercase',
-    letterSpacing: '0.5px',
-    borderBottom: '2px solid #e5e7eb',
+    letterSpacing: '0.06em',
+    borderBottom: '1px solid #e5e7eb',
     whiteSpace: 'nowrap',
   },
-  tableRow: {
-    borderBottom: '1px solid #e5e7eb',
-    transition: 'background-color 0.2s ease',
+  tr: {
+    borderBottom: '1px solid #f3f4f6',
   },
-  tableCell: {
-    padding: '16px',
-    fontSize: '14px',
-    color: '#374151',
+  td: {
+    padding: '12px 14px',
+    fontSize: 14,
+    color: '#111827',
+    verticalAlign: 'top',
   },
   studentName: {
-    fontWeight: '500',
-    color: '#111827',
-    marginBottom: '2px',
+    fontWeight: 800,
   },
-  studentEmail: {
-    fontSize: '12px',
+  courseName: {
+    fontWeight: 700,
+  },
+  smallMuted: {
+    fontSize: 12,
     color: '#6b7280',
   },
-  scoreBadge: {
-    display: 'inline-block',
-    padding: '4px 12px',
-    backgroundColor: '#dbeafe',
-    color: '#1e40af',
-    borderRadius: '12px',
-    fontSize: '13px',
-    fontWeight: '600',
+  loading: {
+    padding: 18,
+    color: '#6b7280',
+    fontWeight: 700,
   },
-  attendanceBadge: {
-    display: 'inline-block',
-    padding: '4px 12px',
-    borderRadius: '12px',
-    fontSize: '12px',
-    fontWeight: '500',
+  empty: {
+    padding: 18,
+    color: '#6b7280',
+    fontWeight: 700,
   },
   pagination: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: '16px 24px',
-    borderTop: '1px solid #e5e7eb',
+    padding: '12px 16px',
+    borderTop: '1px solid #f3f4f6',
+    background: '#fbfbfb',
   },
-  paginationButton: {
-    padding: '8px 16px',
-    backgroundColor: '#3b82f6',
-    color: 'white',
-    border: 'none',
-    borderRadius: '6px',
-    fontSize: '14px',
-    fontWeight: '500',
-    transition: 'all 0.3s ease',
-  },
-  paginationInfo: {
-    fontSize: '14px',
-    color: '#6b7280',
+  pageButton: {
+    padding: '8px 12px',
+    borderRadius: 10,
+    border: '1px solid #e5e7eb',
+    background: 'white',
+    cursor: 'pointer',
+    fontWeight: 800,
+    color: '#111827',
   },
 };
-
-const keyframes = `
-  @keyframes spin {
-    from {
-      transform: rotate(0deg);
-    }
-    to {
-      transform: rotate(360deg);
-    }
-  }
-`;
-
-export default FacultySkillReport;

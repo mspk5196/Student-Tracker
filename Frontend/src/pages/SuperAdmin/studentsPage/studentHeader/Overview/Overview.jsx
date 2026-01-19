@@ -283,21 +283,6 @@ const Overview = ({ studentId }) => {
             </div>
           </div>
 
-          {/* Footer Stats */}
-          <div style={{...styles.footerContainer, flexDirection: isMobile ? 'column' : 'row'}}>
-            <div style={{...styles.footerPod, width: isMobile ? '100%' : 'auto', minWidth: isMobile ? '0' : '200px'}}>
-              <p style={styles.fLabel}>SEMESTER</p>
-              <p style={styles.fValue}>{toRoman(studentData.currentSemester)}</p>
-            </div>
-            <div style={{...styles.footerPod, width: isMobile ? '100%' : 'auto', minWidth: isMobile ? '0' : '200px'}}>
-              <p style={styles.fLabel}>CREDITS EARNED</p>
-              <p style={styles.fValue}>{studentData.credits.earned} / {studentData.credits.total}</p>
-            </div>
-            <div style={{...styles.footerPod, width: isMobile ? '100%' : 'auto', minWidth: isMobile ? '0' : '200px'}}>
-              <p style={styles.fLabel}>SEMESTER GPA</p>
-              <p style={styles.fValue}>{studentData.semesterGPA}</p>
-            </div>
-          </div>
         </div>
       </div>
     </div>
