@@ -330,11 +330,16 @@ const ClassDetails = () => {
 
     const completionRate = ((skill.completed / skill.totalStudents) * 100).toFixed(1);
 
+    const handleCardClick = () => {
+      navigate(`/group-insights?venue=${venueData?.venue?.venue_id || ''}&skill=${encodeURIComponent(skill.groupName)}&tab=skills`);
+    };
+
     return (
         <div
         style={cardStyle}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
+        onClick={handleCardClick}
         >
         {/* Header */}
         <div style={{ marginBottom: '12px' }}>
