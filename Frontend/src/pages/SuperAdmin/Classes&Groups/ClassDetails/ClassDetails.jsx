@@ -51,13 +51,14 @@ const ClassDetails = () => {
   const [skillReports, setSkillReports] = useState([]);
   const [skillsLoading, setSkillsLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [skillSearchTerm, setSkillSearchTerm] = useState("");
   const [deptFilter, setDeptFilter] = useState("All Departments");
   const [yearFilter, setYearFilter] = useState("All Years");
   const [statusFilter, setStatusFilter] = useState("All Status");
   const [currentPage, setCurrentPage] = useState(1);
   const [skillCurrentPage, setSkillCurrentPage] = useState(1);
   const studentsPerPage = 12;
-  const skillsPerPage = 6;
+  const skillsPerPage = 3;
 
   // --- FETCH VENUE DETAILS ---
   useEffect(() => {
@@ -224,11 +225,25 @@ const ClassDetails = () => {
     setCurrentPage(1);
   }, [searchTerm, deptFilter, yearFilter, statusFilter]);
 
+  // Reset skill page when skill search changes
+  useEffect(() => {
+    setSkillCurrentPage(1);
+  }, [skillSearchTerm]);
+
+  // Filter skills based on search
+  const filteredSkills = useMemo(() => {
+    if (!skillSearchTerm) return skillStats;
+    return skillStats.filter(skill => 
+      skill.groupName?.toLowerCase().includes(skillSearchTerm.toLowerCase()) ||
+      skill.venue?.toLowerCase().includes(skillSearchTerm.toLowerCase())
+    );
+  }, [skillStats, skillSearchTerm]);
+
   // Skill Pagination
   const indexOfLastSkill = skillCurrentPage * skillsPerPage;
   const indexOfFirstSkill = indexOfLastSkill - skillsPerPage;
-  const currentSkills = skillStats.slice(indexOfFirstSkill, indexOfLastSkill);
-  const totalSkillPages = Math.ceil(skillStats.length / skillsPerPage);
+  const currentSkills = filteredSkills.slice(indexOfFirstSkill, indexOfLastSkill);
+  const totalSkillPages = Math.ceil(filteredSkills.length / skillsPerPage);
 
   // --- STYLES ---
   const s = {
@@ -659,9 +674,37 @@ const ClassDetails = () => {
       {/* Skill Status Section */}
       {skillStats.length > 0 && (
         <>
-          <h3 style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '24px', marginTop: '40px', color: '#1e293b' }}>
-            <TrendingUp style={{ color: '#3b82f6' }} /> Skill Completion Status ({skillStats.length})
-          </h3>
+          <div style={{ 
+            display: 'flex', 
+            justifyContent: 'space-between', 
+            alignItems: 'center', 
+            gap: '20px', 
+            marginBottom: '24px', 
+            marginTop: '40px',
+            flexWrap: 'wrap'
+          }}>
+            <h3 style={{ display: 'flex', alignItems: 'center', gap: '10px', margin: 0, color: '#1e293b' }}>
+              <TrendingUp style={{ color: '#3b82f6' }} /> Skill Completion Status ({filteredSkills.length})
+            </h3>
+
+            {/* Skill Search Bar */}
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center', minWidth: '300px', flex: '0 1 400px' }}>
+              <Search style={{ position: 'absolute', left: '12px', color: '#94a3b8', fontSize: '20px' }} />
+              <input 
+                style={{ 
+                  width: '100%', 
+                  padding: '12px 16px 12px 40px', 
+                  borderRadius: '8px', 
+                  border: '1px solid #e2e8f0', 
+                  outline: 'none', 
+                  fontSize: '14px' 
+                }} 
+                placeholder="Search skills by name or venue..." 
+                value={skillSearchTerm}
+                onChange={(e) => setSkillSearchTerm(e.target.value)}
+              />
+            </div>
+          </div>
 
           {skillsLoading ? (
             <div style={{ textAlign: 'center', padding: '40px', color: '#64748b' }}>
@@ -680,10 +723,10 @@ const ClassDetails = () => {
                 ))}
               </div>
 
-              {skillStats.length > skillsPerPage && (
+              {filteredSkills.length > skillsPerPage && (
                 <div style={s.pagination}>
                   <div style={{ fontSize: '14px', color: '#64748b' }}>
-                    Showing <b>{indexOfFirstSkill + 1}-{Math.min(indexOfLastSkill, skillStats.length)}</b> of <b>{skillStats.length}</b> skills
+                    Showing <b>{indexOfFirstSkill + 1}-{Math.min(indexOfLastSkill, filteredSkills.length)}</b> of <b>{filteredSkills.length}</b> skills
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                     <button 
@@ -737,26 +780,18 @@ const ClassDetails = () => {
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-        <div style={{ display: 'flex', gap: '12px', flex: 1, flexWrap: 'wrap' }}>
-          <select style={s.select} value={deptFilter} onChange={(e) => setDeptFilter(e.target.value)}>
-            <option>All Departments</option>
-            {departments.map(dept => (
-              <option key={dept} value={dept}>{dept}</option>
-            ))}
-          </select>
-          <select style={s.select} value={yearFilter} onChange={(e) => setYearFilter(e.target.value)}>
-            <option>All Years</option>
-            {years.map(year => (
-              <option key={year} value={year}>{year}</option>
-            ))}
-          </select>
-          <select style={s.select} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-            <option>All Status</option>
-            <option value="Active">Active</option>
-            <option value="Dropped">Dropped</option>
-            <option value="Completed">Completed</option>
-          </select>
-        </div>
+        <select style={s.select} value={deptFilter} onChange={(e) => setDeptFilter(e.target.value)}>
+          <option>All Departments</option>
+          {departments.map(dept => (
+            <option key={dept} value={dept}>{dept}</option>
+          ))}
+        </select>
+        <select style={s.select} value={yearFilter} onChange={(e) => setYearFilter(e.target.value)}>
+          <option>All Years</option>
+          {years.map(year => (
+            <option key={year} value={year}>{year}</option>
+          ))}
+        </select>
       </div>
 
       {currentStudents.length === 0 ? (
