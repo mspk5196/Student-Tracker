@@ -16,7 +16,8 @@ import {
   getStudentOverview,
   getStudentRanking,
   getStudentTaskGrade,
-  bulkUploadStudents
+  bulkUploadStudents,
+  getStudentSkillProgress
 } from '../controllers/student.controller.js';
 import { authenticate } from '../middleware/auth.middleware.js';
 
@@ -49,6 +50,7 @@ router.get('/:studentId/download-report', authenticate, downloadStudentReport);
 router.get('/:studentId/attendance-dashboard', authenticate, getStudentAttendanceDashboard);
 router.get('/:studentId/overview', authenticate, getStudentOverview);
 router.get('/:studentId/ranking', authenticate, getStudentRanking);
+router.get('/:studentId/skill-progress', authenticate, getStudentSkillProgress);
 router.post('/', authenticate, createStudent);
 router.put('/:studentId', authenticate, updateStudent);
 router.delete('/:studentId', authenticate, deleteStudent);

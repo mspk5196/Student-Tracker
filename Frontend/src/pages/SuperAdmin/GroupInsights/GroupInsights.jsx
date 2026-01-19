@@ -48,9 +48,11 @@ const GroupInsights = () => {
   }, [token, user?.role]);
 
   // Get venue name for display
-  const selectedVenueName = selectedVenue 
-    ? venues.find(v => v.venue_id.toString() === selectedVenue)?.venue_name || 'Unknown Venue'
-    : '';
+  const selectedVenueName = selectedVenue === 'all'
+    ? 'All Venues'
+    : selectedVenue 
+      ? venues.find(v => v.venue_id.toString() === selectedVenue)?.venue_name || 'Unknown Venue'
+      : '';
 
   return (
     <div style={styles.container}>
@@ -71,6 +73,9 @@ const GroupInsights = () => {
               <option value="">
                 {venuesLoading ? 'Loading venues...' : '-- Select a Venue --'}
               </option>
+              {user?.role === 'admin' && (
+                <option value="all">All Venues</option>
+              )}
               {venues.map((venue) => (
                 <option key={venue.venue_id} value={venue.venue_id}>
                   {venue.venue_name}
@@ -79,13 +84,13 @@ const GroupInsights = () => {
             </select>
           </div>
 
-          {/* Show selected venue name badge */}
+          {/* Show selected venue name badge
           {selectedVenueName && (
             <div style={styles.venueBadge}>
               <MapPin size={16} style={{ marginRight: '6px' }} />
               {selectedVenueName}
             </div>
-          )}
+          )} */}
         </div>
 
         <div style={styles.topBarTabs}>

@@ -208,10 +208,32 @@ export const deleteFaculty = async (req, res) => {
       });
     }
 
+    // Get faculty_id for the user
+    const [facultyRecord] = await connection.query(
+      'SELECT faculty_id FROM faculties WHERE user_id = ?',
+      [userId]
+    );
+
     await connection.beginTransaction();
 
-    // Delete from faculties table first (foreign key constraint)
-    await connection. query('DELETE FROM faculties WHERE user_id = ?', [userId]);
+    if (facultyRecord.length > 0) {
+      const facultyId = facultyRecord[0].faculty_id;
+
+      // Set faculty_id to NULL in groups table (removes assignment but keeps group)
+      await connection.query(
+        'UPDATE `groups` SET faculty_id = NULL WHERE faculty_id = ?',
+        [facultyId]
+      );
+
+      // Set faculty_id to NULL in student_skills table
+      await connection.query(
+        'UPDATE student_skills SET faculty_id = NULL WHERE faculty_id = ?',
+        [facultyId]
+      );
+
+      // Delete from faculties table
+      await connection.query('DELETE FROM faculties WHERE user_id = ?', [userId]);
+    }
 
     // Delete from users table
     await connection.query('DELETE FROM users WHERE user_id = ?', [userId]);
@@ -228,7 +250,8 @@ export const deleteFaculty = async (req, res) => {
     console.error('Error deleting faculty:', error);
     res.status(500).json({ 
       success: false, 
-      message: 'Failed to delete faculty' 
+      message: 'Failed to delete faculty',
+      error: error.message
     });
   } finally {
     connection.release();
