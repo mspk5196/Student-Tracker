@@ -78,12 +78,12 @@ const GroupInsights = () => {
             </select>
           </div>
 
-          {/* Show selected venue name badge */}
+          {/* Show selected venue name badge
           {selectedVenueName && (
             <div style={styles.venueBadge}>
               📍 {selectedVenueName}
             </div>
-          )}
+          )} */}
         </div>
 
         <div style={styles.topBarTabs}>
