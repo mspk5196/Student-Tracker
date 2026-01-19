@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-import useAuthStore from '../../store/useAuthStore';
+import React, { useState, useEffect } from "react";
+import { Outlet, useNavigate, useLocation } from "react-router-dom";
+import useAuthStore from "../../store/useAuthStore";
 
 import {
   LayoutDashboard,
@@ -17,55 +17,134 @@ import {
   Home,
   Menu,
   X,
-  FileSpreadsheet
-} from 'lucide-react';
+  FileSpreadsheet,
+} from "lucide-react";
 
 const SideTab = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout } = useAuthStore();
 
-  const isFullBleedPage = ['group-insights', 'tasks'].some((seg) => location.pathname.includes(seg));
+  const isFullBleedPage = ["group-insights", "tasks"].some((seg) =>
+    location.pathname.includes(seg),
+  );
 
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const [activeTab, setActiveTab] = useState("dashboard");
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   useEffect(() => {
-    const segments = location.pathname.split('/').filter(Boolean);
-    const topPath = segments[0] || 'dashboard';
+    const segments = location.pathname.split("/").filter(Boolean);
+    const topPath = segments[0] || "dashboard";
     setActiveTab(topPath);
   }, [location]);
 
   /* ================= ROLE BASED MENU ================= */
   const menuByRole = {
-    "admin": [
-      { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, section: 'main' },
-      { id: 'faculty', label: 'Faculty & Accounts', icon: Users, section: 'main' },
-      { id: 'classes', label: 'Classes & Groups', icon: Layers, section: 'main' },
-      { id: 'students', label: 'Students', icon: Users, section: 'main' },
-      { id: 'attendance', label: 'Attendance', icon: CalendarCheck, section: 'academic' },
-      { id: 'tasks', label: 'Task & Assignment', icon: ClipboardCheck, section: 'academic' },
-      { id: 'skill-reports', label: 'Skill Reports', icon: FileSpreadsheet, section: 'academic' },
-      { id: 'group-insights', label: 'Group Insights', icon: BarChart3, section: 'academic' },
-      { id: 'reports', label: 'Reports', icon: BarChart3, section: 'academic' },
+    admin: [
+      // Dashboard (separate)
+      {
+        id: "dashboard",
+        label: "Dashboard",
+        icon: LayoutDashboard,
+        section: "top",
+      },
+
+      // Faculty & Accounts + Students (one group)
+      {
+        id: "faculty",
+        label: "Faculty & Accounts",
+        icon: Users,
+        section: "management",
+      },
+      { id: "students", label: "Students", icon: Users, section: "management" },
+
+      // Classes & Groups + Group Insights (one group)
+      {
+        id: "classes",
+        label: "Classes & Groups",
+        icon: Layers,
+        section: "classes",
+      },
+      {
+        id: "group-insights",
+        label: "Group Insights",
+        icon: BarChart3,
+        section: "classes",
+      },
+
+      // Remaining under Academic
+      {
+        id: "attendance",
+        label: "Attendance",
+        icon: CalendarCheck,
+        section: "academic",
+      },
+      {
+        id: "tasks",
+        label: "Task & Assignment",
+        icon: ClipboardCheck,
+        section: "academic",
+      },
+      {
+        id: "skill-reports",
+        label: "Skill Reports",
+        icon: FileSpreadsheet,
+        section: "academic",
+      },
+      { id: "reports", label: "Reports", icon: BarChart3, section: "academic" },
       // { id: 'settings', label: 'Settings', icon: Settings, section: 'system' },
     ],
-    "faculty": [
+    faculty: [
       // { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, section: 'main' },
-      // { id: 'classes', label: 'My Classes / Groups', icon: Layers, section: 'main' },
-      { id: 'students', label: 'Students', icon: Users, section: 'main' },
-      { id: 'attendance', label: 'Attendance', icon: CalendarCheck, section: 'academic' },
-      { id: 'tasks', label: 'Task & Assignment', icon: ClipboardCheck, section: 'academic' },
-      { id: 'skill-reports', label: 'Skill Reports', icon: FileSpreadsheet, section: 'academic' },
-      { id: 'reports', label: 'Reports', icon: BarChart3, section: 'academic' },
+      {
+        id: "classes",
+        label: "Classes & Groups",
+        icon: Layers,
+        section: "top",
+      },
+      { id: "students", label: "Students", icon: Users, section: "top" },
+      {
+        id: "attendance",
+        label: "Attendance",
+        icon: CalendarCheck,
+        section: "academic",
+      },
+      {
+        id: "tasks",
+        label: "Task & Assignment",
+        icon: ClipboardCheck,
+        section: "academic",
+      },
+      {
+        id: "skill-reports",
+        label: "Skill Reports",
+        icon: FileSpreadsheet,
+        section: "academic",
+      },
+      { id: "reports", label: "Reports", icon: BarChart3, section: "academic" },
       // { id: 'settings', label: 'Settings', icon: Settings, section: 'system' },
     ],
-    "student": [
+    student: [
       // { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, section: 'main' },
-      { id: 'classes', label: 'My Class Room', icon: Home, section: 'main' },
-      { id: 'roadmap', label: 'Roadmap & Material', icon: Map, section: 'academic' },
-      { id: 'tasks', label: 'Tasks & Assignments', icon: ClipboardCheck, section: 'academic' },
-      { id: 'attendance', label: 'Attendance', icon: CalendarCheck, section: 'academic' },
+      { id: "classes", label: "My Class Room", icon: Home, section: "main" },
+      {
+        id: "roadmap",
+        label: "Roadmap & Material",
+        icon: Map,
+        section: "academic",
+      },
+      {
+        id: "tasks",
+        label: "Tasks & Assignments",
+        icon: ClipboardCheck,
+        section: "academic",
+      },
+      {
+        id: "attendance",
+        label: "Attendance",
+        icon: CalendarCheck,
+        section: "academic",
+      },
       // { id: 'performance', label: 'Performance', icon: BarChart3, section: 'system' },
     ],
   };
@@ -73,28 +152,28 @@ const SideTab = () => {
   const menuItems = menuByRole[user?.role] || [];
 
   const tabContent = {
-    dashboard: { title: 'Dashboard' },
-    faculty: { title: 'Faculty & Accounts' },
-    classes: { title: 'My Classes / Groups' },
-    students: { title: 'Students' },
-    attendance: { title: 'Attendance' },
-    tasks: { title: 'Task & Assignment' },
-    'skill-reports': { title: 'Skill Reports' },
-    'group-insights': { title: 'Group Insights' },
-    reports: { title: 'Reports' },
-    roadmap: { title: 'Roadmap & Material' },
-    settings: { title: 'Settings' },
+    dashboard: { title: "Dashboard" },
+    faculty: { title: "Faculty & Accounts" },
+    classes: { title: "My Classes / Groups" },
+    students: { title: "Students" },
+    attendance: { title: "Attendance" },
+    tasks: { title: "Task & Assignment" },
+    "skill-reports": { title: "Skill Reports" },
+    "group-insights": { title: "Group Insights" },
+    reports: { title: "Reports" },
+    roadmap: { title: "Roadmap & Material" },
+    settings: { title: "Settings" },
   };
 
   const handleNavigation = (id) => {
     setActiveTab(id);
-    navigate(id === 'dashboard' ? '/' : id);
+    navigate(id === "dashboard" ? "/" : id);
     setIsMobileMenuOpen(false);
   };
 
   const handleLogout = () => {
     logout();
-    navigate('/login');
+    navigate("/login");
     setIsMobileMenuOpen(false);
   };
 
@@ -107,7 +186,7 @@ const SideTab = () => {
         key={item.id}
         style={{
           ...styles.navItem,
-          ...(isActive ? styles.navItemActive : {})
+          ...(isActive ? styles.navItemActive : {}),
         }}
         onClick={() => handleNavigation(item.id)}
       >
@@ -132,19 +211,41 @@ const SideTab = () => {
       {/* NAV + SCROLL */}
       <div style={styles.navWrapper}>
         <nav style={styles.nav}>
-          {menuItems.filter(i => i.section === 'main').map(renderNavItem)}
+          {menuItems.filter((i) => i.section === "top").map(renderNavItem)}
 
-          {menuItems.some(i => i.section === 'academic') && (
+          {menuItems.some((i) => i.section === "management") && (
             <div style={styles.navSection}>
-              <div style={styles.navSectionTitle}>ACADEMIC</div>
-              {menuItems.filter(i => i.section === 'academic').map(renderNavItem)}
+              <div style={styles.navSectionTitle}>MANAGEMENT</div>
+              {menuItems
+                .filter((i) => i.section === "management")
+                .map(renderNavItem)}
             </div>
           )}
 
-          {menuItems.some(i => i.section === 'system') && (
+          {menuItems.some((i) => i.section === "classes") && (
+            <div style={styles.navSection}>
+              <div style={styles.navSectionTitle}>CLASSES</div>
+              {menuItems
+                .filter((i) => i.section === "classes")
+                .map(renderNavItem)}
+            </div>
+          )}
+
+          {menuItems.some((i) => i.section === "academic") && (
+            <div style={styles.navSection}>
+              <div style={styles.navSectionTitle}>ACADEMIC</div>
+              {menuItems
+                .filter((i) => i.section === "academic")
+                .map(renderNavItem)}
+            </div>
+          )}
+
+          {menuItems.some((i) => i.section === "system") && (
             <div style={styles.navSection}>
               <div style={styles.navSectionTitle}>SYSTEM</div>
-              {menuItems.filter(i => i.section === 'system').map(renderNavItem)}
+              {menuItems
+                .filter((i) => i.section === "system")
+                .map(renderNavItem)}
             </div>
           )}
         </nav>
@@ -153,7 +254,7 @@ const SideTab = () => {
       {/* LOGOUT FIXED AT BOTTOM */}
       <div style={styles.logoutWrapper}>
         <div
-          style={{ ...styles.navItem, color: '#ef4444' }}
+          style={{ ...styles.navItem, color: "#ef4444" }}
           onClick={handleLogout}
         >
           <LogOut size={20} />
@@ -206,12 +307,15 @@ const SideTab = () => {
 
       {/* ================= MOBILE MENU OVERLAY ================= */}
       {isMobileMenuOpen && (
-        <div style={styles.mobileOverlay} onClick={() => setIsMobileMenuOpen(false)}>
+        <div
+          style={styles.mobileOverlay}
+          onClick={() => setIsMobileMenuOpen(false)}
+        >
           <div style={styles.mobileMenu} onClick={(e) => e.stopPropagation()}>
             <div style={styles.mobileMenuHeader}>
-              <button 
+              <button
                 className="close-button"
-                style={styles.closeButton} 
+                style={styles.closeButton}
                 onClick={() => setIsMobileMenuOpen(false)}
               >
                 <X size={24} />
@@ -227,7 +331,7 @@ const SideTab = () => {
         <header style={styles.header}>
           <div style={styles.headerContent}>
             <div style={styles.headerLeft}>
-              <button 
+              <button
                 className="hamburger-button"
                 style={styles.hamburgerButton}
                 onClick={() => setIsMobileMenuOpen(true)}
@@ -235,7 +339,9 @@ const SideTab = () => {
                 <Menu size={24} />
               </button>
               <h1 className="header-title" style={styles.headerTitle}>
-                {menuItems.find(i => i.id === activeTab)?.label || tabContent[activeTab]?.title || 'Dashboard'}
+                {menuItems.find((i) => i.id === activeTab)?.label ||
+                  tabContent[activeTab]?.title ||
+                  "Dashboard"}
               </h1>
             </div>
 
@@ -246,11 +352,11 @@ const SideTab = () => {
 
               <div style={styles.userInfo}>
                 <div style={styles.userText} className="user-text-mobile">
-                  <div style={styles.userName}>{user?.name || 'User'}</div>
+                  <div style={styles.userName}>{user?.name || "User"}</div>
                   <div style={styles.userRole}>
-                    {user?.role === 1 && 'Super Admin'}
-                    {user?.role === 2 && 'Faculty'}
-                    {user?.role === 3 && 'Student'}
+                    {user?.role === 1 && "Super Admin"}
+                    {user?.role === 2 && "Faculty"}
+                    {user?.role === 3 && "Student"}
                   </div>
                 </div>
                 <div style={styles.userAvatar} />
@@ -271,228 +377,228 @@ export default SideTab;
 
 const styles = {
   container: {
-    display: 'flex',
-    height: '100vh',
-    backgroundColor: '#f9fafb',
+    display: "flex",
+    height: "100vh",
+    backgroundColor: "#f9fafb",
     fontFamily:
-      '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
+      '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
   },
 
   /* ================= SIDEBAR ================= */
   sidebar: {
-    width: '260px',
-    minWidth: '260px',
-    height: '100vh',
-    display: 'flex',
-    flexDirection: 'column',
-    backgroundColor: '#ffffff',
-    borderRight: '1px solid #e5e7eb'
+    width: "260px",
+    minWidth: "260px",
+    height: "100vh",
+    display: "flex",
+    flexDirection: "column",
+    backgroundColor: "#ffffff",
+    borderRight: "1px solid #e5e7eb",
   },
   logo: {
-    padding: '14px 20px',
-    borderBottom: '1px solid #e5e7eb'
+    padding: "14px 20px",
+    borderBottom: "1px solid #e5e7eb",
   },
   logoContent: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '12px'
+    display: "flex",
+    alignItems: "center",
+    gap: "12px",
   },
   logoIcon: {
-    width: '40px',
-    height: '40px',
-    backgroundColor: '#2563eb',
-    borderRadius: '8px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center'
+    width: "40px",
+    height: "40px",
+    backgroundColor: "#2563eb",
+    borderRadius: "8px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
   },
   logoText: {
-    fontSize: '20px',
-    fontWeight: '600',
-    color: '#111827'
+    fontSize: "20px",
+    fontWeight: "600",
+    color: "#111827",
   },
 
   // Scrollable menu
   navWrapper: {
     flex: 1,
-    overflowY: 'auto',
-    padding: '16px'
+    overflowY: "auto",
+    padding: "16px",
   },
   nav: {
-    display: 'flex',
-    flexDirection: 'column'
+    display: "flex",
+    flexDirection: "column",
   },
   navSection: {
-    marginBottom: '24px'
+    marginBottom: "12px",
   },
   navSectionTitle: {
-    fontSize: '11px',
-    fontWeight: '600',
-    color: '#9ca3af',
-    padding: '0 16px',
-    marginBottom: '12px',
-    letterSpacing: '0.05em'
+    fontSize: "11px",
+    fontWeight: "600",
+    color: "#9ca3af",
+    padding: "0 16px",
+    marginBottom: "8px",
+    letterSpacing: "0.05em",
   },
   navItem: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '12px',
-    padding: '10px 16px',
-    borderRadius: '8px',
-    cursor: 'pointer',
-    marginBottom: '8px',
-    transition: 'all 0.2s',
-    color: '#6b7280',
-    fontWeight: '500'
+    display: "flex",
+    alignItems: "center",
+    gap: "12px",
+    padding: "10px 16px",
+    borderRadius: "8px",
+    cursor: "pointer",
+    marginBottom: "8px",
+    transition: "all 0.2s",
+    color: "#6b7280",
+    fontWeight: "500",
   },
   navItemActive: {
-    backgroundColor: '#eff6ff',
-    color: '#2563eb'
+    backgroundColor: "#eff6ff",
+    color: "#2563eb",
   },
 
   logoutWrapper: {
-    padding: '5px',
-    borderTop: '1px solid #e5e7eb',
+    padding: "5px",
+    borderTop: "1px solid #e5e7eb",
   },
 
   /* ================= MOBILE MENU ================= */
   mobileOverlay: {
-    position: 'fixed',
+    position: "fixed",
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
     zIndex: 2000,
   },
 
   mobileMenu: {
-    position: 'fixed',
+    position: "fixed",
     top: 0,
     left: 0,
     bottom: 0,
-    width: '280px',
-    maxWidth: '85%',
-    backgroundColor: '#ffffff',
-    boxShadow: '2px 0 8px rgba(0, 0, 0, 0.15)',
-    display: 'flex',
-    flexDirection: 'column',
-    animation: 'slideIn 0.3s ease-out',
+    width: "280px",
+    maxWidth: "85%",
+    backgroundColor: "#ffffff",
+    boxShadow: "2px 0 8px rgba(0, 0, 0, 0.15)",
+    display: "flex",
+    flexDirection: "column",
+    animation: "slideIn 0.3s ease-out",
   },
 
   mobileMenuHeader: {
-    display: 'flex',
-    justifyContent: 'flex-end',
-    padding: '16px',
-    borderBottom: '1px solid #e5e7eb',
+    display: "flex",
+    justifyContent: "flex-end",
+    padding: "16px",
+    borderBottom: "1px solid #e5e7eb",
   },
 
   closeButton: {
-    background: 'none',
-    border: 'none',
-    cursor: 'pointer',
-    padding: '8px',
-    color: '#6b7280',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: '8px',
-    transition: 'all 0.2s',
+    background: "none",
+    border: "none",
+    cursor: "pointer",
+    padding: "8px",
+    color: "#6b7280",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: "8px",
+    transition: "all 0.2s",
   },
 
   hamburgerButton: {
-    display: 'none',
-    background: 'none',
-    border: 'none',
-    cursor: 'pointer',
-    padding: '8px',
-    color: '#6b7280',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: '8px',
-    transition: 'all 0.2s',
+    display: "none",
+    background: "none",
+    border: "none",
+    cursor: "pointer",
+    padding: "8px",
+    color: "#6b7280",
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: "8px",
+    transition: "all 0.2s",
   },
 
   /* ================= MAIN ================= */
   mainContent: {
     flex: 1,
-    display: 'flex',
-    flexDirection: 'column',
-    overflow: 'hidden'
+    display: "flex",
+    flexDirection: "column",
+    overflow: "hidden",
   },
 
   /* ================= HEADER ================= */
   header: {
-    position: 'sticky',
+    position: "sticky",
     top: 0,
     zIndex: 10,
-    width: '100%',
-    backgroundColor: '#ffffff',
-    borderBottom: '1px solid #e5e7eb',
-    padding: '12px 32px',
-    boxSizing: 'border-box'
+    width: "100%",
+    backgroundColor: "#ffffff",
+    borderBottom: "1px solid #e5e7eb",
+    padding: "12px 32px",
+    boxSizing: "border-box",
   },
   headerContent: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between'
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
   },
   headerLeft: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '16px',
+    display: "flex",
+    alignItems: "center",
+    gap: "16px",
   },
   headerTitle: {
-    fontSize: '24px',
-    fontWeight: '600',
-    color: '#111827'
+    fontSize: "24px",
+    fontWeight: "600",
+    color: "#111827",
   },
   headerRight: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '16px'
+    display: "flex",
+    alignItems: "center",
+    gap: "16px",
   },
   bellButton: {
-    padding: '8px',
-    color: '#9ca3af',
-    cursor: 'pointer',
-    border: 'none',
-    backgroundColor: 'transparent'
+    padding: "8px",
+    color: "#9ca3af",
+    cursor: "pointer",
+    border: "none",
+    backgroundColor: "transparent",
   },
 
   userInfo: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '12px'
+    display: "flex",
+    alignItems: "center",
+    gap: "12px",
   },
   userText: {
-    textAlign: 'right'
+    textAlign: "right",
   },
   userName: {
-    fontSize: '14px',
-    fontWeight: '600',
-    color: '#111827'
+    fontSize: "14px",
+    fontWeight: "600",
+    color: "#111827",
   },
   userRole: {
-    fontSize: '12px',
-    color: '#6b7280'
+    fontSize: "12px",
+    color: "#6b7280",
   },
   userAvatar: {
-    width: '40px',
-    height: '40px',
-    background: 'linear-gradient(135deg, #fb923c 0%, #ec4899 100%)',
-    borderRadius: '50%'
+    width: "40px",
+    height: "40px",
+    background: "linear-gradient(135deg, #fb923c 0%, #ec4899 100%)",
+    borderRadius: "50%",
   },
 
   /* ================= CONTENT ================= */
   content: {
     flex: 1,
-    overflow: 'auto',
-    padding: '24px'
+    overflow: "auto",
+    padding: "24px",
   },
   contentFullBleed: {
     flex: 1,
-    overflow: 'auto',
-    padding: 0
-  }
+    overflow: "auto",
+    padding: 0,
+  },
 };
