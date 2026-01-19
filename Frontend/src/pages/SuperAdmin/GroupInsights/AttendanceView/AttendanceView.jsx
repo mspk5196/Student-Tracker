@@ -1,25 +1,103 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 
-const AttendanceView = ({ selectedGroup, period, academicYear, setAcademicYear, setPeriod }) => {
-  
-  // Mock Data
-  const attendanceStats = { total: 45, present: 40, absent: 5 };
-  
-  const students = [
-    { name: 'Alice Johnson', id: 'STU-001', lastSession: '2024-01-18', status: 'Present', sessionsPresent: 38, sessionsAbsent: 2, attendance: 95 },
-    { name: 'Bob Smith', id: 'STU-002', lastSession: '2024-01-18', status: 'Present', sessionsPresent: 37, sessionsAbsent: 3, attendance: 92.5 },
-    { name: 'Charlie Brown', id: 'STU-003', lastSession: '2024-01-17', status: 'Absent', sessionsPresent: 35, sessionsAbsent: 5, attendance: 87.5 },
-    { name: 'Diana Prince', id: 'STU-004', lastSession: '2024-01-18', status: 'Present', sessionsPresent: 39, sessionsAbsent: 1, attendance: 97.5 },
-    { name: 'Eve Adams', id: 'STU-005', lastSession: '2024-01-16', status: 'Absent', sessionsPresent: 34, sessionsAbsent: 6, attendance: 85 },
-  ];
+const API_URL = import.meta.env.VITE_API_URL;
 
-  const absentStudents = [
-    { name: 'Charlie Brown', id: 'STU-003', date: '2024-01-17', session: 'Morning - 9:00 AM', reason: 'Medical appointment', status: 'Excused' },
-    { name: 'Eve Adams', id: 'STU-005', date: '2024-01-16', session: 'Afternoon - 2:00 PM', reason: 'No reason provided', status: 'Uninformed' },
-    { name: 'Frank Wilson', id: 'STU-006', date: '2024-01-15', session: 'Morning - 10:00 AM', reason: 'Family emergency', status: 'Follow-up Required' },
-    { name: 'Grace Lee', id: 'STU-007', date: '2024-01-14', session: 'Afternoon - 3:00 PM', reason: 'Transportation issue', status: 'Pending Review' },
-    { name: 'Henry Zhang', id: 'STU-008', date: '2024-01-13', session: 'Morning - 11:00 AM', reason: 'Multiple absences this week', status: 'At Risk' },
-  ];
+// Sessions - 4 per day
+const SESSIONS = [
+  { id: 1, name: 'Session 1', time: '9:00 AM - 10:30 AM' },
+  { id: 2, name: 'Session 2', time: '10:45 AM - 12:15 PM' },
+  { id: 3, name: 'Session 3', time: '1:30 PM - 3:00 PM' },
+  { id: 4, name: 'Session 4', time: '3:15 PM - 4:45 PM' },
+];
+
+const AttendanceView = ({ selectedVenue, selectedVenueName, selectedDate, setSelectedDate, selectedSession, setSelectedSession }) => {
+  
+  // State for attendance data
+  const [attendanceData, setAttendanceData] = useState(null);
+  const [students, setStudents] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [statusFilter, setStatusFilter] = useState('All');
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+
+  // Fetch attendance data when venue, date, or session changes
+  useEffect(() => {
+    const fetchAttendanceData = async () => {
+      if (!selectedVenue) {
+        setStudents([]);
+        setAttendanceData(null);
+        return;
+      }
+
+      setLoading(true);
+      setError('');
+      
+      try {
+        const token = localStorage.getItem('token');
+        
+        // Fetch students in the venue with their attendance for the selected date/session
+        const params = new URLSearchParams({
+          date: selectedDate,
+          ...(selectedSession && { session: selectedSession })
+        });
+        
+        const response = await axios.get(
+          `${API_URL}/attendance/venue/${selectedVenue}/details?${params}`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        
+        if (response.data.success) {
+          setStudents(response.data.data?.students || []);
+          setAttendanceData(response.data.data?.summary || null);
+        }
+      } catch (err) {
+        console.error('Error fetching attendance:', err);
+        // For now, show mock data if API fails
+        setStudents([]);
+        setAttendanceData({ total: 0, present: 0, absent: 0 });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAttendanceData();
+  }, [selectedVenue, selectedDate, selectedSession]);
+
+  // Calculate stats from students data
+  const attendanceStats = attendanceData || {
+    total: students.length,
+    present: students.filter(s => s.status === 'Present').length,
+    absent: students.filter(s => s.status === 'Absent').length,
+  };
+
+  // Filter students by status
+  const filteredStudents = statusFilter === 'All' 
+    ? students 
+    : students.filter(s => s.status === statusFilter);
+
+  // Pagination calculations
+  const totalPages = Math.ceil(filteredStudents.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedStudents = filteredStudents.slice(startIndex, endIndex);
+
+  // Reset to page 1 when filter changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [statusFilter, selectedVenue, selectedDate, selectedSession]);
+
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+  };
+
+  const handleItemsPerPageChange = (e) => {
+    setItemsPerPage(parseInt(e.target.value));
+    setCurrentPage(1);
+  };
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -29,15 +107,14 @@ const AttendanceView = ({ selectedGroup, period, academicYear, setAcademicYear, 
     }
   };
 
-  const getFollowUpStatusStyle = (status) => {
-    switch (status) {
-      case 'Uninformed': return { bg: '#fee2e2', text: '#991b1b' };
-      case 'Pending Review': return { bg: '#fef3c7', text: '#92400e' };
-      case 'At Risk': return { bg: '#fee2e2', text: '#dc2626', fontWeight: 'bold' };
-      case 'Follow-up Required': return { bg: '#ffedd5', text: '#9a3412' };
-      case 'Excused': return { bg: '#dcfce7', text: '#166534' };
-      default: return { bg: '#f3f4f6', text: '#374151' };
-    }
+  const formatDate = (dateStr) => {
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('en-US', { 
+      weekday: 'short', 
+      year: 'numeric', 
+      month: 'short', 
+      day: 'numeric' 
+    });
   };
 
   return (
@@ -45,131 +122,231 @@ const AttendanceView = ({ selectedGroup, period, academicYear, setAcademicYear, 
       {/* Contextual Filters */}
       <div style={styles.contextFilters}>
         <div style={styles.filterGroup}>
-          <label style={styles.label}>Academic Year</label>
-          <select style={styles.select} value={academicYear} onChange={(e) => setAcademicYear(e.target.value)}>
-            <option>2024 - 2025</option>
-            <option>2023 - 2024</option>
-          </select>
+          <label style={styles.label}>Select Date</label>
+          <input 
+            type="date" 
+            style={styles.dateInput}
+            value={selectedDate}
+            onChange={(e) => setSelectedDate(e.target.value)}
+            max={new Date().toISOString().split('T')[0]}
+          />
         </div>
         <div style={styles.filterGroup}>
-          <label style={styles.label}>Period</label>
-          <select style={styles.select} value={period} onChange={(e) => setPeriod(e.target.value)}>
-            <option>Today</option>
-            <option>This Week</option>
-            <option>This Month</option>
+          <label style={styles.label}>Session</label>
+          <select 
+            style={styles.select} 
+            value={selectedSession} 
+            onChange={(e) => setSelectedSession(e.target.value)}
+          >
+            <option value="">All Sessions</option>
+            {SESSIONS.map((session) => (
+              <option key={session.id} value={session.id}>
+                {session.name} ({session.time})
+              </option>
+            ))}
           </select>
         </div>
       </div>
 
       <div style={styles.mainContent}>
-        <p style={styles.sectionTitle}>Attendance view for: {selectedGroup} – {period}</p>
-        
-        <div style={styles.statsRow}>
-          <div style={styles.statBox}>
-            <div style={styles.statLabel}>Total Students</div>
-            <div style={styles.statValue}>{attendanceStats.total}</div>
-            <div style={styles.statSub}>All students in this group</div>
+        <p style={styles.sectionTitle}>
+          Attendance for: {selectedVenueName} – {formatDate(selectedDate)}
+          {selectedSession && ` – ${SESSIONS.find(s => s.id.toString() === selectedSession)?.name || ''}`}
+        </p>
+
+        {loading ? (
+          <div style={styles.loadingContainer}>
+            <div style={{ fontSize: '16px', fontWeight: '600' }}>Loading attendance data...</div>
           </div>
-          <div style={styles.statBox}>
-            <div style={{...styles.statLabel, color: '#166534'}}>Total Present</div>
-            <div style={{...styles.statValue, color: '#166534'}}>{attendanceStats.present}</div>
-            <div style={styles.statSub}>Across selected period</div>
+        ) : error ? (
+          <div style={styles.errorContainer}>
+            <div style={{ color: '#991b1b' }}>{error}</div>
           </div>
-          <div style={styles.statBox}>
-            <div style={{...styles.statLabel, color: '#991b1b'}}>Total Absent</div>
-            <div style={{...styles.statValue, color: '#991b1b'}}>{attendanceStats.absent}</div>
-            <div style={styles.statSub}>Click a student for follow-up</div>
-          </div>
-        </div>
+        ) : (
+          <>
+            <div style={styles.statsRow}>
+              <div style={styles.statBox}>
+                <div style={styles.statLabel}>Total Students</div>
+                <div style={styles.statValue}>{attendanceStats.total}</div>
+                <div style={styles.statSub}>Enrolled in this venue</div>
+              </div>
+              <div style={styles.statBox}>
+                <div style={{...styles.statLabel, color: '#166534'}}>Present</div>
+                <div style={{...styles.statValue, color: '#166534'}}>{attendanceStats.present}</div>
+                <div style={styles.statSub}>Attended on selected date</div>
+              </div>
+              <div style={styles.statBox}>
+                <div style={{...styles.statLabel, color: '#991b1b'}}>Absent</div>
+                <div style={{...styles.statValue, color: '#991b1b'}}>{attendanceStats.absent}</div>
+                <div style={styles.statSub}>Missed sessions</div>
+              </div>
+              <div style={styles.statBox}>
+                <div style={{...styles.statLabel, color: '#3b82f6'}}>Attendance Rate</div>
+                <div style={{...styles.statValue, color: '#3b82f6'}}>
+                  {attendanceStats.total > 0 
+                    ? ((attendanceStats.present / attendanceStats.total) * 100).toFixed(1) 
+                    : 0}%
+                </div>
+                <div style={styles.statSub}>For selected period</div>
+              </div>
+            </div>
 
-        <div style={styles.tableControls}>
-          <button style={styles.filterBadgeActive}>All ({attendanceStats.total})</button>
-          <button style={styles.filterBadge}>Present ({attendanceStats.present})</button>
-          <button style={styles.filterBadge}>Absent ({attendanceStats.absent})</button>
-        </div>
+            <div style={styles.tableControls}>
+              <button 
+                style={statusFilter === 'All' ? styles.filterBadgeActive : styles.filterBadge}
+                onClick={() => setStatusFilter('All')}
+              >
+                All ({attendanceStats.total})
+              </button>
+              <button 
+                style={statusFilter === 'Present' ? styles.filterBadgeActive : styles.filterBadge}
+                onClick={() => setStatusFilter('Present')}
+              >
+                Present ({attendanceStats.present})
+              </button>
+              <button 
+                style={statusFilter === 'Absent' ? styles.filterBadgeActive : styles.filterBadge}
+                onClick={() => setStatusFilter('Absent')}
+              >
+                Absent ({attendanceStats.absent})
+              </button>
+            </div>
 
-        <div style={styles.tableCard}>
-          <table style={styles.table}>
-            <thead>
-              <tr style={styles.thRow}>
-                <th style={styles.th}>Student Name</th>
-                <th style={styles.th}>Student ID</th>
-                <th style={styles.th}>Last Session</th>
-                <th style={styles.th}>Status</th>
-                <th style={styles.th}>Sessions Present</th>
-                <th style={styles.th}>Sessions Absent</th>
-                <th style={styles.th}>Attendance %</th>
-              </tr>
-            </thead>
-            <tbody>
-              {students.map((student, index) => {
-                const statusInfo = getStatusColor(student.status);
-                return (
-                  <tr key={index} style={styles.tr}>
-                    <td style={styles.td}>{student.name}</td>
-                    <td style={styles.td}>{student.id}</td>
-                    <td style={styles.td}>{student.lastSession}</td>
-                    <td style={styles.td}>
-                      <span style={{ 
-                        ...styles.statusBadge, 
-                        backgroundColor: statusInfo.bg, 
-                        color: statusInfo.text 
-                      }}>
-                        {student.status}
-                      </span>
-                    </td>
-                    <td style={styles.td}>{student.sessionsPresent}</td>
-                    <td style={styles.td}>{student.sessionsAbsent}</td>
-                    <td style={styles.td}>{student.attendance}%</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+            {filteredStudents.length === 0 ? (
+              <div style={styles.noDataContainer}>
+                <div style={{ fontSize: '48px', marginBottom: '16px' }}>📋</div>
+                <div style={{ fontSize: '16px', fontWeight: '600', color: '#374151' }}>
+                  No attendance records found
+                </div>
+                <div style={{ fontSize: '14px', color: '#6b7280', marginTop: '8px' }}>
+                  Select a different date or session to view attendance data
+                </div>
+              </div>
+            ) : (
+              <>
+                <div style={styles.tableCard}>
+                  <table style={styles.table}>
+                    <thead>
+                      <tr style={styles.thRow}>
+                        <th style={styles.th}>Student Name</th>
+                        <th style={styles.th}>Roll Number</th>
+                        <th style={styles.th}>Department</th>
+                        <th style={styles.th}>Status</th>
+                        <th style={styles.th}>Session</th>
+                        <th style={styles.th}>Overall Attendance</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {paginatedStudents.map((student, index) => {
+                        const statusInfo = getStatusColor(student.status);
+                        return (
+                          <tr key={student.student_id || index} style={styles.tr}>
+                            <td style={styles.td}>{student.name || student.student_name}</td>
+                            <td style={styles.td}>{student.roll_number || student.rollNumber}</td>
+                            <td style={styles.td}>{student.department || 'N/A'}</td>
+                            <td style={styles.td}>
+                              <span style={{ 
+                                ...styles.statusBadge, 
+                                backgroundColor: statusInfo.bg, 
+                                color: statusInfo.text 
+                              }}>
+                                {student.status || 'N/A'}
+                              </span>
+                            </td>
+                            <td style={styles.td}>
+                              {student.session 
+                                ? SESSIONS.find(s => s.id === parseInt(student.session))?.name || `Session ${student.session}`
+                                : 'All'}
+                            </td>
+                            <td style={styles.td}>
+                              {student.attendance_percentage 
+                                ? `${student.attendance_percentage}%` 
+                                : 'N/A'}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
 
-        <h3 style={styles.sectionHeader}>Absent Students ({attendanceStats.absent})</h3>
-        <p style={styles.sectionSubHeader}>Breakdown of the 5 absent counts for this period with reasons and follow-up.</p>
+                {/* Pagination Controls */}
+                {filteredStudents.length > 0 && (
+                  <div style={styles.paginationContainer}>
+                    <div style={styles.paginationInfo}>
+                      Showing {startIndex + 1} to {Math.min(endIndex, filteredStudents.length)} of {filteredStudents.length} students
+                    </div>
+                    
+                    <div style={styles.paginationControls}>
+                      <select 
+                        value={itemsPerPage} 
+                        onChange={handleItemsPerPageChange}
+                        style={styles.itemsPerPageSelect}
+                      >
+                        <option value={10}>10 / page</option>
+                        <option value={25}>25 / page</option>
+                        <option value={50}>50 / page</option>
+                        <option value={100}>100 / page</option>
+                      </select>
 
-        <div style={styles.tableCard}>
-          <table style={styles.table}>
-            <thead>
-              <tr style={styles.thRow}>
-                <th style={styles.th}>Student Name</th>
-                <th style={styles.th}>Student ID</th>
-                <th style={styles.th}>Date</th>
-                <th style={styles.th}>Session / Slot</th>
-                <th style={styles.th}>Reason / Notes</th>
-                <th style={styles.th}>Follow-up Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {absentStudents.map((student, index) => {
-                const statusStyle = getFollowUpStatusStyle(student.status);
-                return(
-                  <tr key={index} style={styles.tr}>
-                    <td style={styles.td}>{student.name}</td>
-                    <td style={styles.td}>{student.id}</td>
-                    <td style={styles.td}>{student.date}</td>
-                    <td style={styles.td}>{student.session}</td>
-                    <td style={styles.td}>{student.reason}</td>
-                    <td style={styles.td}>
-                      <span style={{ 
-                        ...styles.statusBadge, 
-                        backgroundColor: statusStyle.bg, 
-                        color: statusStyle.text,
-                        fontWeight: statusStyle.fontWeight || 'normal',
-                        fontSize: '11px'
-                      }}>
-                        {student.status}
-                      </span>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
+                      <button
+                        onClick={() => handlePageChange(currentPage - 1)}
+                        disabled={currentPage === 1}
+                        style={{
+                          ...styles.paginationButton,
+                          opacity: currentPage === 1 ? 0.5 : 1,
+                          cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
+                        }}
+                      >
+                        Previous
+                      </button>
+
+                      <div style={styles.pageNumbers}>
+                        {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                          let pageNum;
+                          if (totalPages <= 5) {
+                            pageNum = i + 1;
+                          } else if (currentPage <= 3) {
+                            pageNum = i + 1;
+                          } else if (currentPage >= totalPages - 2) {
+                            pageNum = totalPages - 4 + i;
+                          } else {
+                            pageNum = currentPage - 2 + i;
+                          }
+                          return (
+                            <button
+                              key={pageNum}
+                              onClick={() => handlePageChange(pageNum)}
+                              style={{
+                                ...styles.pageButton,
+                                backgroundColor: currentPage === pageNum ? '#3b82f6' : '#fff',
+                                color: currentPage === pageNum ? '#fff' : '#374151',
+                              }}
+                            >
+                              {pageNum}
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      <button
+                        onClick={() => handlePageChange(currentPage + 1)}
+                        disabled={currentPage === totalPages || totalPages === 0}
+                        style={{
+                          ...styles.paginationButton,
+                          opacity: currentPage === totalPages || totalPages === 0 ? 0.5 : 1,
+                          cursor: currentPage === totalPages || totalPages === 0 ? 'not-allowed' : 'pointer',
+                        }}
+                      >
+                        Next
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </>
+        )}
       </div>
     </div>
   );
@@ -201,6 +378,18 @@ const styles = {
     color: '#1f2937',
     outline: 'none',
     backgroundColor: '#fff',
+    cursor: 'pointer',
+  },
+  dateInput: {
+    padding: '8px 12px',
+    border: '1px solid #e5e7eb',
+    borderRadius: '6px',
+    fontSize: '14px',
+    color: '#1f2937',
+    outline: 'none',
+    backgroundColor: '#fff',
+    cursor: 'pointer',
+    minWidth: '180px',
   },
   mainContent: {
   },
@@ -208,6 +397,37 @@ const styles = {
     fontSize: '14px',
     color: '#6b7280',
     marginBottom: '16px',
+  },
+  loadingContainer: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '60px 20px',
+    backgroundColor: '#fff',
+    borderRadius: '12px',
+    border: '1px solid #e5e7eb',
+  },
+  errorContainer: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '40px 20px',
+    backgroundColor: '#fef2f2',
+    borderRadius: '12px',
+    border: '1px solid #fecaca',
+  },
+  noDataContainer: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '60px 20px',
+    backgroundColor: '#fff',
+    borderRadius: '12px',
+    border: '1px solid #e5e7eb',
+    textAlign: 'center',
   },
   statsRow: {
     display: 'flex',
@@ -217,7 +437,7 @@ const styles = {
   },
   statBox: {
     flex: 1,
-    minWidth: '200px',
+    minWidth: '180px',
     backgroundColor: '#fff',
     padding: '20px',
     borderRadius: '8px',
@@ -244,6 +464,7 @@ const styles = {
     display: 'flex',
     gap: '12px',
     marginBottom: '16px',
+    flexWrap: 'wrap',
   },
   filterBadge: {
     padding: '6px 16px',
@@ -253,6 +474,7 @@ const styles = {
     color: '#374151',
     fontSize: '13px',
     cursor: 'pointer',
+    transition: 'all 0.2s ease',
   },
   filterBadgeActive: {
     padding: '6px 16px',
@@ -262,18 +484,20 @@ const styles = {
     color: '#fff',
     fontSize: '13px',
     cursor: 'pointer',
+    transition: 'all 0.2s ease',
   },
   tableCard: {
     backgroundColor: '#fff',
     borderRadius: '8px',
     border: '1px solid #e5e7eb',
-    overflow: 'hidden',
+    overflow: 'auto',
     marginBottom: '32px',
     boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
   },
   table: {
     width: '100%',
     borderCollapse: 'collapse',
+    minWidth: '700px',
   },
   thRow: {
     backgroundColor: '#f9fafb',
@@ -287,6 +511,7 @@ const styles = {
     color: '#6b7280',
     textTransform: 'uppercase',
     letterSpacing: '0.5px',
+    whiteSpace: 'nowrap',
   },
   tr: {
     backgroundColor: '#fff',
@@ -304,18 +529,61 @@ const styles = {
     fontWeight: '500',
     display: 'inline-block',
   },
-  sectionHeader: {
-    fontSize: '16px',
-    fontWeight: '700',
-    color: '#111827',
-    marginTop: '0px',
-    marginBottom: '4px',
+  paginationContainer: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '16px 20px',
+    backgroundColor: '#f9fafb',
+    borderTop: '1px solid #e5e7eb',
+    borderRadius: '0 0 8px 8px',
+    flexWrap: 'wrap',
+    gap: '12px',
   },
-  sectionSubHeader: {
-    fontSize: '13px',
+  paginationInfo: {
+    fontSize: '14px',
     color: '#6b7280',
-    marginBottom: '16px',
-  }
+  },
+  paginationControls: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+  },
+  itemsPerPageSelect: {
+    padding: '6px 10px',
+    border: '1px solid #e5e7eb',
+    borderRadius: '6px',
+    fontSize: '13px',
+    color: '#374151',
+    backgroundColor: '#fff',
+    cursor: 'pointer',
+    outline: 'none',
+  },
+  paginationButton: {
+    padding: '6px 12px',
+    border: '1px solid #e5e7eb',
+    borderRadius: '6px',
+    backgroundColor: '#fff',
+    fontSize: '13px',
+    color: '#374151',
+    fontWeight: '500',
+  },
+  pageNumbers: {
+    display: 'flex',
+    gap: '4px',
+  },
+  pageButton: {
+    width: '32px',
+    height: '32px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    border: '1px solid #e5e7eb',
+    borderRadius: '6px',
+    fontSize: '13px',
+    fontWeight: '500',
+    cursor: 'pointer',
+  },
 };
 
 export default AttendanceView;

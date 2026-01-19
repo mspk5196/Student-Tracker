@@ -9,7 +9,8 @@ import {
   getStudentAttendanceHistory,
   getStudentAttendanceDashboard,
   testAttendance,
-  getSessionAttendance
+  getSessionAttendance,
+  getVenueAttendanceDetails
 } from '../controllers/attendance.controller.js';
 import { authenticate } from '../middleware/auth.middleware.js';
 
@@ -24,6 +25,7 @@ router.get('/test', testAttendance);
 // Define the routes - REMOVED facultyId and studentId from params
 router.get('/venues', getVenueAllocations);  // Uses JWT to get user
 router.get('/students/:venueId', getStudentsForVenue);
+router.get('/venue/:venueId/details', getVenueAttendanceDetails);  // For GroupInsights AttendanceView
 router.post('/session', getOrCreateSession);
 router.get('/session/:sessionId/:venueId', getSessionAttendance);
 router.post('/save', saveAttendance);

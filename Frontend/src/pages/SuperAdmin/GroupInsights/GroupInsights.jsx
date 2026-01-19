@@ -1,26 +1,89 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import AttendanceView from './AttendanceView/AttendanceView';
 import SkillProficiencyView from './SkillProficiencyView/SkillProficiencyView';
+import useAuthStore from '../../../store/useAuthStore';
+import axios from 'axios';
+
+const API_URL = import.meta.env.VITE_API_URL;
 
 const GroupInsights = () => {
-  const [activeTab, setActiveTab] = useState('attendance'); // 'attendance' or 'skills'
-  const [selectedGroup, setSelectedGroup] = useState('CS-302 (Web Technologies)');
-  const [academicYear, setAcademicYear] = useState('2024 - 2025');
-  const [period, setPeriod] = useState('Today');
+  const { user, token } = useAuthStore();
+  const [activeTab, setActiveTab] = useState('attendance');
   const [selectedVenue, setSelectedVenue] = useState('');
+  const [venues, setVenues] = useState([]);
+  const [venuesLoading, setVenuesLoading] = useState(true);
+  
+  // Date picker state for attendance
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [selectedSession, setSelectedSession] = useState('');
+
+  // Fetch venues based on role (admin sees all, faculty sees only assigned)
+  useEffect(() => {
+    const fetchVenues = async () => {
+      if (!token) return;
+      
+      setVenuesLoading(true);
+      try {
+        // This endpoint handles role-based access internally
+        const response = await axios.get(`${API_URL}/skill-reports/faculty/venues`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        
+        const venueList = response.data.venues || [];
+        setVenues(venueList);
+        
+        // Auto-select first venue for faculty if they have only one
+        if (user?.role === 'faculty' && venueList.length === 1) {
+          setSelectedVenue(venueList[0].venue_id.toString());
+        }
+      } catch (err) {
+        console.error('Error fetching venues:', err);
+      } finally {
+        setVenuesLoading(false);
+      }
+    };
+    
+    fetchVenues();
+  }, [token, user?.role]);
+
+  // Get venue name for display
+  const selectedVenueName = selectedVenue 
+    ? venues.find(v => v.venue_id.toString() === selectedVenue)?.venue_name || 'Unknown Venue'
+    : '';
 
   return (
     <div style={styles.container}>
       {/* Top Header Bar */}
       <div style={styles.topBar}>
         <div style={styles.topBarLeft}>
+          {/* Venue Selector */}
           <div style={styles.headerFilterGroup}>
-            <select style={styles.headerSelect} value={selectedGroup} onChange={(e) => setSelectedGroup(e.target.value)}>
-              <option>All Groups</option>
-              <option>CS-302 (Web Technologies)</option>
-              <option>CS-303 (Data Structures)</option>
+            <label style={styles.headerLabel}>
+              {user?.role === 'admin' ? 'Select Venue' : 'Your Venue'}
+            </label>
+            <select 
+              style={styles.headerSelect} 
+              value={selectedVenue} 
+              onChange={(e) => setSelectedVenue(e.target.value)}
+              disabled={venuesLoading}
+            >
+              <option value="">
+                {venuesLoading ? 'Loading venues...' : '-- Select a Venue --'}
+              </option>
+              {venues.map((venue) => (
+                <option key={venue.venue_id} value={venue.venue_id}>
+                  {venue.venue_name}
+                </option>
+              ))}
             </select>
           </div>
+
+          {/* Show selected venue name badge */}
+          {selectedVenueName && (
+            <div style={styles.venueBadge}>
+              📍 {selectedVenueName}
+            </div>
+          )}
         </div>
 
         <div style={styles.topBarTabs}>
@@ -40,21 +103,29 @@ const GroupInsights = () => {
       </div>
 
       <div style={styles.contentContainer}>
-        {activeTab === 'attendance' ? (
+        {!selectedVenue ? (
+          <div style={styles.noVenueMessage}>
+            <div style={styles.noVenueIcon}>📊</div>
+            <h3 style={styles.noVenueTitle}>Select a Venue to View Insights</h3>
+            <p style={styles.noVenueText}>
+              {user?.role === 'admin' 
+                ? 'Choose a venue from the dropdown above to view attendance and skill proficiency data.'
+                : 'Select your assigned venue from the dropdown to view insights.'}
+            </p>
+          </div>
+        ) : activeTab === 'attendance' ? (
           <AttendanceView 
-            selectedGroup={selectedGroup}
-            period={period}
-            academicYear={academicYear}
-            setAcademicYear={setAcademicYear}
-            setPeriod={setPeriod}
+            selectedVenue={selectedVenue}
+            selectedVenueName={selectedVenueName}
+            selectedDate={selectedDate}
+            setSelectedDate={setSelectedDate}
+            selectedSession={selectedSession}
+            setSelectedSession={setSelectedSession}
           />
         ) : (
           <SkillProficiencyView 
-            selectedGroup={selectedGroup}
-            academicYear={academicYear}
-            setAcademicYear={setAcademicYear}
             selectedVenue={selectedVenue}
-            setSelectedVenue={setSelectedVenue}
+            selectedVenueName={selectedVenueName}
           />
         )}
       </div>
@@ -81,24 +152,31 @@ const styles = {
     borderBottom: '1px solid #e5e7eb',
     width: '100%',
     boxSizing: 'border-box',
-    padding: '10px 16px',
+    padding: '12px 16px',
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
     boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+    flexWrap: 'wrap',
+    gap: '12px',
   },
   topBarLeft: {
     display: 'flex',
     alignItems: 'center',
-    gap: '24px',
-  },
-  pageTitle: {
-    fontSize: '20px',
-    fontWeight: '700',
-    color: '#111827',
-    margin: 0,
+    gap: '16px',
+    flexWrap: 'wrap',
   },
   headerFilterGroup: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '4px',
+  },
+  headerLabel: {
+    fontSize: '11px',
+    color: '#6b7280',
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: '0.5px',
   },
   headerSelect: {
     padding: '8px 12px',
@@ -108,7 +186,17 @@ const styles = {
     color: '#1f2937',
     outline: 'none',
     backgroundColor: '#fff',
-    minWidth: '220px',
+    minWidth: '250px',
+    cursor: 'pointer',
+  },
+  venueBadge: {
+    padding: '6px 12px',
+    backgroundColor: '#eff6ff',
+    color: '#1d4ed8',
+    borderRadius: '20px',
+    fontSize: '13px',
+    fontWeight: '500',
+    border: '1px solid #bfdbfe',
   },
   topBarTabs: {
     display: 'flex',
@@ -145,146 +233,34 @@ const styles = {
     flex: 1,
     overflowY: 'auto',
   },
-  contextFilters: {
-    display: 'flex',
-    gap: '16px',
-    marginBottom: '24px',
-    flexWrap: 'wrap',
-  },
-  filterGroup: {
+  noVenueMessage: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '4px',
-    minWidth: '180px',
-  },
-  label: {
-    fontSize: '12px',
-    color: '#6b7280',
-    fontWeight: '500',
-  },
-  select: {
-    padding: '8px 12px',
-    border: '1px solid #e5e7eb',
-    borderRadius: '6px',
-    fontSize: '14px',
-    color: '#1f2937',
-    outline: 'none',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '60px 20px',
     backgroundColor: '#fff',
-  },
-  mainContent: {
-  },
-  sectionTitle: {
-    fontSize: '14px',
-    color: '#6b7280',
-    marginBottom: '16px',
-  },
-  statsRow: {
-    display: 'flex',
-    gap: '20px',
-    marginBottom: '24px',
-    flexWrap: 'wrap',
-  },
-  statBox: {
-    flex: 1,
-    minWidth: '200px',
-    backgroundColor: '#fff',
-    padding: '20px',
-    borderRadius: '8px',
-    border: '1px solid #e5e7eb',
-    boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
-  },
-  statLabel: {
-    fontSize: '13px',
-    color: '#6b7280',
-    marginBottom: '8px',
-    fontWeight: '500',
-  },
-  statValue: {
-    fontSize: '24px',
-    fontWeight: '700',
-    color: '#111827',
-    marginBottom: '4px',
-  },
-  statSub: {
-    fontSize: '12px',
-    color: '#9ca3af',
-  },
-  tableControls: {
-    display: 'flex',
-    gap: '12px',
-    marginBottom: '16px',
-  },
-  filterBadge: {
-    padding: '6px 16px',
-    borderRadius: '20px',
-    border: '1px solid #e5e7eb',
-    backgroundColor: '#fff',
-    color: '#374151',
-    fontSize: '13px',
-    cursor: 'pointer',
-  },
-  filterBadgeActive: {
-    padding: '6px 16px',
-    borderRadius: '20px',
-    border: '1px solid #0066FF',
-    backgroundColor: '#0066FF',
-    color: '#fff',
-    fontSize: '13px',
-    cursor: 'pointer',
-  },
-  tableCard: {
-      backgroundColor: '#fff',
-      borderRadius: '8px',
-      border: '1px solid #e5e7eb',
-      overflow: 'hidden',
-      marginBottom: '32px',
-      boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
-  },
-  table: {
-    width: '100%',
-    borderCollapse: 'collapse',
-  },
-  thRow: {
-    backgroundColor: '#f9fafb',
-    borderBottom: '1px solid #e5e7eb',
-  },
-  th: {
-    padding: '12px 16px',
-    textAlign: 'left',
-    fontSize: '12px',
-    fontWeight: '600',
-    color: '#6b7280',
-    textTransform: 'uppercase',
-    letterSpacing: '0.5px',
-  },
-  tr: {
-    backgroundColor: '#fff',
-    borderBottom: '1px solid #f3f4f6',
-  },
-  td: {
-    padding: '16px',
-    fontSize: '14px',
-    color: '#1f2937',
-  },
-  statusBadge: {
-    padding: '4px 8px',
     borderRadius: '12px',
-    fontSize: '12px',
-    fontWeight: '500',
-    display: 'inline-block',
+    border: '1px solid #e5e7eb',
+    textAlign: 'center',
+    marginTop: '20px',
   },
-  sectionHeader: {
-    fontSize: '16px',
-    fontWeight: '700',
-    color: '#111827',
-    marginTop: '0px',
-    marginBottom: '4px',
-  },
-  sectionSubHeader: {
-    fontSize: '13px',
-    color: '#6b7280',
+  noVenueIcon: {
+    fontSize: '48px',
     marginBottom: '16px',
-  }
+  },
+  noVenueTitle: {
+    fontSize: '18px',
+    fontWeight: '600',
+    color: '#1f2937',
+    margin: '0 0 8px 0',
+  },
+  noVenueText: {
+    fontSize: '14px',
+    color: '#6b7280',
+    margin: 0,
+    maxWidth: '400px',
+  },
 };
 
 export default GroupInsights;

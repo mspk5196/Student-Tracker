@@ -57,6 +57,7 @@ const SideTab = () => {
       { id: 'attendance', label: 'Attendance', icon: CalendarCheck, section: 'academic' },
       { id: 'tasks', label: 'Task & Assignment', icon: ClipboardCheck, section: 'academic' },
       { id: 'skill-reports', label: 'Skill Reports', icon: FileSpreadsheet, section: 'academic' },
+      { id: 'group-insights', label: 'Group Insights', icon: BarChart3, section: 'academic' },
       { id: 'reports', label: 'Reports', icon: BarChart3, section: 'academic' },
       // { id: 'settings', label: 'Settings', icon: Settings, section: 'system' },
     ],
