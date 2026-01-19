@@ -1,7 +1,7 @@
   import React, { useState, useEffect } from 'react';
 import useAuthStore from '../../../../../store/useAuthStore';
 
-const Ranking = ({ studentId }) => {
+  const PSDashboard = ({ studentId }) => {
   const { token } = useAuthStore();
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
@@ -178,7 +178,7 @@ const Ranking = ({ studentId }) => {
   return (
     <div style={styles.container}>
       <div style={styles.header}>
-        <h1 style={styles.title}>Skill Completion Status</h1>
+        <h1 style={styles.title}>PS Dashboard</h1>
         <p style={styles.subtitle}>Track your progress across all skills</p>
       </div>
 
@@ -280,4 +280,4 @@ const getGradientColors = (index) => {
   return gradients[index % gradients.length];
 };
 
-export default Ranking;
+export default PSDashboard;

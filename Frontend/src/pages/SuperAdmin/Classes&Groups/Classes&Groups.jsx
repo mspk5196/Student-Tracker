@@ -1,4 +1,5 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import {
   Search,
@@ -34,7 +35,6 @@ const GroupsClasses = () => {
   const [error, setError] = useState("");
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showBulkUploadModal, setShowBulkUploadModal] = useState(false);
-  const [showRangeAllocateModal, setShowRangeAllocateModal] = useState(false);
   const [showStudentsModal, setShowStudentsModal] = useState(false);
   const [showAssignFacultyModal, setShowAssignFacultyModal] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
@@ -58,7 +58,6 @@ const GroupsClasses = () => {
     message: "",
   });
 
-  const menuRef = useRef(null);
   const itemsPerPage = 6;
 
   const [newVenue, setNewVenue] = useState({
@@ -66,11 +65,6 @@ const GroupsClasses = () => {
     capacity: 50,
     location: "",
     assigned_faculty_id: "",
-  });
-
-  const [rangeAllocation, setRangeAllocation] = useState({
-    rollNumberFrom: "",
-    rollNumberTo: "",
   });
 
   const [facultyAssignment, setFacultyAssignment] = useState({
@@ -185,15 +179,63 @@ const GroupsClasses = () => {
   const currentData = filteredData.slice(startIdx, startIdx + itemsPerPage);
 
   useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (menuRef.current && !menuRef.current.contains(e.target))
-        setActiveMenu(null);
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+    if (!activeMenu) return;
 
-  const toggleMenu = (id) => setActiveMenu(activeMenu === id ? null : id);
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") setActiveMenu(null);
+    };
+
+    // Close on scroll/resize so the menu never drifts away from its anchor.
+    const handleViewportChange = () => setActiveMenu(null);
+
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("resize", handleViewportChange);
+    window.addEventListener("scroll", handleViewportChange, true);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("resize", handleViewportChange);
+      window.removeEventListener("scroll", handleViewportChange, true);
+    };
+  }, [activeMenu]);
+
+  const openMenu = (e, venueId) => {
+    e.stopPropagation();
+    const anchorEl = e.currentTarget;
+    setActiveMenu((prev) =>
+      prev?.venueId === venueId ? null : { venueId, anchorEl }
+    );
+  };
+
+  const closeMenu = () => setActiveMenu(null);
+
+  const menuVenue = activeMenu
+    ? currentData.find((v) => v.venue_id === activeMenu.venueId) ||
+      venues.find((v) => v.venue_id === activeMenu.venueId)
+    : null;
+
+  const getMenuPosition = () => {
+    const anchorEl = activeMenu?.anchorEl;
+    if (!anchorEl || typeof anchorEl.getBoundingClientRect !== "function") {
+      return { top: 0, left: 0 };
+    }
+
+    const rect = anchorEl.getBoundingClientRect();
+    const menuWidth = 240;
+    const estimatedHeight = 320;
+    const gutter = 12;
+
+    let left = rect.right - menuWidth;
+    left = Math.max(gutter, Math.min(left, window.innerWidth - menuWidth - gutter));
+
+    let top = rect.bottom + 8;
+    if (top + estimatedHeight > window.innerHeight - gutter) {
+      top = rect.top - estimatedHeight - 8;
+      top = Math.max(gutter, top);
+    }
+
+    return { top, left };
+  };
 
   const handleEdit = (venue) => {
     setEditingVenue({
@@ -364,57 +406,6 @@ const GroupsClasses = () => {
         "error",
         "Upload Failed",
         "Failed to upload file. Please try again."
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleRangeAllocate = async () => {
-    if (!rangeAllocation.rollNumberFrom || !rangeAllocation.rollNumberTo) {
-      showResult(
-        "error",
-        "Missing Information",
-        "Please enter both roll numbers."
-      );
-      return;
-    }
-
-    if (!selectedVenue) {
-      showResult("error", "No Venue Selected", "Please select a venue first.");
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const response = await fetch(
-        `${API_URL}/groups/venues/${selectedVenue.venue_id}/allocate-range`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(rangeAllocation),
-        }
-      );
-
-      const data = await response.json();
-      if (data.success) {
-        setShowRangeAllocateModal(false);
-        setRangeAllocation({ rollNumberFrom: "", rollNumberTo: "" });
-        setSelectedVenue(null);
-        await fetchVenues();
-        showResult("success", "Allocation Successful", data.message);
-      } else {
-        showResult("error", "Allocation Failed", data.message);
-      }
-    } catch (err) {
-      console.error("Error allocating students:", err);
-      showResult(
-        "error",
-        "Allocation Failed",
-        "Failed to allocate students.  Please try again."
       );
     } finally {
       setLoading(false);
@@ -680,127 +671,11 @@ const GroupsClasses = () => {
                       <button
                         style={s.actionBtn}
                         onClick={(e) => {
-                          e.stopPropagation();
-                          toggleMenu(v.venue_id);
+                          openMenu(e, v.venue_id);
                         }}
                       >
                         <MoreVert sx={{ fontSize: 18, color: "#64748b" }} />
                       </button>
-                      {activeMenu === v.venue_id && (
-                        <div
-                          ref={menuRef}
-                          style={s.actionMenu}
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <button
-                            style={s.menuItem}
-                            onClick={() => handleEdit(v)}
-                            onMouseEnter={(e) =>
-                              (e.currentTarget.style.backgroundColor =
-                                "#f8fafc")
-                            }
-                            onMouseLeave={(e) =>
-                              (e.currentTarget.style.backgroundColor =
-                                "transparent")
-                            }
-                          >
-                            <Edit sx={{ fontSize: 16 }} />
-                            <span>Edit Venue</span>
-                          </button>
-                          <button
-                            style={s.menuItem}
-                            onClick={() => openAssignFacultyModal(v)}
-                            onMouseEnter={(e) =>
-                              (e.currentTarget.style.backgroundColor =
-                                "#f0f9ff")
-                            }
-                            onMouseLeave={(e) =>
-                              (e.currentTarget.style.backgroundColor =
-                                "transparent")
-                            }
-                          >
-                            <Person sx={{ fontSize: 16, color: "#3b82f6" }} />
-                            <span style={{ color: "#3b82f6" }}>
-                              Assign Faculty
-                            </span>
-                          </button>
-                          <button
-                            style={s.menuItem}
-                            onClick={() => {
-                              setSelectedVenue(v);
-                              setShowBulkUploadModal(true);
-                              setActiveMenu(null);
-                            }}
-                            onMouseEnter={(e) =>
-                              (e.currentTarget.style.backgroundColor =
-                                "#f0fdf4")
-                            }
-                            onMouseLeave={(e) =>
-                              (e.currentTarget.style.backgroundColor =
-                                "transparent")
-                            }
-                          >
-                            <Upload sx={{ fontSize: 16, color: "#10b981" }} />
-                            <span style={{ color: "#10b981" }}>
-                              Upload Students
-                            </span>
-                          </button>
-                          <button
-                            style={s.menuItem}
-                            onClick={() => {
-                              setSelectedVenue(v);
-                              setShowRangeAllocateModal(true);
-                              setActiveMenu(null);
-                            }}
-                            onMouseEnter={(e) =>
-                              (e.currentTarget.style.backgroundColor =
-                                "#fef3c7")
-                            }
-                            onMouseLeave={(e) =>
-                              (e.currentTarget.style.backgroundColor =
-                                "transparent")
-                            }
-                          >
-                            <Groups sx={{ fontSize: 16, color: "#f59e0b" }} />
-                            <span style={{ color: "#f59e0b" }}>
-                              Allocate Range
-                            </span>
-                          </button>
-                          <button
-                            style={s.menuItem}
-                            onClick={() => {
-                              handleViewStudents(v);
-                              setActiveMenu(null);
-                            }}
-                            onMouseEnter={(e) =>
-                              (e.currentTarget.style.backgroundColor =
-                                "#f8fafc")
-                            }
-                            onMouseLeave={(e) =>
-                              (e.currentTarget.style.backgroundColor =
-                                "transparent")
-                            }
-                          >
-                            <Groups sx={{ fontSize: 16 }} />
-                            <span>View Students</span>
-                          </button>
-                          <button
-                            style={s.menuItemDelete}
-                            onClick={() => handleDelete(v.venue_id)}
-                            onMouseEnter={(e) =>
-                              (e.currentTarget.style.backgroundColor =
-                                "#fef2f2")
-                            }
-                            onMouseLeave={(e) =>
-                              (e.currentTarget.style.backgroundColor =
-                                "transparent")
-                            }
-                          >
-                            <Delete sx={{ fontSize: 16 }} />
-                            <span>Delete</span>
-                          </button>
-                        </div>
-                      )}
                     </div>
                   </td>
                 </tr>
@@ -838,6 +713,97 @@ const GroupsClasses = () => {
           </div>
         </div>
       </div>
+
+      {/* Action Menu (Three Dots) - Portal Overlay */}
+      {activeMenu && menuVenue &&
+        createPortal(
+          <div style={s.menuOverlay} onClick={closeMenu}>
+            <div
+              style={{
+                ...s.actionMenu,
+                ...getMenuPosition(),
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                style={s.menuItem}
+                onClick={() => handleEdit(menuVenue)}
+                onMouseEnter={(e) =>
+                  (e.currentTarget.style.backgroundColor = "#f8fafc")
+                }
+                onMouseLeave={(e) =>
+                  (e.currentTarget.style.backgroundColor = "transparent")
+                }
+              >
+                <Edit sx={{ fontSize: 16 }} />
+                <span>Edit Venue</span>
+              </button>
+              <button
+                style={s.menuItem}
+                onClick={() => openAssignFacultyModal(menuVenue)}
+                onMouseEnter={(e) =>
+                  (e.currentTarget.style.backgroundColor = "#f0f9ff")
+                }
+                onMouseLeave={(e) =>
+                  (e.currentTarget.style.backgroundColor = "transparent")
+                }
+              >
+                <Person sx={{ fontSize: 16, color: "#3b82f6" }} />
+                <span style={{ color: "#3b82f6" }}>Assign Faculty</span>
+              </button>
+              <button
+                style={s.menuItem}
+                onClick={() => {
+                  setSelectedVenue(menuVenue);
+                  setShowBulkUploadModal(true);
+                  closeMenu();
+                }}
+                onMouseEnter={(e) =>
+                  (e.currentTarget.style.backgroundColor = "#f0fdf4")
+                }
+                onMouseLeave={(e) =>
+                  (e.currentTarget.style.backgroundColor = "transparent")
+                }
+              >
+                <Upload sx={{ fontSize: 16, color: "#10b981" }} />
+                <span style={{ color: "#10b981" }}>Upload Students</span>
+              </button>
+              <button
+                style={s.menuItem}
+                onClick={() => {
+                  handleViewStudents(menuVenue);
+                  closeMenu();
+                }}
+                onMouseEnter={(e) =>
+                  (e.currentTarget.style.backgroundColor = "#f8fafc")
+                }
+                onMouseLeave={(e) =>
+                  (e.currentTarget.style.backgroundColor = "transparent")
+                }
+              >
+                <Groups sx={{ fontSize: 16 }} />
+                <span>View Students</span>
+              </button>
+              <button
+                style={s.menuItemDelete}
+                onClick={() => {
+                  handleDelete(menuVenue.venue_id);
+                  closeMenu();
+                }}
+                onMouseEnter={(e) =>
+                  (e.currentTarget.style.backgroundColor = "#fef2f2")
+                }
+                onMouseLeave={(e) =>
+                  (e.currentTarget.style.backgroundColor = "transparent")
+                }
+              >
+                <Delete sx={{ fontSize: 16 }} />
+                <span>Delete</span>
+              </button>
+            </div>
+          </div>,
+          document.body
+        )}
 
       {/* Result Modal (Success/Error) */}
       {showResultModal && (
@@ -1295,83 +1261,6 @@ const GroupsClasses = () => {
         </div>
       )}
 
-      {/* Range Allocation Modal */}
-      {showRangeAllocateModal && (
-        <div
-          style={s.modalOverlay}
-          onClick={() => setShowRangeAllocateModal(false)}
-        >
-          <div style={s.modal} onClick={(e) => e.stopPropagation()}>
-            <div style={s.modalHeader}>
-              <h2 style={s.modalTitle}>
-                Allocate Students by Roll Number Range
-              </h2>
-              <button
-                style={s.closeBtn}
-                onClick={() => setShowRangeAllocateModal(false)}
-              >
-                <Close sx={{ fontSize: 24, color: "#64748b" }} />
-              </button>
-            </div>
-            <div style={s.form}>
-              <div style={s.infoBox}>
-                <p style={s.infoTitle}>Venue: {selectedVenue?.venue_name}</p>
-                <p style={s.infoText}>
-                  Available Capacity:{" "}
-                  {selectedVenue?.capacity - selectedVenue?.current_students}{" "}
-                  students
-                </p>
-              </div>
-              <div style={s.formGroup}>
-                <label style={s.label}>From Roll Number *</label>
-                <input
-                  style={s.input}
-                  value={rangeAllocation.rollNumberFrom}
-                  onChange={(e) =>
-                    setRangeAllocation({
-                      ...rangeAllocation,
-                      rollNumberFrom: e.target.value,
-                    })
-                  }
-                  placeholder="e.g., 7376242AL101"
-                />
-              </div>
-              <div style={s.formGroup}>
-                <label style={s.label}>To Roll Number *</label>
-                <input
-                  style={s.input}
-                  value={rangeAllocation.rollNumberTo}
-                  onChange={(e) =>
-                    setRangeAllocation({
-                      ...rangeAllocation,
-                      rollNumberTo: e.target.value,
-                    })
-                  }
-                  placeholder="e.g., 7376242AL150"
-                />
-              </div>
-              <div style={s.modalFooter}>
-                <button
-                  type="button"
-                  style={s.cancelBtn}
-                  onClick={() => setShowRangeAllocateModal(false)}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  style={s.submitBtn}
-                  onClick={handleRangeAllocate}
-                  disabled={loading}
-                >
-                  {loading ? "Allocating..." : "Allocate Students"}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* View Students Modal */}
       {showStudentsModal && (
         <div style={s.modalOverlay} onClick={() => setShowStudentsModal(false)}>
@@ -1632,18 +1521,21 @@ const s = {
     justifyContent: "center",
   },
   actionMenu: {
-    position: "absolute",
-    right: "0",
-    top: "100%",
-    marginTop: "4px",
+    position: "fixed",
     backgroundColor: "#ffffff",
     border: "1px solid #e2e8f0",
     borderRadius: "8px",
     boxShadow:
       "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
-    zIndex: 100,
-    minWidth: "200px",
+    zIndex: 3000,
+    minWidth: "240px",
     overflow: "hidden",
+  },
+  menuOverlay: {
+    position: "fixed",
+    inset: 0,
+    zIndex: 2500,
+    backgroundColor: "transparent",
   },
   menuItem: {
     display: "flex",

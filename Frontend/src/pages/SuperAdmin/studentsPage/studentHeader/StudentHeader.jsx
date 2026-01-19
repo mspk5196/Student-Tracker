@@ -17,7 +17,7 @@ import CloseIcon from '@mui/icons-material/Close';
 import Overview from './Overview/Overview';
 import AttendanceDashboard from './Attendance/Attendance'
 import TaskGrade from './Task&Grades/TaskGrade';
-import Ranking from './Ranking/Ranking';
+import PSDashboard from './Ranking/Ranking';
 
 const styles = {
   container: {
@@ -311,7 +311,7 @@ const StudentHeader = () => {
     is_active: true,
   });
 
-  const tabs = ['Overview', 'Attendance', 'Tasks & Grades', 'Ranking'];
+  const tabs = ['Overview', 'Attendance', 'Tasks & Grades', 'PS Dashboard'];
 
   // --- Dynamic Styles ---
   const dynamicStyles = {
@@ -689,7 +689,7 @@ const StudentHeader = () => {
         {activeTab === 'Overview' && <Overview student={student} studentId={studentId} />}
         {activeTab === 'Attendance' && <AttendanceDashboard studentId={studentId} student={student} />}
         {activeTab === 'Tasks & Grades' && <TaskGrade studentId={studentId} student={student} />}
-        {activeTab === 'Ranking' && <Ranking studentId={studentId} student={student} />}
+        {activeTab === 'PS Dashboard' && <PSDashboard studentId={studentId} student={student} />}
       </div>
 
       {showEditModal && (
