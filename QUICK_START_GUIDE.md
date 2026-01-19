@@ -15,14 +15,37 @@ This guide will help you quickly start using the Skill Reports Management system
 ### Step 2: Prepare Your Excel File
 Create an Excel file with these columns:
 
-| roll_number | course_name | venue | score | status | attendance | slot_date | start_time | end_time |
-|-------------|-------------|-------|-------|--------|------------|-----------|------------|----------|
+| id | roll_number | user_id | name | year | email | course_name | venue | attendance | score | attempt | status | slot_date | start_time | end_time |
+|----|-------------|---------|------|------|-------|-------------|-------|------------|-------|---------|--------|-----------|------------|----------|
+
+**Column Details:**
+- `id` - Slot ID (stored as slot_id in database)
+- `roll_number` - Optional, can be empty if user_id is provided
+- `user_id` - **PRIMARY LOOKUP** - Must match `users.ID` in database (e.g., 7376242AL101)
+- `name` - Student name from Excel
+- `year` - Student year (supports Roman numerals: I, II, III, IV or numbers 1, 2, 3, 4)
+- `email` - Student email
+- `course_name` - Name of the skill/course
+- `venue` - Venue name
+- `attendance` - Present/Absent
+- `score` - Score (0-100)
+- `attempt` - Attempt count (entered by admin, NOT auto-incremented)
+- `status` - Cleared/Not Cleared/Ongoing
+- `slot_date` - Date (YYYY-MM-DD format)
+- `start_time` - Start time (HH:MM or HH:MM:SS)
+- `end_time` - End time (HH:MM or HH:MM:SS)
 
 **Example Data:**
 ```
-CSE2021001 | Python Programming | Lab A | 85 | Cleared | Present | 2026-01-07 | 09:00 | 12:00
-CSE2021002 | Java Basics | Lab B | 65 | Not Cleared | Present | 2026-01-07 | 09:00 | 12:00
+1 | 7376242AL101 | 265 | ABARNA S | II | abarnas@example.com | Python Programming | Lab A | Present | 85 | 1 | Cleared | 2026-01-07 | 09:00 | 12:00
+2 | 7376242AL102 | 266 | ABISHEK K | II | abishek@example.com | Java Basics | Lab B | Present | 65 | 2 | Not Cleared | 2026-01-07 | 09:00 | 12:00
 ```
+
+**Upload Rules:**
+- If same student + course + same date exists → **SKIP** (no duplicate)
+- If same student + course + different date → **INSERT** new record
+- Attempt count comes from Excel (not auto-incremented)
+- Frontend displays only the **latest record** (most recent slot_date)
 
 ### Step 3: Upload the File
 1. Click the upload area or drag your Excel file
@@ -156,15 +179,20 @@ At the top of the page, you'll see:
 ## Excel File Rules
 
 ### Required Fields:
-- ✅ `roll_number` - Must exist in database
-- ✅ `course_name` - Will be created if new
-- ✅ `venue` - Must exist in database
+- ✅ `user_id` - **PRIMARY** - Must match `users.ID` in database (e.g., 7376242AL101)
+- ✅ `course_name` - Course/skill name
+- ✅ `venue` - Venue name
 
-### Optional Fields:
+### Recommended Fields:
+- `id` - Slot ID (stored as slot_id)
+- `name` - Student name from Excel
+- `year` - Year (I, II, III, IV or 1, 2, 3, 4)
+- `email` - Student email
+- `attempt` - Attempt count (admin enters this)
 - `score` - Any number (0-100 typical)
 - `status` - Cleared/Not Cleared/Ongoing
 - `attendance` - Present/Absent
-- `slot_date` - Date of session
+- `slot_date` - Date of session (YYYY-MM-DD)
 - `start_time` - Start time
 - `end_time` - End time
 
@@ -172,7 +200,11 @@ At the top of the page, you'll see:
 - **File Size Limit**: 10 MB maximum
 - **Record Limit**: 5000 rows per upload
 - **File Format**: .xlsx or .xls only
-- **Duplicate Handling**: Existing records are updated automatically
+- **Duplicate Handling**: 
+  - Same date = SKIP (not inserted)
+  - Different date = INSERT new record
+- **Attempt Count**: NOT auto-incremented, use value from Excel
+- **Display**: Frontend shows only the LATEST record (most recent slot_date)
 
 ---
 
@@ -248,8 +280,16 @@ At the top of the page, you'll see:
 Download or create with these headers:
 
 ```
-| roll_number | course_name | venue | score | status | attendance | slot_date | start_time | end_time |
+| id | roll_number | user_id | name | year | email | course_name | venue | attendance | score | attempt | status | slot_date | start_time | end_time |
 ```
+
+**Notes:**
+- `id` = Slot ID (stored as slot_id)
+- `year` = Supports Roman numerals (I, II, III, IV) or numbers
+- `attempt` = Manual entry by admin (not auto-incremented)
+- Same student + course + same date = SKIP
+- Same student + course + different date = INSERT new record
+- Frontend shows only the LATEST record per student/course
 
 Add your data rows below the headers.
 

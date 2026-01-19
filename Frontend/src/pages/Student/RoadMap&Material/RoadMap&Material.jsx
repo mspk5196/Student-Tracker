@@ -138,10 +138,43 @@ const StudentRoadmap = () => {
         );
     };
 
-    const handleResourceAction = (resource) => {
+    const handleResourceAction = async (resource) => {
         if (resource.resource_type === 'pdf' && resource.resource_id) {
-            // Download PDF
-            window.open(`${API_URL}/roadmap/resources/download/${resource.resource_id}`, '_blank');
+            // Download PDF with authentication
+            try {
+                const response = await fetch(`${API_URL}/roadmap/resources/download/${resource.resource_id}`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    alert(errorData.message || 'Failed to download file');
+                    return;
+                }
+
+                // Create a blob from the response
+                const blob = await response.blob();
+                
+                // Create a temporary URL for the blob
+                const url = window.URL.createObjectURL(blob);
+                
+                // Create a temporary anchor element and trigger download
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${resource.resource_name}.pdf`;
+                document.body.appendChild(a);
+                a.click();
+                
+                // Clean up
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+            } catch (error) {
+                console.error('Download error:', error);
+                alert('Failed to download file. Please try again.');
+            }
         } else if (resource.resource_url) {
             // Open link or video
             window.open(resource.resource_url, '_blank');
