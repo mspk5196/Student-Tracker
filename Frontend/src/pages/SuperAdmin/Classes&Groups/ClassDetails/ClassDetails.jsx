@@ -98,40 +98,35 @@ const ClassDetails = () => {
     fetchVenueDetails();
   }, [venueId, token, API_URL]);
 
-  // --- FETCH SKILL REPORTS ---
+  // --- FETCH SKILL COMPLETION DATA (using new API) ---
   useEffect(() => {
-    const fetchSkillReports = async () => {
+    const fetchSkillCompletionData = async () => {
       if (!venueData?.venue?.venue_id || !token) return;
       
       setSkillsLoading(true);
       try {
-        const response = await fetch(`${API_URL}/skill-reports/faculty/venue/reports`, {
-          method: 'POST',
+        // Use the new skill-completion API for course-wise data
+        const response = await fetch(`${API_URL}/skill-completion/venues/${venueData.venue.venue_id}/courses`, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            venueId: venueData.venue.venue_id,
-            page: 1,
-            limit: 1000,
-            sortBy: 'last_slot_date',
-            sortOrder: 'DESC'
-          })
+          }
         });
 
         if (response.ok) {
           const result = await response.json();
-          setSkillReports(result.reports || []);
+          if (result.success && result.data.courses) {
+            setSkillReports(result.data.courses);
+          }
         }
       } catch (err) {
-        console.error('Error fetching skill reports:', err);
+        console.error('Error fetching skill completion data:', err);
       } finally {
         setSkillsLoading(false);
       }
     };
 
-    fetchSkillReports();
+    fetchSkillCompletionData();
   }, [venueData?.venue?.venue_id, token, API_URL]);
 
   // Get unique departments and years from students
@@ -144,59 +139,22 @@ const ClassDetails = () => {
     return { departments: depts, years: yrs };
   }, [venueData?.students]);
 
-  // Process skill reports to aggregate by course
+  // Process skill reports to aggregate by course (using new API data)
   const skillStats = useMemo(() => {
     if (!skillReports.length) return [];
 
-    const groupedBySkill = skillReports.reduce((acc, report) => {
-      const courseName = report.course_name;
-      
-      if (!acc[courseName]) {
-        acc[courseName] = {
-          id: courseName,
-          groupName: courseName,
-          venue: report.venue_name || report.excel_venue_name || 'N/A',
-          totalStudents: 0,
-          completed: 0,
-          notCompleted: 0,
-          notAttempted: 0,
-          totalScore: 0,
-          scoreCount: 0,
-          studentSet: new Set()
-        };
-      }
-
-      const studentKey = report.roll_number;
-      if (!acc[courseName].studentSet.has(studentKey)) {
-        acc[courseName].studentSet.add(studentKey);
-        acc[courseName].totalStudents++;
-
-        if (report.total_attempts === 0) {
-          acc[courseName].notAttempted++;
-        } else if (report.status === 'Cleared') {
-          acc[courseName].completed++;
-          if (report.best_score) {
-            acc[courseName].totalScore += report.best_score;
-            acc[courseName].scoreCount++;
-          }
-        } else if (report.status === 'Not Cleared') {
-          acc[courseName].notCompleted++;
-          if (report.best_score) {
-            acc[courseName].totalScore += report.best_score;
-            acc[courseName].scoreCount++;
-          }
-        }
-      }
-
-      return acc;
-    }, {});
-
-    return Object.values(groupedBySkill).map(skill => ({
-      ...skill,
-      averageScore: skill.scoreCount > 0 ? Math.round(skill.totalScore / skill.scoreCount) : 0,
-      studentSet: undefined // Remove the Set from final output
+    // Data from the new API is already aggregated by course
+    return skillReports.map(course => ({
+      id: course.course_name,
+      groupName: course.course_name,
+      venue: venueData?.venue?.venue_name || 'N/A',
+      totalStudents: (course.total_attempted || 0) + (course.not_attempted_count || 0),
+      completed: course.cleared_count || 0,
+      notCompleted: course.not_cleared_count || 0,
+      notAttempted: course.not_attempted_count || 0,
+      averageScore: course.avg_best_score ? Math.round(parseFloat(course.avg_best_score)) : 0
     }));
-  }, [skillReports]);
+  }, [skillReports, venueData?.venue?.venue_name]);
 
   // --- FILTER STUDENTS ---
   const filteredStudents = useMemo(() => {
