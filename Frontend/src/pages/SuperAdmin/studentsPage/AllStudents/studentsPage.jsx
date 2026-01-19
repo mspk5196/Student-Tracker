@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import useAuthStore from '../../../../store/useAuthStore';
 import { Link } from 'react-router-dom';
 import { debounce } from 'lodash';
+import { encodeIdSimple } from '../../../../utils/idEncoder';
 
 const StudentsPage = () => {
   const { token } = useAuthStore();
@@ -609,7 +610,7 @@ const StudentsPage = () => {
                   </div>
                 </div>
 
-                <Link to={`/students/${student.student_id}`} style={{
+                <Link to={`/students/${encodeIdSimple(student.student_id)}`} style={{
                   marginTop: '16px',
                   padding: '12px',
                   backgroundColor: '#EFF6FF',

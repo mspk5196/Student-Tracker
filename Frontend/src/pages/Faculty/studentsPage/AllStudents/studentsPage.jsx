@@ -440,6 +440,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import useAuthStore from '../../../../store/useAuthStore';
 import { Link } from 'react-router-dom';
 import { debounce } from 'lodash';
+import { encodeIdSimple } from '../../../../utils/idEncoder';
 
 const StudentsPage = () => {
   const { token } = useAuthStore();
@@ -887,7 +888,7 @@ const StudentsPage = () => {
 
                 {/* View Profile Link */}
                 <Link
-                  to={`/students/${student.student_id}`}
+                  to={`/students/${encodeIdSimple(student.student_id)}`}
                   style={{
                     marginTop: '20px',
                     paddingTop: '16px',

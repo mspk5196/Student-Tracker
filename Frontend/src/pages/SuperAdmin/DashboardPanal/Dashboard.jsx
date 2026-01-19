@@ -13,6 +13,7 @@ import {
   ArrowUpward
 } from '@mui/icons-material';
 import useAuthStore from '../../../store/useAuthStore';
+import { encodeIdSimple } from '../../../utils/idEncoder';
 
 // --- Custom Hook for Responsive Logic ---
 const useWindowSize = () => {
@@ -326,7 +327,7 @@ const EducationDashboard = () => {
                         </td>
                         <td style={styles.td}>
                           <button 
-                            onClick={() => navigate(`/students/${row.id}`)} 
+                            onClick={() => navigate(`/students/${encodeIdSimple(row.id)}`)} 
                             style={styles.actionBtn}
                           >
                             View Profile

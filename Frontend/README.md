@@ -55,6 +55,5 @@ Max records - 5000 rows per upload
 
 
 
-lc 3rd floor  balamurugan sir  student bulk upload 
 
 
