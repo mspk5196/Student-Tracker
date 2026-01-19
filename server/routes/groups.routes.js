@@ -9,6 +9,7 @@ import {
   bulkUploadStudentsToVenue,
   allocateStudentsByRollRange,
   getVenueStudents,
+  getVenueDetails,
   removeStudentFromVenue,
   getAllFacultiesForGroups,
     getAvailableFaculties,
@@ -35,6 +36,7 @@ const upload = multer({
 // Venue routes
 router.get('/venues', authenticate, getAllVenues);
 router.get('/venues/search', authenticate, searchVenues);
+router.get('/venues/:venueId/details', authenticate, getVenueDetails);
 router.post('/venues', authenticate, createVenue);
 router.put('/venues/:venueId', authenticate, updateVenue);
 router.delete('/venues/:venueId', authenticate, deleteVenue);

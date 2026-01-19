@@ -158,6 +158,10 @@ export const getStudentById = async (req, res) => {
         u.is_active,
         f.faculty_id,
         fu.name as facultyName,
+        v.venue_id,
+        v.venue_name,
+        vf.faculty_id as venue_faculty_id,
+        vfu.name as venueFacultyName,
         COALESCE(
           (SELECT ROUND((SUM(CASE WHEN a.is_present = 1 THEN 1 ELSE 0 END) / COUNT(*)) * 100, 1)
            FROM attendance a
@@ -177,8 +181,13 @@ export const getStudentById = async (req, res) => {
       FROM students s
       INNER JOIN users u ON s.user_id = u.user_id
       LEFT JOIN faculties f ON s.assigned_faculty_id = f.faculty_id
-      LEFT JOIN users fu ON f. user_id = fu.user_id
-      WHERE s.student_id = ?  AND u.role_id = 3
+      LEFT JOIN users fu ON f.user_id = fu.user_id
+      LEFT JOIN group_students gs ON s.student_id = gs.student_id AND gs.status = 'Active'
+      LEFT JOIN \`groups\` g ON gs.group_id = g.group_id
+      LEFT JOIN venue v ON g.venue_id = v.venue_id
+      LEFT JOIN faculties vf ON v.assigned_faculty_id = vf.faculty_id
+      LEFT JOIN users vfu ON vf.user_id = vfu.user_id
+      WHERE s.student_id = ? AND u.role_id = 3
     `, [studentId]);
 
     if (student.length === 0) {
@@ -188,12 +197,15 @@ export const getStudentById = async (req, res) => {
       });
     }
 
+    // Use venue faculty if student's direct faculty is not assigned
+    const effectiveFacultyName = student[0].facultyName || student[0].venueFacultyName || 'Not Assigned';
+
     const formattedStudent = {
       student_id: student[0].student_id,
       user_id: student[0].user_id,
       id: student[0].studentId,
       studentId: student[0].studentId,
-      name: student[0]. name,
+      name: student[0].name,
       email: student[0].email,
       department: student[0].department,
       year: student[0].year,
@@ -201,11 +213,14 @@ export const getStudentById = async (req, res) => {
       section: `Semester ${student[0].semester}`,
       attendance: student[0].attendance.toString(),
       tasks: `${student[0].completedTasks}/${student[0].totalTasks}`,
-      completedTasks: student[0]. completedTasks,
+      completedTasks: student[0].completedTasks,
       totalTasks: student[0].totalTasks,
-      facultyName: student[0].facultyName || 'Not Assigned',
+      facultyName: effectiveFacultyName,
+      venueName: student[0].venue_name || null,
+      venue_id: student[0].venue_id || null,
+      assigned_faculty_id: student[0].assigned_faculty_id,
       is_active: student[0].is_active,
-      joinDate: student[0]. joinDate,
+      joinDate: student[0].joinDate,
       image: null
     };
 
