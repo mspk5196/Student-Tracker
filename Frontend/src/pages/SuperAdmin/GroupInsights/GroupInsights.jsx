@@ -14,8 +14,6 @@ const GroupInsights = () => {
       {/* Top Header Bar */}
       <div style={styles.topBar}>
         <div style={styles.topBarLeft}>
-          <h2 style={styles.pageTitle}>Group Insights</h2>
-          
           <div style={styles.headerFilterGroup}>
             <select style={styles.headerSelect} value={selectedGroup} onChange={(e) => setSelectedGroup(e.target.value)}>
               <option>All Groups</option>
@@ -66,7 +64,9 @@ const GroupInsights = () => {
 
 const styles = {
   container: {
-    padding: '0', 
+    width: '100%',
+    boxSizing: 'border-box',
+    padding: 0,
     backgroundColor: '#f9fafb',
     minHeight: '100vh',
     display: 'flex',
@@ -79,7 +79,9 @@ const styles = {
     zIndex: 50,
     backgroundColor: '#fff',
     borderBottom: '1px solid #e5e7eb',
-    padding: '20px 32px',
+    width: '100%',
+    boxSizing: 'border-box',
+    padding: '10px 16px',
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -110,34 +112,36 @@ const styles = {
   },
   topBarTabs: {
     display: 'flex',
-    gap: '8px',
-    backgroundColor: '#f3f4f6',
+    backgroundColor: '#f1f5f9',
     padding: '4px',
     borderRadius: '8px',
+    border: '1px solid #e2e8f0',
   },
   topTab: {
     padding: '8px 16px',
     border: 'none',
     background: 'transparent',
-    color: '#6b7280',
+    color: '#64748b',
     fontSize: '14px',
     fontWeight: '500',
     cursor: 'pointer',
     borderRadius: '6px',
+    transition: 'all 0.2s ease',
   },
   topTabActive: {
     padding: '8px 16px',
     border: 'none',
-    background: '#fff',
-    color: '#0066FF',
+    background: '#ffffff',
+    color: '#1e293b',
     fontSize: '14px',
-    fontWeight: '600',
+    fontWeight: '500',
     cursor: 'pointer',
     borderRadius: '6px',
     boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
+    transition: 'all 0.2s ease',
   },
   contentContainer: {
-    padding: '24px',
+    padding: '12px 16px 24px 16px',
     flex: 1,
     overflowY: 'auto',
   },

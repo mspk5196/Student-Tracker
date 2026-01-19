@@ -571,7 +571,8 @@ const ClassDetails = () => {
     <div style={s.container}>
       <div style={s.Wrapper}>
         <div style={s.headerCard}>
-          <div>
+          {/* Left Side - Venue Details */}
+          <div style={{ flex: '0 0 auto' }}>
             <h1 style={{ margin: '0 0 4px 0', fontSize: isMobile ? '20px' : '24px', color: '#1e293b', fontWeight: '800' }}>
               {venue.venue_name}
             </h1>
@@ -581,50 +582,44 @@ const ClassDetails = () => {
               {group?.schedule_days && <span>{group.schedule_days}</span>}
               {group?.schedule_time && <span>• {group.schedule_time}</span>}
             </div>
-            <div style={{ display: 'flex', gap: '16px', marginTop: '12px' }}>
-              <div style={s.statBox}>
-                <div style={{ fontSize: '20px', fontWeight: '800', color: '#1e293b' }}>{statistics.active_students}</div>
-                <div style={{ fontSize: '11px', color: '#64748b', textTransform: 'uppercase' }}>Students</div>
+          </div>
+
+          {/* Center - Statistics */}
+          <div style={{ display: 'flex', gap: '45px', alignItems: 'center', flex: '1', justifyContent: 'center' }}>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: '32px', fontWeight: '800', color: '#1e293b', lineHeight: '1' }}>{statistics.active_students}</div>
+              <div style={{ fontSize: '11px', color: '#64748b', textTransform: 'uppercase', marginTop: '4px', fontWeight: '600' }}>Students</div>
+            </div>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: '32px', fontWeight: '800', color: '#1e293b', lineHeight: '1' }}>{venue.capacity}</div>
+              <div style={{ fontSize: '11px', color: '#64748b', textTransform: 'uppercase', marginTop: '4px', fontWeight: '600' }}>Capacity</div>
+            </div>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: '32px', fontWeight: '800', color: statistics.avg_attendance >= 80 ? '#10b981' : statistics.avg_attendance >= 60 ? '#f59e0b' : '#dc2626', lineHeight: '1' }}>
+                {statistics.avg_attendance}%
               </div>
-              <div style={s.statBox}>
-                <div style={{ fontSize: '20px', fontWeight: '800', color: '#1e293b' }}>{venue.capacity}</div>
-                <div style={{ fontSize: '11px', color: '#64748b', textTransform: 'uppercase' }}>Capacity</div>
-              </div>
-              <div style={s.statBox}>
-                <div style={{ fontSize: '20px', fontWeight: '800', color: statistics.avg_attendance >= 80 ? '#10b981' : statistics.avg_attendance >= 60 ? '#f59e0b' : '#dc2626' }}>
-                  {statistics.avg_attendance}%
-                </div>
-                <div style={{ fontSize: '11px', color: '#64748b', textTransform: 'uppercase' }}>Avg Attendance</div>
-              </div>
+              <div style={{ fontSize: '11px', color: '#64748b', textTransform: 'uppercase', marginTop: '4px', fontWeight: '600' }}>Avg Attendance</div>
             </div>
           </div>
-          <div style={{ textAlign: isMobile ? 'left' : 'right' }}>
-            <div style={{ marginBottom: '12px' }}>
-              <span style={venue.status === 'Active' ? s.badge : s.badgeInactive}>
-                <Verified style={{ fontSize: '14px' }} /> {venue.status}
-              </span>
-            </div>
+
+          {/* Right Side - Status and Faculty */}
+          <div style={{ flex: '0 0 auto', textAlign: 'right', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '12px' }}>
+            <span style={venue.status === 'Active' ? s.badge : s.badgeInactive}>
+              <Verified style={{ fontSize: '14px' }} /> {venue.status}
+            </span>
             {faculty && (
-              <div style={s.facultySection}>
-                {!isMobile && (
-                  <div style={{ textAlign: 'right' }}>
-                    <p style={{ margin: 0, fontWeight: '700', fontSize: '14px', color: '#1e293b' }}>{faculty.name}</p>
-                    <p style={{ margin: 0, fontSize: '12px', color: '#64748b' }}>{faculty.designation || 'Faculty'}, {faculty.department}</p>
-                  </div>
-                )}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{ textAlign: 'right' }}>
+                  <p style={{ margin: 0, fontWeight: '700', fontSize: '14px', color: '#1e293b' }}>{faculty.name}</p>
+                  <p style={{ margin: 0, fontSize: '12px', color: '#64748b' }}>{faculty.designation || 'Faculty'}, {faculty.department}</p>
+                </div>
                 <div style={s.avatarLarge}>
                   {faculty.name?.charAt(0).toUpperCase()}
                 </div>
-                {isMobile && (
-                  <div style={{ textAlign: 'left' }}>
-                    <p style={{ margin: 0, fontWeight: '700', fontSize: '14px', color: '#1e293b' }}>{faculty.name}</p>
-                    <p style={{ margin: 0, fontSize: '12px', color: '#64748b' }}>{faculty.designation || 'Faculty'}, {faculty.department}</p>
-                  </div>
-                )}
               </div>
             )}
             {!faculty && (
-              <p style={{ color: '#94a3b8', fontSize: '13px', fontStyle: 'italic' }}>No faculty assigned</p>
+              <p style={{ color: '#94a3b8', fontSize: '13px', fontStyle: 'italic', margin: 0 }}>No faculty assigned</p>
             )}
           </div>
         </div>

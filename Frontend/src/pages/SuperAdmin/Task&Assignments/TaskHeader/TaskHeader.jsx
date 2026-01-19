@@ -219,11 +219,11 @@ const styles = {
     zIndex: 1000,
     backgroundColor: '#ffffff',
     borderBottom: '1px solid #e2e8f0',
-    padding: '12px 20px',
+    padding: '10px 16px',
   },
   headerContainer: {
-    maxWidth: '1400px',
-    margin: '0 auto',
+    width: '100%',
+    boxSizing: 'border-box',
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -295,9 +295,9 @@ const styles = {
     cursor: 'pointer',
   },
   contentArea: {
-    padding: '20px',
-    maxWidth: '1400px',
-    margin: '0 auto',
+    width: '100%',
+    boxSizing: 'border-box',
+    padding: '16px',
   },
   contentPlaceholder: {
     marginTop: '10px',
