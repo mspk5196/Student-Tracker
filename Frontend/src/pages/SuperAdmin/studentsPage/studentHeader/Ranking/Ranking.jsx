@@ -1,5 +1,6 @@
   import React, { useState, useEffect } from 'react';
 import useAuthStore from '../../../../../store/useAuthStore';
+import axios from 'axios';
 
   const PSDashboard = ({ studentId }) => {
   const { token } = useAuthStore();
@@ -7,6 +8,7 @@ import useAuthStore from '../../../../../store/useAuthStore';
 
   const [skillReports, setSkillReports] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 992);
 
   useEffect(() => {
@@ -23,31 +25,23 @@ import useAuthStore from '../../../../../store/useAuthStore';
 
   const fetchSkillCompletionStatus = async () => {
     setLoading(true);
+    setError(null);
     try {
-      // For now, using mock data until backend is ready
-      // TODO: Replace with actual API call when backend endpoint is ready
-      // const response = await fetch(`${API_URL}/students/${studentId}/skills`, {
-      //   headers: {
-      //     Authorization: `Bearer ${token}`,
-      //     'Content-Type': 'application/json',
-      //   },
-      // });
+      const response = await axios.get(`${API_URL}/students/${studentId}/skill-progress`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
       
-      // Mock data for demonstration
-      const mockData = [
-        { name: 'Algebra', category: 'GENERAL Skill', totalLevels: 2, completedLevels: 1, progressPercentage: 50 },
-        { name: 'Aptitude', category: 'GENERAL Skill', totalLevels: 14, completedLevels: 3, progressPercentage: 21 },
-        { name: 'Autonomy Affairs - Regulations', category: 'GENERAL Skill', totalLevels: 1, completedLevels: 0, progressPercentage: 0 },
-        { name: 'C Programming', category: 'Software', totalLevels: 7, completedLevels: 5, progressPercentage: 71 },
-        { name: 'Communication', category: 'GENERAL Skill', totalLevels: 3, completedLevels: 0, progressPercentage: 0 },
-        { name: 'Computer Networking', category: 'Software', totalLevels: 4, completedLevels: 0, progressPercentage: 0 },
-        { name: 'Data Structure - Core Concepts', category: 'Beginner', totalLevels: 3, completedLevels: 0, progressPercentage: 0 },
-        { name: 'DBMS - Core Concept', category: 'Beginner', totalLevels: 3, completedLevels: 0, progressPercentage: 0 },
-      ];
-      
-      setSkillReports(mockData);
+      if (response.data.success) {
+        setSkillReports(response.data.data.skills || []);
+      } else {
+        setError('Failed to load skill progress');
+      }
     } catch (err) {
       console.error('Error fetching skill completion status:', err);
+      setError(err.response?.data?.message || 'Failed to load skill progress');
     } finally {
       setLoading(false);
     }
@@ -57,6 +51,14 @@ import useAuthStore from '../../../../../store/useAuthStore';
     return (
       <div style={{ textAlign: 'center', padding: '60px 20px', color: '#6B7280' }}>
         Loading skill completion status...
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div style={{ textAlign: 'center', padding: '60px 20px', color: '#991b1b' }}>
+        {error}
       </div>
     );
   }

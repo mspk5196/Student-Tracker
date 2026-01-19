@@ -1249,3 +1249,153 @@ export const bulkUploadStudents = async (req, res) => {
     connection.release();
   }
 };
+
+/**
+ * Get student skill progress for PS Dashboard
+ * Returns skill completion status with levels for a specific student
+ */
+export const getStudentSkillProgress = async (req, res) => {
+  try {
+    const { studentId } = req.params;
+
+    // Verify student exists
+    const [studentCheck] = await db.query(`
+      SELECT s.student_id, u.name, u.ID as roll_number
+      FROM students s
+      INNER JOIN users u ON s.user_id = u.user_id
+      WHERE s.student_id = ?
+    `, [studentId]);
+
+    if (studentCheck.length === 0) {
+      return res.status(404).json({ success: false, message: 'Student not found' });
+    }
+
+    // Get skill progress grouped by base skill name
+    // We extract the base skill name (without level info) to group related skills
+    const [skillRecords] = await db.query(`
+      SELECT 
+        ss.course_name,
+        ss.skill_level,
+        ss.status,
+        ss.best_score,
+        ss.total_attempts,
+        ss.last_slot_date
+      FROM student_skills ss
+      WHERE ss.student_id = ?
+      ORDER BY ss.course_name, ss.skill_level
+    `, [studentId]);
+
+    // Group skills by base name and calculate progress
+    const skillProgressMap = new Map();
+
+    skillRecords.forEach(record => {
+      // Extract base skill name (remove level indicators)
+      let baseName = record.course_name
+        .replace(/Level\s*[-]?\s*\d+[A-Z]?/gi, '')
+        .replace(/[-]\s*\d+[AL]?\s*$/gi, '')
+        .replace(/\(\s*ADVANCED[^)]*\)/gi, '')
+        .replace(/[-]\s*Concepts?/gi, '')
+        .replace(/[-]\s*Core\s*Concept?/gi, '')
+        .trim()
+        .replace(/\s+/g, ' ')
+        .replace(/[-,]\s*$/, '')
+        .trim();
+
+      // Categorize skills
+      let category = 'General Skill';
+      const lowerName = baseName.toLowerCase();
+      if (lowerName.includes('programming') || lowerName.includes('c++') || 
+          lowerName.includes('python') || lowerName.includes('java') ||
+          lowerName.includes('html') || lowerName.includes('css')) {
+        category = 'Software';
+      } else if (lowerName.includes('data structure') || lowerName.includes('dbms') ||
+                 lowerName.includes('networking')) {
+        category = 'Beginner';
+      } else if (lowerName.includes('aptitude') || lowerName.includes('reasoning')) {
+        category = 'Aptitude';
+      } else if (lowerName.includes('mechanical') || lowerName.includes('modelling')) {
+        category = 'Mechanical';
+      }
+
+      if (!skillProgressMap.has(baseName)) {
+        skillProgressMap.set(baseName, {
+          name: baseName,
+          category: category,
+          totalLevels: 0,
+          completedLevels: 0,
+          levels: new Set(),
+          clearedLevels: new Set()
+        });
+      }
+
+      const skill = skillProgressMap.get(baseName);
+      const level = record.skill_level || 1;
+      skill.levels.add(level);
+      
+      if (record.status === 'Cleared') {
+        skill.clearedLevels.add(level);
+      }
+    });
+
+    // Get total possible levels for each skill category (from all records in database)
+    const [allLevels] = await db.query(`
+      SELECT 
+        TRIM(REGEXP_REPLACE(
+          REGEXP_REPLACE(
+            REGEXP_REPLACE(course_name, 'Level\\\\s*[-]?\\\\s*[0-9]+[A-Z]?', ''),
+            '[-]\\\\s*[0-9]+[AL]?\\\\s*$', ''
+          ),
+          '\\\\(\\\\s*ADVANCED[^)]*\\\\)', ''
+        )) as base_name,
+        MAX(COALESCE(skill_level, 1)) as max_level
+      FROM student_skills
+      GROUP BY base_name
+    `);
+
+    const maxLevelsMap = new Map();
+    allLevels.forEach(row => {
+      if (row.base_name) {
+        const cleanName = row.base_name.trim().replace(/\s+/g, ' ').replace(/[-,]\s*$/, '').trim();
+        maxLevelsMap.set(cleanName.toLowerCase(), row.max_level);
+      }
+    });
+
+    // Format response
+    const skillProgress = Array.from(skillProgressMap.values()).map(skill => {
+      // Determine total levels - use max from database or count unique levels
+      const maxFromDb = maxLevelsMap.get(skill.name.toLowerCase()) || skill.levels.size;
+      const totalLevels = Math.max(maxFromDb, skill.levels.size, 1);
+      const completedLevels = skill.clearedLevels.size;
+      const progressPercentage = totalLevels > 0 
+        ? Math.round((completedLevels / totalLevels) * 100) 
+        : 0;
+
+      return {
+        name: skill.name,
+        category: skill.category,
+        totalLevels: totalLevels,
+        completedLevels: completedLevels,
+        progressPercentage: progressPercentage
+      };
+    });
+
+    // Sort by name
+    skillProgress.sort((a, b) => a.name.localeCompare(b.name));
+
+    res.status(200).json({
+      success: true,
+      data: {
+        student: studentCheck[0],
+        skills: skillProgress,
+        totalSkills: skillProgress.length,
+        averageProgress: skillProgress.length > 0 
+          ? Math.round(skillProgress.reduce((sum, s) => sum + s.progressPercentage, 0) / skillProgress.length)
+          : 0
+      }
+    });
+
+  } catch (error) {
+    console.error('Error fetching skill progress:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch skill progress', error: error.message });
+  }
+};

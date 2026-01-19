@@ -26,6 +26,67 @@ function romanToNumber(roman) {
 }
 
 /**
+ * Extract skill level from course name
+ * Examples:
+ * - "HTML / CSS - Level 1" → 1
+ * - "Data Structure Level 1 - Concepts" → 1
+ * - "DBMS Level 1 - Concepts" → 1
+ * - "Version control - Git, Github Level 0" → 1 (0 becomes 1)
+ * - "Aptitude Level - 1L" → 1 (ends with L)
+ * - "Logical Reasoning - 1A" → 1 (ends with A, it's 1st level)
+ * - "Programming C++ - Level 2" → 2
+ * - "Programming Python Level - 1" → 1
+ * - "Mechanical Modelling Level - 3B (ADVANCED ASSEMBLY)" → 3
+ */
+function extractSkillLevel(courseName) {
+  if (!courseName) return null;
+  
+  const courseStr = courseName.toString().trim();
+  
+  // Pattern 1: "Level X" or "Level - X" (standard format)
+  // Matches: "Level 1", "Level - 1", "Level 2"
+  let match = courseStr.match(/Level\s*[-]?\s*(\d+)/i);
+  if (match) {
+    const level = parseInt(match[1]);
+    return level === 0 ? 1 : level; // Level 0 becomes Level 1
+  }
+  
+  // Pattern 2: "- XA" or "- XL" at end (Aptitude/Logical Reasoning format)
+  // Matches: "- 1A", "- 1L", "- 2A"
+  match = courseStr.match(/[-]\s*(\d+)[AL]\s*$/i);
+  if (match) {
+    const level = parseInt(match[1]);
+    return level === 0 ? 1 : level;
+  }
+  
+  // Pattern 3: "XA" or "XL" anywhere (Aptitude Level - 1L format)
+  // Matches: "1L", "2A", "1A"
+  match = courseStr.match(/(\d+)[AL](?:\s|$|\))/i);
+  if (match) {
+    const level = parseInt(match[1]);
+    return level === 0 ? 1 : level;
+  }
+  
+  // Pattern 4: "Level XB" format (Mechanical Modelling Level - 3B)
+  // Matches: "3B", "2B"
+  match = courseStr.match(/Level\s*[-]?\s*(\d+)[A-Z]/i);
+  if (match) {
+    const level = parseInt(match[1]);
+    return level === 0 ? 1 : level;
+  }
+  
+  // Pattern 5: Standalone number after dash at end
+  // Matches: "Python Level - 1", "C++ - Level 2"
+  match = courseStr.match(/[-]\s*(\d+)\s*$/);
+  if (match) {
+    const level = parseInt(match[1]);
+    return level === 0 ? 1 : level;
+  }
+  
+  return null; // No level found
+}
+
+/**
  * Upload skill reports from Excel - Admin only
  * New format: id, roll_number, user_id, name, year, email, course_name, venue, attendance, score, attempt, status, slot_date, start_time, end_time
  * 
@@ -36,6 +97,7 @@ function romanToNumber(roman) {
  * - Attempt count comes from Excel (not auto-incremented)
  * - id from Excel stored as slot_id
  * - year supports Roman numerals (I, II, III, IV)
+ * - Skill level is extracted from course_name
  */
 export const uploadSkillReport = async (req, res) => {
   // Check admin role
@@ -230,20 +292,24 @@ async function processSkillRow(connection, row, rowIndex, studentMap) {
   const studentVenueId = studentVenue.length > 0 ? studentVenue[0].venue_id : null;
   const facultyId = studentVenue.length > 0 ? studentVenue[0].faculty_id : null;
 
+  // Extract skill level from course name
+  const skillLevel = extractSkillLevel(courseName);
+  console.log(`Row ${rowIndex}: Extracted skill_level=${skillLevel} from course="${courseName}"`);
+
   // INSERT new record
   await connection.execute(
     `INSERT INTO student_skills 
-      (slot_id, student_id, year, student_name, student_email, skill_id, course_name, 
+      (slot_id, student_id, year, student_name, student_email, skill_id, course_name, skill_level,
        excel_venue_name, student_venue_id, faculty_id, total_attempts, best_score, 
        latest_score, status, last_attendance, last_slot_date, last_start_time, 
        last_end_time, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
-    [slotId, student.student_id, year, studentName, studentEmail, courseName, 
+     VALUES (?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+    [slotId, student.student_id, year, studentName, studentEmail, courseName, skillLevel,
      excelVenueName, studentVenueId, facultyId, attempt, score, score, status, 
      attendance, slotDate, startTime, endTime]
   );
 
-  console.log(`Row ${rowIndex}: Inserted - ${rollNumber}, ${courseName}, ${slotDate}`);
+  console.log(`Row ${rowIndex}: Inserted - ${rollNumber}, ${courseName}, level=${skillLevel}, ${slotDate}`);
   return { success: true, inserted: true, skipped: false };
 }
 
@@ -380,6 +446,9 @@ export const getSkillReportsForFaculty = async (req, res) => {
     const { venueId, page = 1, limit = 50, status, date, search, sortBy = 'last_slot_date', sortOrder = 'DESC' } = req.body;
     
     const offset = (parseInt(page) - 1) * parseInt(limit);
+    
+    // Check if venueId is 'all' (admin requesting all venues)
+    const isAllVenues = venueId === 'all';
 
     // Get faculty_id for access control
     let facultyId = null;
@@ -398,7 +467,7 @@ export const getSkillReportsForFaculty = async (req, res) => {
       facultyId = faculty[0].faculty_id;
 
       // Verify faculty has access to this venue
-      if (venueId) {
+      if (venueId && !isAllVenues) {
         const [venueAccess] = await db.execute(
           `SELECT v.venue_id FROM venue v 
            LEFT JOIN venue_allocation va ON v.venue_id = va.venue_id
@@ -460,14 +529,15 @@ export const getSkillReportsForFaculty = async (req, res) => {
     const params = [];
     
     // Venue filter - check both student_venue_id and excel_venue_name (for records with NULL venue_id)
-    if (venueId) {
+    // If admin selects "all", skip venue filtering
+    if (venueId && !isAllVenues) {
       // Get venue name for matching excel_venue_name
       const [venueInfo] = await db.execute('SELECT venue_name FROM venue WHERE venue_id = ?', [parseInt(venueId)]);
       const venueName = venueInfo.length > 0 ? venueInfo[0].venue_name : '';
       
       query += ' AND (ss.student_venue_id = ? OR (ss.student_venue_id IS NULL AND ss.excel_venue_name = ?))';
       params.push(parseInt(venueId), venueName);
-    } else if (facultyVenueIds.length > 0) {
+    } else if (facultyVenueIds.length > 0 && !isAllVenues) {
       // Get venue names for all faculty venues
       const [venueNames] = await db.execute(
         `SELECT venue_id, venue_name FROM venue WHERE venue_id IN (${facultyVenueIds.join(',')})`
@@ -476,6 +546,7 @@ export const getSkillReportsForFaculty = async (req, res) => {
       
       query += ` AND (ss.student_venue_id IN (${facultyVenueIds.join(',')}) OR (ss.student_venue_id IS NULL AND ss.excel_venue_name IN (${venueNameList})))`;
     }
+    // If isAllVenues is true (admin), no venue filter is applied
 
     // Status filter
     if (status && ['Cleared', 'Not Cleared', 'Ongoing'].includes(status)) {
@@ -534,13 +605,13 @@ export const getSkillReportsForFaculty = async (req, res) => {
       WHERE 1=1`;
     const countParams = [];
     
-    // Venue filter - same logic as main query
-    if (venueId) {
+    // Venue filter - same logic as main query (skip if "all" venues for admin)
+    if (venueId && !isAllVenues) {
       const [venueInfo] = await db.execute('SELECT venue_name FROM venue WHERE venue_id = ?', [parseInt(venueId)]);
       const venueName = venueInfo.length > 0 ? venueInfo[0].venue_name : '';
       countQuery += ' AND (ss.student_venue_id = ? OR (ss.student_venue_id IS NULL AND ss.excel_venue_name = ?))';
       countParams.push(parseInt(venueId), venueName);
-    } else if (facultyVenueIds.length > 0) {
+    } else if (facultyVenueIds.length > 0 && !isAllVenues) {
       const [venueNames] = await db.execute(
         `SELECT venue_id, venue_name FROM venue WHERE venue_id IN (${facultyVenueIds.join(',')})`
       );
@@ -588,13 +659,13 @@ export const getSkillReportsForFaculty = async (req, res) => {
       WHERE 1=1`;
     const statsParams = [];
     
-    // Venue filter - same logic as main query
-    if (venueId) {
+    // Venue filter - same logic as main query (skip if "all" venues for admin)
+    if (venueId && !isAllVenues) {
       const [venueInfo] = await db.execute('SELECT venue_name FROM venue WHERE venue_id = ?', [parseInt(venueId)]);
       const venueName = venueInfo.length > 0 ? venueInfo[0].venue_name : '';
       statsQuery += ' AND (ss.student_venue_id = ? OR (ss.student_venue_id IS NULL AND ss.excel_venue_name = ?))';
       statsParams.push(parseInt(venueId), venueName);
-    } else if (facultyVenueIds.length > 0) {
+    } else if (facultyVenueIds.length > 0 && !isAllVenues) {
       const [venueNames] = await db.execute(
         `SELECT venue_id, venue_name FROM venue WHERE venue_id IN (${facultyVenueIds.join(',')})`
       );
@@ -621,8 +692,9 @@ export const getSkillReportsForFaculty = async (req, res) => {
     const [stats] = await db.execute(statsQuery, statsParams);
 
     // Get ALL students enrolled in groups for this venue (for "Not Attempted" filter)
+    // For "all" venues (admin), get ALL students from ALL groups
     let venueStudents = [];
-    if (venueId) {
+    if (venueId && !isAllVenues) {
       const [students] = await db.execute(`
         SELECT DISTINCT
           s.student_id,
@@ -642,11 +714,35 @@ export const getSkillReportsForFaculty = async (req, res) => {
         ORDER BY u.name
       `, [parseInt(venueId)]);
       venueStudents = students;
+    } else if (isAllVenues) {
+      // For "all" venues (admin), get ALL students from ALL active groups
+      const [students] = await db.execute(`
+        SELECT DISTINCT
+          s.student_id,
+          u.ID as roll_number,
+          u.name as student_name,
+          u.email,
+          u.department,
+          st.year
+        FROM group_students gs
+        INNER JOIN students st ON gs.student_id = st.student_id
+        INNER JOIN users u ON st.user_id = u.user_id
+        INNER JOIN \`groups\` g ON gs.group_id = g.group_id
+        INNER JOIN students s ON gs.student_id = s.student_id
+        WHERE gs.status = 'Active'
+          AND g.status = 'Active'
+        ORDER BY u.name
+      `);
+      venueStudents = students;
     }
 
     // Return response even if no data
     res.status(200).json({
-      venue: venueId ? { venue_id: venueId, venue_name: 'Selected Venue' } : { venue_name: 'All Venues' },
+      venue: isAllVenues 
+        ? { venue_name: 'All Venues' } 
+        : venueId 
+          ? { venue_id: venueId, venue_name: 'Selected Venue' } 
+          : { venue_name: 'All Venues' },
       reports: reports || [],
       venueStudents: venueStudents, // All students in the venue for "Not Attempted" filter
       statistics: stats[0] || {
