@@ -25,6 +25,8 @@ const SideTab = () => {
   const location = useLocation();
   const { user, logout } = useAuthStore();
 
+  const isFullBleedPage = ['group-insights', 'tasks'].some((seg) => location.pathname.includes(seg));
+
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -257,7 +259,7 @@ const SideTab = () => {
           </div>
         </header>
 
-        <div style={styles.content}>
+        <div style={isFullBleedPage ? styles.contentFullBleed : styles.content}>
           <Outlet />
         </div>
       </main>
@@ -487,5 +489,10 @@ const styles = {
     flex: 1,
     overflow: 'auto',
     padding: '24px'
+  },
+  contentFullBleed: {
+    flex: 1,
+    overflow: 'auto',
+    padding: 0
   }
 };

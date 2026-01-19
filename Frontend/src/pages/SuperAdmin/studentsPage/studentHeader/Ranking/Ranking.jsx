@@ -1,14 +1,13 @@
-import React, { useState, useEffect, useMemo } from 'react';
+  import React, { useState, useEffect } from 'react';
 import useAuthStore from '../../../../../store/useAuthStore';
 
 const Ranking = ({ studentId }) => {
   const { token } = useAuthStore();
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
-  const [rankingData, setRankingData] = useState(null);
-  const [selectedSkill, setSelectedSkill] = useState('global');
-  const [isMobile, setIsMobile] = useState(window.innerWidth < 992);
+  const [skillReports, setSkillReports] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 992);
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 992);
@@ -18,357 +17,267 @@ const Ranking = ({ studentId }) => {
 
   useEffect(() => {
     if (token && studentId) {
-      fetchRankingData();
+      fetchSkillCompletionStatus();
     }
   }, [token, studentId]);
 
-  const fetchRankingData = async () => {
+  const fetchSkillCompletionStatus = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`${API_URL}/students/${studentId}/ranking`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      const data = await response.json();
-      if (data.success) {
-        setRankingData(data.data);
-      }
+      // For now, using mock data until backend is ready
+      // TODO: Replace with actual API call when backend endpoint is ready
+      // const response = await fetch(`${API_URL}/students/${studentId}/skills`, {
+      //   headers: {
+      //     Authorization: `Bearer ${token}`,
+      //     'Content-Type': 'application/json',
+      //   },
+      // });
+      
+      // Mock data for demonstration
+      const mockData = [
+        { name: 'Algebra', category: 'GENERAL Skill', totalLevels: 2, completedLevels: 1, progressPercentage: 50 },
+        { name: 'Aptitude', category: 'GENERAL Skill', totalLevels: 14, completedLevels: 3, progressPercentage: 21 },
+        { name: 'Autonomy Affairs - Regulations', category: 'GENERAL Skill', totalLevels: 1, completedLevels: 0, progressPercentage: 0 },
+        { name: 'C Programming', category: 'Software', totalLevels: 7, completedLevels: 5, progressPercentage: 71 },
+        { name: 'Communication', category: 'GENERAL Skill', totalLevels: 3, completedLevels: 0, progressPercentage: 0 },
+        { name: 'Computer Networking', category: 'Software', totalLevels: 4, completedLevels: 0, progressPercentage: 0 },
+        { name: 'Data Structure - Core Concepts', category: 'Beginner', totalLevels: 3, completedLevels: 0, progressPercentage: 0 },
+        { name: 'DBMS - Core Concept', category: 'Beginner', totalLevels: 3, completedLevels: 0, progressPercentage: 0 },
+      ];
+      
+      setSkillReports(mockData);
     } catch (err) {
-      console.error('Error fetching ranking:', err);
+      console.error('Error fetching skill completion status:', err);
     } finally {
       setLoading(false);
     }
   };
 
-  const renderAvatar = (name, url) => {
-    if (url) {
-      return <img src={url} alt={name} style={styles.avatarImg} />;
-    }
-    const firstLetter = name.charAt(0).toUpperCase();
-    return <div style={styles.avatarFallback}>{firstLetter}</div>;
-  };
-
-  const leaderboardData = useMemo(() => {
-    if (!rankingData) return [];
-
-    const sorted = [...rankingData.students].sort(
-      (a, b) => (b.points[selectedSkill] || 0) - (a.points[selectedSkill] || 0)
-    );
-
-    const userIndex = sorted.findIndex((s) => s.id === studentId);
-    const topFive = sorted.slice(0, 5).map((s, i) => ({ ...s, rank: i + 1 }));
-
-    if (userIndex < 5) {
-      return topFive;
-    } else {
-      const userRow = { ...sorted[userIndex], rank: userIndex + 1 };
-      const nextRow = sorted[userIndex + 1] ? { ...sorted[userIndex + 1], rank: userIndex + 2 } : null;
-      const result = [...topFive, userRow];
-      if (nextRow) result.push(nextRow);
-      return result;
-    }
-  }, [rankingData, selectedSkill, studentId]);
-
-  const getUserRankForSkill = (skillId) => {
-    if (!rankingData) return 'N/A';
-    const sorted = [...rankingData.students].sort((a, b) => (b.points[skillId] || 0) - (a.points[skillId] || 0));
-    return sorted.findIndex((s) => s.id === studentId) + 1;
-  };
-
-  const currentTitle = useMemo(() => {
-    if (!rankingData) return 'Leaderboard';
-    if (selectedSkill === 'global') return 'Global Leaderboard';
-    const ws = rankingData.workshops.find((w) => w.id === selectedSkill);
-    return ws ? `${ws.title} Leaderboard` : 'Leaderboard';
-  }, [selectedSkill, rankingData]);
-
-  if (loading || !rankingData) {
+  if (loading) {
     return (
       <div style={{ textAlign: 'center', padding: '60px 20px', color: '#6B7280' }}>
-        Loading ranking data...
+        Loading skill completion status...
       </div>
     );
   }
 
   const styles = {
-    page: {
+    container: {
       fontFamily: 'Inter, system-ui, sans-serif',
-      backgroundColor: '#F8FAFF',
-      padding: isMobile ? '10px' : '20px',
-      display: 'flex',
-      flexDirection: isMobile ? 'column' : 'row',
-      gap: isMobile ? '20px' : '35px',
+      backgroundColor: '#f3f4f6',
+      padding: isMobile ? '15px' : '24px',
       minHeight: '100vh',
-      color: '#1e293b',
-      borderRadius: '10px'
     },
-    leftSection: {
-      flex: 2,
-      backgroundColor: '#fff',
-      borderRadius: '16px',
-      padding: isMobile ? '15px' : '32px',
-      boxShadow: '0 4px 20px rgba(0,0,0,0.03)',
-      border: '1px solid #f1f5f9',
+    header: {
+      marginBottom: '28px',
     },
-    rightSection: {
-      flex: isMobile ? 'none' : 1,
+    title: {
+      fontSize: isMobile ? '20px' : '26px',
+      fontWeight: '700',
+      color: '#111827',
+      margin: '0 0 8px 0',
+    },
+    subtitle: {
+      fontSize: '14px',
+      color: '#6b7280',
+      margin: 0,
+    },
+    grid: {
+      display: 'grid',
+      gridTemplateColumns: isMobile 
+        ? '1fr' 
+        : 'repeat(auto-fill, minmax(300px, 1fr))',
+      gap: '24px',
+      maxWidth: '1400px',
+    },
+    card: {
+      backgroundColor: 'white',
+      borderRadius: '12px',
+      padding: '0',
+      boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+      border: '1px solid #e5e7eb',
+      transition: 'all 0.3s ease',
+      cursor: 'pointer',
+      overflow: 'hidden',
+      height: '320px',
       display: 'flex',
       flexDirection: 'column',
-      gap: '20px',
     },
-    workshopScroll: {
-      overflowY: 'auto',
-      maxHeight: isMobile ? 'none' : '85vh',
-      paddingRight: isMobile ? '0' : '10px',
-    },
-    headerRow: {
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      marginBottom: isMobile ? '20px' : '30px',
-      gap: '10px'
-    },
-    title: { fontSize: isMobile ? '18px' : '22px', fontWeight: '800', color: '#1e3a8a', margin: 0, lineHeight: 1.2 },
-    subtitle: { fontSize: isMobile ? '12px' : '13px', color: '#94a3b8', marginTop: '6px' },
-    globalToggle: {
-      minWidth: '40px',
-      height: '20px',
-      backgroundColor: '#2563eb',
-      borderRadius: '20px',
-      border: 'none',
-      cursor: 'pointer',
-      flexShrink: 0
-    },
-    tableHead: {
-      display: 'grid',
-      gridTemplateColumns: isMobile ? '40px 1fr 80px' : '50px 1fr 100px',
-      padding: '0 10px',
-      marginBottom: '15px',
-      fontSize: '11px',
-      fontWeight: '800',
-      color: '#94a3b8',
-      letterSpacing: '0.5px',
-    },
-    listRow: (isMe) => ({
-      display: 'grid',
-      gridTemplateColumns: isMobile ? '40px 1fr 80px' : '50px 1fr 100px',
-      alignItems: 'center',
-      padding: isMobile ? '10px' : '12px 15px',
-      borderRadius: '12px',
-      backgroundColor: isMe ? '#2563eb' : 'transparent',
-      color: isMe ? '#fff' : '#1e293b',
-      marginBottom: '6px',
-      transition: 'background 0.2s',
-    }),
-    rankNum: (rank) => ({
-      width: isMobile ? '24px' : '28px',
-      height: isMobile ? '24px' : '28px',
-      borderRadius: '50%',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      fontSize: '11px',
-      fontWeight: '800',
-      backgroundColor: 
-        rank === 1 ? '#fef3c7' : rank === 2 ? '#f1f5f9' : rank === 3 ? '#ffedd5' : 'transparent',
-      color: rank === 1 ? '#a16207' : rank === 2 ? '#475569' : rank === 3 ? '#9a3412' : 'inherit',
-    }),
-    avatarWrapper: {
-      width: isMobile ? '26px' : '30px',
-      height: isMobile ? '26px' : '30px',
-      borderRadius: '50%',
-      overflow: 'hidden',
-      marginRight: isMobile ? '8px' : '12px',
-      flexShrink: 0,
-    },
-    avatarImg: { width: '100%', height: '100%', objectFit: 'cover' },
-    avatarFallback: {
+    imageContainer: {
       width: '100%',
-      height: '100%',
-      backgroundColor: '#eff6ff',
-      color: '#3b82f6',
+      height: '160px',
+      overflow: 'hidden',
+      backgroundColor: '#f3f4f6',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      fontSize: '10px',
-      fontWeight: '700',
     },
-    card: (active) => ({
-      backgroundColor: active ? '#2563eb' : '#fff',
-      borderRadius: '16px',
+    cardContent: {
       padding: '20px',
-      border: '1px solid #e2e8f0',
-      cursor: 'pointer',
-      transition: 'all 0.2s',
-      position: 'relative',
-      marginBottom: '12px',
-    }),
-    cardTitle: (active) => ({
-      fontSize: '14px',
-      fontWeight: '800',
-      color: active ? '#fff' : '#2563eb',
-      margin: '0 0 4px 0',
-      paddingRight: '20px'
-    }),
-    cardStatus: (active) => ({
-      fontSize: '11px',
-      color: active ? '#bfdbfe' : '#94a3b8',
-      fontWeight: '600',
-    }),
-    rankBadge: (active) => ({
-      backgroundColor: active ? '#fff' : '#eff6ff',
-      color: active ? '#2563eb' : '#3b82f6',
-      padding: '5px 10px',
-      borderRadius: '8px',
-      fontSize: '10px',
-      fontWeight: '800',
-      marginTop: '15px',
-      display: 'inline-block',
-    }),
-    cardPts: (active) => ({
-      position: 'absolute',
-      bottom: '22px',
-      right: '20px',
+      flex: 1,
+      display: 'flex',
+      flexDirection: 'column',
+    },
+    skillName: {
+      fontSize: '16px',
+      fontWeight: '700',
+      color: '#111827',
+      margin: '0 0 12px 0',
+      lineHeight: '1.4',
+    },
+    skillMeta: {
       display: 'flex',
       alignItems: 'center',
-      gap: '5px',
+      gap: '16px',
       fontSize: '12px',
-      fontWeight: '700',
-      color: active ? '#fff' : '#94a3b8',
+      color: '#6b7280',
+      marginBottom: '16px',
+    },
+    levelsBadge: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: '4px',
+      fontSize: '12px',
+      fontWeight: '500',
+    },
+    categoryBadge: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: '4px',
+      fontSize: '12px',
+      fontWeight: '500',
+    },
+    progressSection: {
+      marginTop: 'auto',
+    },
+    segmentedProgressBar: {
+      display: 'flex',
+      gap: '4px',
+      marginBottom: '10px',
+    },
+    progressSegment: (isCompleted) => ({
+      flex: 1,
+      height: '8px',
+      backgroundColor: isCompleted ? '#7c3aed' : '#e5e7eb',
+      borderRadius: '4px',
+      transition: 'background-color 0.3s ease',
     }),
+    progressText: {
+      fontSize: '12px',
+      color: '#6b7280',
+      textAlign: 'center',
+      fontWeight: '500',
+    },
+    emptyState: {
+      textAlign: 'center',
+      padding: '60px 20px',
+      color: '#9ca3af',
+    },
   };
 
   return (
-    <div style={styles.page}>
-      {/* LEFT: Leaderboard Panel */}
-      <div style={styles.leftSection}>
-        <div style={styles.headerRow}>
-          <div>
-            <h2 style={styles.title}>{currentTitle}</h2>
-            <p style={styles.subtitle}>Activity points for this category</p>
-          </div>
-          {selectedSkill !== 'global' && (
-            <button
-              style={styles.globalToggle}
-              onClick={() => setSelectedSkill('global')}
-              title="Back to Global"
-            />
-          )}
-        </div>
-
-        <div style={styles.tableHead}>
-          <span>RANK</span>
-          <span>NAME</span>
-          <span style={{ textAlign: 'right' }}>POINTS</span>
-        </div>
-
-        <div style={{ minWidth: 0 }}>
-          {leaderboardData.map((student) => {
-            const isMe = student.id === studentId;
-            const pointsValue = student.points[selectedSkill] || 0;
-
-            return (
-              <div key={student.id} style={styles.listRow(isMe)}>
-                <div
-                  style={{
-                    ...styles.rankNum(student.rank),
-                    color: isMe ? '#fff' : styles.rankNum(student.rank).color,
-                  }}
-                >
-                  {student.rank}
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', overflow: 'hidden' }}>
-                  <div style={styles.avatarWrapper}>{renderAvatar(student.name, student.profilePic)}</div>
-                  <span
-                    style={{
-                      fontWeight: '600',
-                      fontSize: isMobile ? '12px' : '13px',
-                      whiteSpace: 'nowrap',
-                      textOverflow: 'ellipsis',
-                      overflow: 'hidden',
-                    }}
-                  >
-                    {student.name}
-                  </span>
-                </div>
-                <div style={{ textAlign: 'right', fontWeight: '800', fontSize: isMobile ? '13px' : '14px' }}>
-                  {pointsValue.toLocaleString()}
-                </div>
-              </div>
-            );
-          })}
-        </div>
+    <div style={styles.container}>
+      <div style={styles.header}>
+        <h1 style={styles.title}>Skill Completion Status</h1>
+        <p style={styles.subtitle}>Track your progress across all skills</p>
       </div>
 
-      {/* RIGHT: Standings Sidebar */}
-      <div style={styles.rightSection}>
-        <h3 style={{ fontSize: '15px', fontWeight: '800', margin: isMobile ? '10px 0 5px 0' : '0 0 10px 0' }}>
-          Workshop Standings
-        </h3>
-        <div style={styles.workshopScroll} className="custom-scrollbar">
-          <div
-            style={styles.card(selectedSkill === 'global')}
-            onClick={() => setSelectedSkill('global')}
-          >
-            <h4 style={styles.cardTitle(selectedSkill === 'global')}>Global Leadership</h4>
-            <p style={styles.cardStatus(selectedSkill === 'global')}>
-              Aggregate performance across all skills
-            </p>
-            <div style={styles.rankBadge(selectedSkill === 'global')}>
-              Rank #{getUserRankForSkill('global')}
-            </div>
-            <div style={styles.cardPts(selectedSkill === 'global')}>
-              <StarIcon color={selectedSkill === 'global' ? '#fff' : '#94a3b8'} />
-              {rankingData.students.find((s) => s.id === studentId)?.points.global || 0} Pts
-            </div>
-          </div>
-
-          {rankingData.workshops.map((ws) => {
-            const isAct = selectedSkill === ws.id;
-            const myPts = rankingData.students.find((s) => s.id === studentId)?.points[ws.id] || 0;
+      {skillReports.length === 0 ? (
+        <div style={styles.emptyState}>
+          <p style={{ fontSize: '16px', fontWeight: '600', margin: '0 0 8px 0' }}>No Skills Found</p>
+          <p style={{ fontSize: '14px', margin: 0 }}>You haven't attempted any skills yet.</p>
+        </div>
+      ) : (
+        <div style={styles.grid}>
+          {skillReports.map((skill, index) => {
+            // Create array of segments based on total levels
+            const segments = Array.from({ length: skill.totalLevels }, (_, i) => i < skill.completedLevels);
+            
             return (
-              <div key={ws.id} style={styles.card(isAct)} onClick={() => setSelectedSkill(ws.id)}>
-                <h4 style={styles.cardTitle(isAct)}>{ws.title}</h4>
-                <p style={styles.cardStatus(isAct)}>{ws.status}</p>
-                <div style={styles.rankBadge(isAct)}>Rank #{getUserRankForSkill(ws.id)}</div>
-                <div style={styles.cardPts(isAct)}>
-                  <StarIcon color={isAct ? '#fff' : '#94a3b8'} />
-                  {myPts} Pts
-                </div>
-                {isAct && !isMobile && (
-                  <div style={{ position: 'absolute', top: '15px', right: '15px', opacity: 0.4 }}>
-                    <GraphIcon />
+              <div
+                key={index}
+                style={styles.card}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.08)';
+                  e.currentTarget.style.transform = 'translateY(0)';
+                }}
+              >
+                {/* Image placeholder with gradient */}
+                <div style={{
+                  ...styles.imageContainer,
+                  background: `linear-gradient(135deg, ${getGradientColors(index)})`,
+                }}>
+                  <div style={{
+                    fontSize: '48px',
+                    fontWeight: '700',
+                    color: 'white',
+                    opacity: 0.3,
+                  }}>
+                    {skill.name.charAt(0)}
                   </div>
-                )}
+                </div>
+
+                <div style={styles.cardContent}>
+                  <h3 style={styles.skillName}>{skill.name}</h3>
+                  
+                  <div style={styles.skillMeta}>
+                    <div style={styles.levelsBadge}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth="2">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                      </svg>
+                      <span>Levels: {skill.totalLevels}</span>
+                    </div>
+                    
+                    <div style={styles.categoryBadge}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6b7280" strokeWidth="2">
+                        <circle cx="12" cy="12" r="10" />
+                      </svg>
+                      <span>{skill.category}</span>
+                    </div>
+                  </div>
+
+                  <div style={styles.progressSection}>
+                    {/* Segmented progress bar */}
+                    <div style={styles.segmentedProgressBar}>
+                      {segments.map((isCompleted, segIndex) => (
+                        <div 
+                          key={segIndex} 
+                          style={styles.progressSegment(isCompleted)}
+                        />
+                      ))}
+                    </div>
+                    
+                    <p style={styles.progressText}>
+                      Progress: {skill.completedLevels}/{skill.totalLevels} levels ({skill.progressPercentage}%)
+                    </p>
+                  </div>
+                </div>
               </div>
             );
           })}
         </div>
-      </div>
-
-      <style>{`
-        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
-      `}</style>
+      )}
     </div>
   );
 };
 
-const StarIcon = ({ color }) => (
-  <svg width="12" height="12" viewBox="0 0 24 24" fill={color}>
-    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-  </svg>
-);
-
-const GraphIcon = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5">
-    <line x1="18" y1="20" x2="18" y2="10" />
-    <line x1="12" y1="20" x2="12" y2="4" />
-    <line x1="6" y1="20" x2="6" y2="14" />
-  </svg>
-);
+// Helper function to generate gradient colors
+const getGradientColors = (index) => {
+  const gradients = [
+    '#60a5fa, #3b82f6', // Blue
+    '#06b6d4, #0891b2', // Cyan
+    '#14b8a6, #0d9488', // Teal
+    '#a855f7, #9333ea', // Purple
+    '#f59e0b, #d97706', // Amber
+    '#10b981, #059669', // Green
+    '#ec4899, #db2777', // Pink
+    '#8b5cf6, #7c3aed', // Violet
+  ];
+  return gradients[index % gradients.length];
+};
 
 export default Ranking;
