@@ -35,6 +35,7 @@ const GroupsClasses = () => {
   const [error, setError] = useState("");
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showBulkUploadModal, setShowBulkUploadModal] = useState(false);
+  const [showAddStudentModal, setShowAddStudentModal] = useState(false);
   const [showStudentsModal, setShowStudentsModal] = useState(false);
   const [showAssignFacultyModal, setShowAssignFacultyModal] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
@@ -70,6 +71,13 @@ const GroupsClasses = () => {
   const [facultyAssignment, setFacultyAssignment] = useState({
     venue_id: "",
     faculty_id: "",
+  });
+
+  const [newStudent, setNewStudent] = useState({
+    name: "",
+    reg_no: "",
+    department: "",
+    year: "",
   });
 
   // Show Result Modal Function
@@ -406,6 +414,57 @@ const GroupsClasses = () => {
         "error",
         "Upload Failed",
         "Failed to upload file. Please try again."
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAddIndividualStudent = async () => {
+    if (!newStudent.name || !newStudent.reg_no || !newStudent.department || !newStudent.year) {
+      showResult("error", "Missing Information", "Please fill in all student details.");
+      return;
+    }
+
+    if (!selectedVenue) {
+      showResult("error", "No Venue Selected", "Please select a venue first.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await fetch(
+        `${API_URL}/groups/venues/${selectedVenue.venue_id}/add-student`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            name: newStudent.name,
+            reg_no: newStudent.reg_no,
+            department: newStudent.department,
+            year: parseInt(newStudent.year),
+          }),
+        }
+      );
+      const data = await response.json();
+      if (data.success) {
+        setShowAddStudentModal(false);
+        setNewStudent({ name: "", reg_no: "", department: "", year: "" });
+        setSelectedVenue(null);
+        await fetchVenues();
+        showResult("success", "Student Added", data.message || "Student added successfully to the venue.");
+      } else {
+        showResult("error", "Failed to Add Student", data.message);
+      }
+    } catch (err) {
+      console.error("Error adding student:", err);
+      showResult(
+        "error",
+        "Failed to Add Student",
+        "An error occurred while adding the student. Please try again."
       );
     } finally {
       setLoading(false);
@@ -767,6 +826,23 @@ const GroupsClasses = () => {
               >
                 <Upload sx={{ fontSize: 16, color: "#10b981" }} />
                 <span style={{ color: "#10b981" }}>Upload Students</span>
+              </button>
+              <button
+                style={s.menuItem}
+                onClick={() => {
+                  setSelectedVenue(menuVenue);
+                  setShowAddStudentModal(true);
+                  closeMenu();
+                }}
+                onMouseEnter={(e) =>
+                  (e.currentTarget.style.backgroundColor = "#eff6ff")
+                }
+                onMouseLeave={(e) =>
+                  (e.currentTarget.style.backgroundColor = "transparent")
+                }
+              >
+                <Add sx={{ fontSize: 16, color: "#3b82f6" }} />
+                <span style={{ color: "#3b82f6" }}>Add Individual Student</span>
               </button>
               <button
                 style={s.menuItem}
@@ -1254,6 +1330,144 @@ const GroupsClasses = () => {
                   disabled={loading || !selectedFile}
                 >
                   {loading ? "Uploading.. ." : "Upload Students"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Individual Student Modal */}
+      {showAddStudentModal && (
+        <div
+          style={s.modalOverlay}
+          onClick={() => setShowAddStudentModal(false)}
+        >
+          <div style={s.modal} onClick={(e) => e.stopPropagation()}>
+            <div style={s.modalHeader}>
+              <h2 style={s.modalTitle}>
+                Add Student to {selectedVenue?.venue_name}
+              </h2>
+              <button
+                style={s.closeBtn}
+                onClick={() => setShowAddStudentModal(false)}
+              >
+                <Close sx={{ fontSize: 24, color: "#64748b" }} />
+              </button>
+            </div>
+            <div style={s.form}>
+              <div style={{ 
+                padding: '12px', 
+                backgroundColor: '#f8fafc', 
+                borderRadius: '8px', 
+                marginBottom: '16px',
+                border: '1px solid #e2e8f0'
+              }}>
+                <p style={{ 
+                  fontSize: '13px', 
+                  color: '#64748b', 
+                  margin: '0 0 8px 0',
+                  fontWeight: '500'
+                }}>
+                  Quick Test Data:
+                </p>
+                <button
+                  type="button"
+                  style={{
+                    padding: '6px 12px',
+                    backgroundColor: '#3b82f6',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '6px',
+                    fontSize: '13px',
+                    cursor: 'pointer',
+                    fontWeight: '500'
+                  }}
+                  onClick={() => {
+                    const randomNum = Math.floor(Math.random() * 1000);
+                    setNewStudent({
+                      name: `Test Student ${randomNum}`,
+                      reg_no: `REG${new Date().getFullYear()}${randomNum.toString().padStart(4, '0')}`,
+                      department: 'Computer Science',
+                      year: '2'
+                    });
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#2563eb'}
+                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#3b82f6'}
+                >
+                  Fill Sample Data
+                </button>
+              </div>
+              <div style={s.formGroup}>
+                <label style={s.label}>Student Name *</label>
+                <input
+                  type="text"
+                  style={s.input}
+                  placeholder="Enter student name"
+                  value={newStudent.name}
+                  onChange={(e) =>
+                    setNewStudent({ ...newStudent, name: e.target.value })
+                  }
+                />
+              </div>
+              <div style={s.formGroup}>
+                <label style={s.label}>Registration Number *</label>
+                <input
+                  type="text"
+                  style={s.input}
+                  placeholder="Enter registration number"
+                  value={newStudent.reg_no}
+                  onChange={(e) =>
+                    setNewStudent({ ...newStudent, reg_no: e.target.value })
+                  }
+                />
+              </div>
+              <div style={s.formGroup}>
+                <label style={s.label}>Department *</label>
+                <input
+                  type="text"
+                  style={s.input}
+                  placeholder="Enter department (e.g., Computer Science)"
+                  value={newStudent.department}
+                  onChange={(e) =>
+                    setNewStudent({ ...newStudent, department: e.target.value })
+                  }
+                />
+              </div>
+              <div style={s.formGroup}>
+                <label style={s.label}>Year *</label>
+                <select
+                  style={s.input}
+                  value={newStudent.year}
+                  onChange={(e) =>
+                    setNewStudent({ ...newStudent, year: e.target.value })
+                  }
+                >
+                  <option value="">Select Year</option>
+                  <option value="1">1st Year</option>
+                  <option value="2">2nd Year</option>
+                  <option value="3">3rd Year</option>
+                  <option value="4">4th Year</option>
+                </select>
+              </div>
+              <div style={s.modalFooter}>
+                <button
+                  type="button"
+                  style={s.cancelBtn}
+                  onClick={() => {
+                    setShowAddStudentModal(false);
+                    setNewStudent({ name: "", reg_no: "", department: "", year: "" });
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  style={s.submitBtn}
+                  onClick={handleAddIndividualStudent}
+                  disabled={loading || !newStudent.name || !newStudent.reg_no || !newStudent.department || !newStudent.year}
+                >
+                  {loading ? "Adding..." : "Add Student"}
                 </button>
               </div>
             </div>

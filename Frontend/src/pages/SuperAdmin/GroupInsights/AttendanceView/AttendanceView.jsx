@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { ClipboardList } from 'lucide-react';
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -214,7 +215,9 @@ const AttendanceView = ({ selectedVenue, selectedVenueName, selectedDate, setSel
 
             {filteredStudents.length === 0 ? (
               <div style={styles.noDataContainer}>
-                <div style={{ fontSize: '48px', marginBottom: '16px' }}>📋</div>
+                <div style={{ marginBottom: '16px', color: '#9ca3af' }}>
+                  <ClipboardList size={48} />
+                </div>
                 <div style={{ fontSize: '16px', fontWeight: '600', color: '#374151' }}>
                   No attendance records found
                 </div>

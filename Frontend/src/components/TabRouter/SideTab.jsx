@@ -96,12 +96,16 @@ const SideTab = () => {
     ],
     faculty: [
       // { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, section: 'main' },
-      // { id: 'classes', label: 'My Classes / Groups', icon: Layers, section: 'main' },
-      { id: 'students', label: 'Students', icon: Users, section: 'main' },
+      { id: 'classes', label: 'My Classes / Groups', icon: Layers, section: 'top' },
+      
+      // Management Section
+      { id: 'students', label: 'Students', icon: Users, section: 'management' },
+      
+      // Academic Section
       { id: 'attendance', label: 'Attendance', icon: CalendarCheck, section: 'academic' },
       { id: 'tasks', label: 'Task & Assignment', icon: ClipboardCheck, section: 'academic' },
-      { id: 'skill-reports', label: 'Skill Reports', icon: FileSpreadsheet, section: 'academic' },
-      { id: 'group-insights', label: 'Group Insights', icon: BarChart3, section: 'academic' },
+      { id: 'skill-reports', label: 'Skill Reports', icon: FileSpreadsheet, section: 'setting' },
+      { id: 'group-insights', label: 'Group Insights', icon: BarChart3, section: 'classes' },
       { id: 'reports', label: 'Reports', icon: BarChart3, section: 'academic' },
       // { id: 'settings', label: 'Settings', icon: Settings, section: 'system' },
     ],
