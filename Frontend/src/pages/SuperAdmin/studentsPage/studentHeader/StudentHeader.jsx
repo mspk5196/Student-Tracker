@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import useAuthStore from '../../../../store/useAuthStore';
+import { decodeIdSimple } from '../../../../utils/idEncoder';
 
 // Material UI Icons
 import EditIcon from '@mui/icons-material/EditOutlined';
@@ -277,7 +278,9 @@ const styles = {
 };
 
 const StudentHeader = () => {
-  const { studentId } = useParams();
+  const { studentId: encodedStudentId } = useParams();
+  // Try to decode, fallback to raw ID if decoding fails (for backward compatibility)
+  const studentId = decodeIdSimple(encodedStudentId) || encodedStudentId;
   const navigate = useNavigate();
   const { token } = useAuthStore();
   const API_URL = import.meta.env.VITE_API_URL;

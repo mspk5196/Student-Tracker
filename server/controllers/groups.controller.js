@@ -833,3 +833,164 @@ export const searchVenues = async (req, res) => {
     res.status(500).json({ success: false, message: 'Failed to search venues' });
   }
 };
+
+// Get comprehensive venue details by ID
+export const getVenueDetails = async (req, res) => {
+  try {
+    const { venueId } = req.params;
+
+    // Get venue basic info with faculty details
+    const [venueInfo] = await db.query(`
+      SELECT 
+        v.venue_id,
+        v.venue_name,
+        v.capacity,
+        v.location,
+        v.status,
+        v.created_at,
+        v.assigned_faculty_id,
+        f.faculty_id,
+        f.designation as faculty_designation,
+        u.name as faculty_name,
+        u.email as faculty_email,
+        u.department as faculty_department
+      FROM venue v
+      LEFT JOIN faculties f ON v.assigned_faculty_id = f.faculty_id
+      LEFT JOIN users u ON f.user_id = u.user_id
+      WHERE v.venue_id = ?
+    `, [venueId]);
+
+    if (venueInfo.length === 0) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Venue not found' 
+      });
+    }
+
+    // Get students with attendance and task stats
+    const [students] = await db.query(`
+      SELECT 
+        gs.id as allocation_id,
+        s.student_id,
+        u.name,
+        u.email,
+        u.ID as rollNumber,
+        u.department,
+        s.year,
+        s.semester,
+        gs.allocation_date,
+        gs.status,
+        COALESCE(att.total_sessions, 0) as total_sessions,
+        COALESCE(att.present_count, 0) as present_count,
+        COALESCE(att.late_count, 0) as late_count,
+        ROUND(
+          CASE 
+            WHEN COALESCE(att.total_sessions, 0) = 0 THEN 0
+            ELSE (COALESCE(att.present_count, 0) + COALESCE(att.late_count, 0)) * 100.0 / att.total_sessions
+          END, 1
+        ) as attendance_percentage,
+        COALESCE(task_stats.total_tasks, 0) as total_tasks,
+        COALESCE(task_stats.submitted_tasks, 0) as submitted_tasks,
+        COALESCE(task_stats.graded_tasks, 0) as graded_tasks
+      FROM group_students gs
+      INNER JOIN \`groups\` g ON gs.group_id = g.group_id
+      INNER JOIN students s ON gs.student_id = s.student_id
+      INNER JOIN users u ON s.user_id = u.user_id
+      LEFT JOIN (
+        SELECT 
+          a.student_id,
+          COUNT(DISTINCT a.session_id) as total_sessions,
+          SUM(CASE WHEN a.is_present = 1 THEN 1 ELSE 0 END) as present_count,
+          SUM(CASE WHEN a.is_late = 1 THEN 1 ELSE 0 END) as late_count
+        FROM attendance a
+        WHERE a.venue_id = ?
+        GROUP BY a.student_id
+      ) att ON s.student_id = att.student_id
+      LEFT JOIN (
+        SELECT 
+          ts.student_id,
+          COUNT(DISTINCT t.task_id) as total_tasks,
+          COUNT(DISTINCT ts.submission_id) as submitted_tasks,
+          SUM(CASE WHEN ts.status = 'Graded' THEN 1 ELSE 0 END) as graded_tasks
+        FROM tasks t
+        LEFT JOIN task_submissions ts ON t.task_id = ts.task_id
+        WHERE t.venue_id = ?
+        GROUP BY ts.student_id
+      ) task_stats ON s.student_id = task_stats.student_id
+      WHERE g.venue_id = ?
+      ORDER BY u.ID
+    `, [venueId, venueId, venueId]);
+
+    // Get total task count for venue
+    const [taskCount] = await db.query(`
+      SELECT COUNT(*) as total_tasks FROM tasks WHERE venue_id = ?
+    `, [venueId]);
+
+    // Get roadmap count for venue
+    const [roadmapCount] = await db.query(`
+      SELECT COUNT(*) as total_roadmap_days FROM roadmap WHERE venue_id = ?
+    `, [venueId]);
+
+    // Get group info for the venue
+    const [groupInfo] = await db.query(`
+      SELECT 
+        g.group_id,
+        g.group_code,
+        g.group_name,
+        g.schedule_days,
+        g.schedule_time,
+        g.max_students,
+        g.department,
+        g.status
+      FROM \`groups\` g
+      WHERE g.venue_id = ?
+      LIMIT 1
+    `, [venueId]);
+
+    // Calculate venue-wide statistics
+    const totalStudents = students.length;
+    const activeStudents = students.filter(s => s.status === 'Active').length;
+    const avgAttendance = students.length > 0 
+      ? Math.round(students.reduce((sum, s) => sum + (s.attendance_percentage || 0), 0) / students.length) 
+      : 0;
+
+    const venue = venueInfo[0];
+
+    res.status(200).json({ 
+      success: true, 
+      data: {
+        venue: {
+          venue_id: venue.venue_id,
+          venue_name: venue.venue_name,
+          capacity: venue.capacity,
+          location: venue.location,
+          status: venue.status,
+          created_at: venue.created_at
+        },
+        faculty: (venue.faculty_id || venue.assigned_faculty_id) ? {
+          faculty_id: venue.faculty_id || venue.assigned_faculty_id,
+          name: venue.faculty_name,
+          email: venue.faculty_email,
+          department: venue.faculty_department,
+          designation: venue.faculty_designation
+        } : null,
+        group: groupInfo.length > 0 ? groupInfo[0] : null,
+        students: students,
+        statistics: {
+          total_students: totalStudents,
+          active_students: activeStudents,
+          capacity: venue.capacity,
+          avg_attendance: avgAttendance,
+          total_tasks: taskCount[0].total_tasks,
+          total_roadmap_days: roadmapCount[0].total_roadmap_days
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching venue details:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to fetch venue details' 
+    });
+  }
+};
