@@ -275,112 +275,22 @@ const FacultySkillReport = () => {
           </div>
         )}
 
-        {/* Table */}
-        <div style={styles.tableContainer}>
-          {loading ? (
-            <div style={styles.loadingContainer}>
-              <RefreshCw size={32} color="#3b82f6" style={{ animation: 'spin 1s linear infinite' }} />
-              <p>Loading reports...</p>
-            </div>
-          ) : reports.length === 0 ? (
-            <div style={styles.emptyState}>
-              <FileSpreadsheet size={48} color="#9ca3af" />
-              <p style={styles.emptyText}>No skill reports found</p>
-              <p style={styles.emptyHint}>
-                {venues.length === 0
-                  ? 'No venues assigned to you'
-                  : 'Try adjusting your filters or contact admin'}
-              </p>
-            </div>
-          ) : (
-            <table style={styles.table}>
-              <thead>
-                <tr style={styles.tableHeaderRow}>
-                  <th style={styles.tableHeader}>Roll No</th>
-                  <th style={styles.tableHeader}>Student Name</th>
-                  <th style={styles.tableHeader}>Department</th>
-                  <th style={styles.tableHeader}>Course</th>
-                  <th style={styles.tableHeader}>Venue</th>
-                  <th style={styles.tableHeader}>Attempts</th>
-                  <th style={styles.tableHeader}>Best Score</th>
-                  <th style={styles.tableHeader}>Latest Score</th>
-                  <th style={styles.tableHeader}>Status</th>
-                  <th style={styles.tableHeader}>Last Date</th>
-                  <th style={styles.tableHeader}>Attendance</th>
-                </tr>
-              </thead>
-              <tbody>
-                {reports.map((report, idx) => (
-                  <tr key={report.id || idx} style={styles.tableRow}>
-                    <td style={styles.tableCell}>{report.roll_number}</td>
-                    <td style={styles.tableCell}>
-                      <div>
-                        <div style={styles.studentName}>{report.student_name}</div>
-                        <div style={styles.studentEmail}>{report.email}</div>
-                      </div>
-                    </td>
-                    <td style={styles.tableCell}>{report.department || 'N/A'}</td>
-                    <td style={styles.tableCell}>{report.course_name}</td>
-                    <td style={styles.tableCell}>{report.venue_name}</td>
-                    <td style={styles.tableCell}>{report.total_attempts}</td>
-                    <td style={styles.tableCell}>
-                      <span style={styles.scoreBadge}>{report.best_score || 'N/A'}</span>
-                    </td>
-                    <td style={styles.tableCell}>
-                      <span style={styles.scoreBadge}>{report.latest_score || 'N/A'}</span>
-                    </td>
-                    <td style={styles.tableCell}>{getStatusBadge(report.status)}</td>
-                    <td style={styles.tableCell}>
-                      {report.last_slot_date ? new Date(report.last_slot_date).toLocaleDateString() : 'N/A'}
-                    </td>
-                    <td style={styles.tableCell}>
-                      <span
-                        style={{
-                          ...styles.attendanceBadge,
-                          backgroundColor: report.last_attendance === 'Present' ? '#d1fae5' : '#fee2e2',
-                          color: report.last_attendance === 'Present' ? '#065f46' : '#991b1b',
-                        }}
-                      >
-                        {report.last_attendance || 'N/A'}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
+        {/* Student Skill Reports Table Removed - Data now available in Group Insights */}
+        <div style={{ 
+          padding: '40px', 
+          textAlign: 'center',
+          backgroundColor: '#fff',
+          borderRadius: '12px',
+          border: '1px solid #e5e7eb'
+        }}>
+          <FileSpreadsheet size={48} color="#3b82f6" style={{ marginBottom: '16px' }} />
+          <h3 style={{ margin: '0 0 8px 0', color: '#1e293b', fontSize: '18px', fontWeight: '600' }}>
+            Skill Reports Now in Group Insights
+          </h3>
+          <p style={{ margin: 0, color: '#64748b', fontSize: '14px' }}>
+            Student skill proficiency data has been moved to the Group Insights page for better organization and analysis.
+          </p>
         </div>
-
-        {/* Pagination */}
-        {pagination && pagination.total > 0 && (
-          <div style={styles.pagination}>
-            <button
-              onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
-              disabled={currentPage === 1}
-              style={{
-                ...styles.paginationButton,
-                opacity: currentPage === 1 ? 0.5 : 1,
-                cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
-              }}
-            >
-              Previous
-            </button>
-            <span style={styles.paginationInfo}>
-              Page {currentPage} of {pagination.totalPages} ({pagination.total} records)
-            </span>
-            <button
-              onClick={() => setCurrentPage((prev) => Math.min(pagination.totalPages, prev + 1))}
-              disabled={currentPage === pagination.totalPages}
-              style={{
-                ...styles.paginationButton,
-                opacity: currentPage === pagination.totalPages ? 0.5 : 1,
-                cursor: currentPage === pagination.totalPages ? 'not-allowed' : 'pointer',
-              }}
-            >
-              Next
-            </button>
-          </div>
-        )}
       </div>
 
       <style>{keyframes}</style>

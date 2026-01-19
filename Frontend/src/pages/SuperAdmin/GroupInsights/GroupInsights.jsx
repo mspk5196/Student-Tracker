@@ -7,6 +7,7 @@ const GroupInsights = () => {
   const [selectedGroup, setSelectedGroup] = useState('CS-302 (Web Technologies)');
   const [academicYear, setAcademicYear] = useState('2024 - 2025');
   const [period, setPeriod] = useState('Today');
+  const [selectedVenue, setSelectedVenue] = useState('');
 
   return (
     <div style={styles.container}>
@@ -54,6 +55,8 @@ const GroupInsights = () => {
             selectedGroup={selectedGroup}
             academicYear={academicYear}
             setAcademicYear={setAcademicYear}
+            selectedVenue={selectedVenue}
+            setSelectedVenue={setSelectedVenue}
           />
         )}
       </div>

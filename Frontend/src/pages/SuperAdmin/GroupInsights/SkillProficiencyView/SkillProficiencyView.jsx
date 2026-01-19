@@ -1,148 +1,138 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { CheckCircle, XCircle, Clock, TrendingUp, Award, Target, Plus, X } from 'lucide-react';
+import axios from 'axios';
 
-const SkillProficiencyView = ({ selectedGroup, academicYear, setAcademicYear }) => {
+const API_URL = import.meta.env.VITE_API_URL;
+
+const SkillProficiencyView = ({ selectedGroup, academicYear, setAcademicYear, selectedVenue, setSelectedVenue }) => {
   
-  // Available skills list
-  const availableSkills = [
-    { id: 1, name: 'HTML & CSS Fundamentals' },
-    { id: 2, name: 'JavaScript ES6' },
-    { id: 3, name: 'React Basics' },
-    { id: 4, name: 'Node.js Backend' },
-    { id: 5, name: 'CSS Flexbox & Grid' },
-    { id: 6, name: 'TypeScript Basics' },
-    { id: 7, name: 'MongoDB Database' },
-    { id: 8, name: 'REST API Design' },
-  ];
-
   // Selected skill (single dropdown selection)
   const [selectedSkill, setSelectedSkill] = useState('');
-
   const [statusFilter, setStatusFilter] = useState('All Status');
+  
+  // Backend data states
+  const [venues, setVenues] = useState([]);
+  const [skillReports, setSkillReports] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  // Mock Data - Student skill-wise completion status (matching DB structure)
-  // This data shows multiple attempts per student per skill
-  const studentSkillData = [
-    { 
-      rollNumber: '2024UAL1042',
-      userId: '7376242AL218',
-      name: 'Vikram S',
-      year: 'II',
-      courseName: 'HTML/CSS',
-      venue: 'Vedanayagam',
-      skillAttempts: [
-        { 
-          attempt: 1, 
-          status: 'Cleared', 
-          score: 98, 
-          attendance: 'Present',
-          slotDate: '2026-01-10',
-          startTime: '09:00:00',
-          endTime: '10:30:00'
-        }
-      ]
-    },
-    { 
-      rollNumber: '2024UAL1043',
-      userId: '7376243AL219',
-      name: 'Priya R',
-      year: 'II',
-      courseName: 'HTML/CSS',
-      venue: 'Vedanayagam',
-      skillAttempts: [
-        { 
-          attempt: 1, 
-          status: 'Not Cleared', 
-          score: 45, 
-          attendance: 'Present',
-          slotDate: '2026-01-10',
-          startTime: '09:00:00',
-          endTime: '10:30:00'
-        },
-        { 
-          attempt: 2, 
-          status: 'Ongoing', 
-          score: 68, 
-          attendance: 'Present',
-          slotDate: '2026-01-12',
-          startTime: '11:00:00',
-          endTime: '12:30:00'
-        }
-      ]
-    },
-    { 
-      rollNumber: '2024UAL1044',
-      userId: '7376244AL220',
-      name: 'Rahul K',
-      year: 'II',
-      courseName: 'JavaScript ES6',
-      venue: 'Vedanayagam',
-      skillAttempts: [
-        { 
-          attempt: 1, 
-          status: 'Cleared', 
-          score: 85, 
-          attendance: 'Present',
-          slotDate: '2026-01-11',
-          startTime: '14:00:00',
-          endTime: '15:30:00'
-        }
-      ]
-    },
-    { 
-      rollNumber: '2024UAL1045',
-      userId: '7376245AL221',
-      name: 'Sneha M',
-      year: 'II',
-      courseName: 'HTML/CSS',
-      venue: 'Vedanayagam',
-      skillAttempts: []  // Not attempted yet
-    },
-    { 
-      rollNumber: '2024UAL1046',
-      userId: '7376246AL222',
-      name: 'Arjun P',
-      year: 'II',
-      courseName: 'JavaScript ES6',
-      venue: 'Vedanayagam',
-      skillAttempts: [
-        { 
-          attempt: 1, 
-          status: 'Not Cleared', 
-          score: 42, 
-          attendance: 'Present',
-          slotDate: '2026-01-09',
-          startTime: '09:00:00',
-          endTime: '10:30:00'
-        },
-        { 
-          attempt: 2, 
-          status: 'Not Cleared', 
-          score: 55, 
-          attendance: 'Present',
-          slotDate: '2026-01-11',
-          startTime: '14:00:00',
-          endTime: '15:30:00'
-        },
-        { 
-          attempt: 3, 
-          status: 'Cleared', 
-          score: 76, 
-          attendance: 'Present',
-          slotDate: '2026-01-13',
-          startTime: '11:00:00',
-          endTime: '12:30:00'
-        }
-      ]
-    },
-  ];
+  // Fetch venues on component mount
+  useEffect(() => {
+    const fetchVenues = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const response = await axios.get(`${API_URL}/skill-reports/faculty/venues`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        setVenues(response.data.venues || []);
+      } catch (err) {
+        console.error('Error fetching venues:', err);
+        setError('Failed to load venues');
+      }
+    };
+    fetchVenues();
+  }, []);
 
-  // Filter student data based on selected skill
-  const filteredStudentData = selectedSkill 
+  // Fetch skill reports when venue is selected
+  useEffect(() => {
+    const fetchSkillReports = async () => {
+      if (!selectedVenue) {
+        setSkillReports([]);
+        return;
+      }
+
+      setLoading(true);
+      setError('');
+      try {
+        const token = localStorage.getItem('token');
+        const response = await axios.post(
+          `${API_URL}/skill-reports/faculty/venue/reports`,
+          {
+            venueId: selectedVenue,
+            page: 1,
+            limit: 1000, // Get all records for this view
+            sortBy: 'last_slot_date',
+            sortOrder: 'DESC',
+          },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        setSkillReports(response.data.reports || []);
+      } catch (err) {
+        console.error('Error fetching skill reports:', err);
+        setError('Failed to load skill reports');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchSkillReports();
+  }, [selectedVenue]);
+
+  // Extract unique skills from reports
+  const availableSkills = Array.from(
+    new Set(skillReports.map(report => report.course_name))
+  ).map((courseName, index) => ({
+    id: index + 1,
+    name: courseName
+  }));
+
+  // Transform backend data to frontend structure
+  // Group reports by student and course to show all attempts
+  const transformedData = skillReports.reduce((acc, report) => {
+    const key = `${report.roll_number}-${report.course_name}`;
+    
+    if (!acc[key]) {
+      acc[key] = {
+        rollNumber: report.roll_number,
+        userId: report.roll_number, // Using roll_number as fallback
+        name: report.student_name,
+        year: report.year || 'N/A',
+        courseName: report.course_name,
+        venue: report.venue_name || report.excel_venue_name || 'N/A',
+        skillAttempts: []
+      };
+    }
+
+    // Add attempt if it exists
+    if (report.total_attempts > 0) {
+      acc[key].skillAttempts.push({
+        attempt: report.total_attempts,
+        status: report.status,
+        score: report.latest_score || report.best_score,
+        attendance: report.last_attendance || 'N/A',
+        slotDate: report.last_slot_date ? new Date(report.last_slot_date).toISOString().split('T')[0] : 'N/A',
+        startTime: report.last_start_time || 'N/A',
+        endTime: report.last_end_time || 'N/A'
+      });
+    }
+
+    return acc;
+  }, {});
+
+  const studentSkillData = Object.values(transformedData);
+
+  // Filter student data based on selected skill and status
+  let filteredStudentData = selectedSkill 
     ? studentSkillData.filter(student => 
-        student.courseName.toLowerCase().includes(selectedSkill.toLowerCase().split(' ')[0])
+        student.courseName === selectedSkill
       )
     : [];
+
+  // Apply status filter
+  if (statusFilter !== 'All Status') {
+    filteredStudentData = filteredStudentData.filter(student => {
+      if (statusFilter === 'Not Attempted') {
+        return student.skillAttempts.length === 0;
+      } else if (statusFilter === 'Cleared') {
+        return student.skillAttempts.some(a => a.status === 'Cleared');
+      } else if (statusFilter === 'Not Cleared') {
+        return student.skillAttempts.length > 0 && student.skillAttempts.every(a => a.status === 'Not Cleared');
+      } else if (statusFilter === 'Ongoing') {
+        return student.skillAttempts.some(a => a.status === 'Ongoing');
+      }
+      return true;
+    });
+  }
 
   // Calculate skill stats dynamically from filtered student data
   const skillStats = {
@@ -219,12 +209,29 @@ const SkillProficiencyView = ({ selectedGroup, academicYear, setAcademicYear }) 
         </div>
         
         <div style={styles.filterGroup}>
+          <label style={styles.label}>Select Venue</label>
+          <select 
+            style={styles.select} 
+            value={selectedVenue} 
+            onChange={(e) => setSelectedVenue(e.target.value)}
+          >
+            <option value="">-- Select a Venue --</option>
+            {venues.map((venue) => (
+              <option key={venue.venue_id} value={venue.venue_id}>
+                {venue.venue_name}
+              </option>
+            ))}
+          </select>
+        </div>
+        
+        <div style={styles.filterGroup}>
           <label style={styles.label}>Status Filter</label>
           <select style={styles.select} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
             <option>All Status</option>
             <option>Cleared</option>
             <option>Not Cleared</option>
             <option>Ongoing</option>
+            <option>Not Attempted</option>
           </select>
         </div>
 
@@ -234,6 +241,7 @@ const SkillProficiencyView = ({ selectedGroup, academicYear, setAcademicYear }) 
             style={styles.select} 
             value={selectedSkill} 
             onChange={(e) => setSelectedSkill(e.target.value)}
+            disabled={!selectedVenue || availableSkills.length === 0}
           >
             <option value="">-- Select a Skill --</option>
             {availableSkills.map((skill) => (
@@ -246,6 +254,42 @@ const SkillProficiencyView = ({ selectedGroup, academicYear, setAcademicYear }) 
       </div>
 
       <div style={styles.mainContent}>
+        {/* Loading State */}
+        {loading && (
+          <div style={{ textAlign: 'center', padding: '40px', color: '#64748b' }}>
+            <div style={{ fontSize: '16px', fontWeight: '600' }}>Loading skill reports...</div>
+          </div>
+        )}
+
+        {/* Error State */}
+        {error && (
+          <div style={{ 
+            padding: '16px', 
+            backgroundColor: '#fef2f2', 
+            border: '1px solid #fecaca',
+            borderRadius: '8px',
+            color: '#991b1b',
+            marginBottom: '24px'
+          }}>
+            {error}
+          </div>
+        )}
+
+        {/* No Data State */}
+        {!loading && !error && selectedVenue && availableSkills.length === 0 && (
+          <div style={{ 
+            textAlign: 'center', 
+            padding: '40px', 
+            backgroundColor: '#fff',
+            borderRadius: '12px',
+            border: '1px solid #e5e7eb'
+          }}>
+            <div style={{ fontSize: '16px', color: '#64748b' }}>No skill reports found for this venue</div>
+          </div>
+        )}
+
+        {!loading && !error && selectedSkill && (
+          <>
         <p style={styles.sectionTitle}>Skill completion status for: {selectedGroup}</p>
 
         {/* Statistics Row */}
@@ -413,6 +457,8 @@ const SkillProficiencyView = ({ selectedGroup, academicYear, setAcademicYear }) 
             </tbody>
           </table>
         </div>
+        </>
+        )}
       </div>
     </div>
   );
