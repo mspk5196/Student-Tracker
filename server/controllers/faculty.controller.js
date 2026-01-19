@@ -442,3 +442,160 @@ export const bulkUploadFaculties = async (req, res) => {
     connection.release();
   }
 };
+
+/**
+ * Get faculty's assigned classes/venues with groups and statistics
+ * For Faculty "My Classes" screen
+ */
+export const getFacultyClasses = async (req, res) => {
+  try {
+    const userId = req.user.user_id;
+    console.log('getFacultyClasses called for user_id:', userId);
+
+    // Get faculty_id for the logged-in user
+    const [faculty] = await db.query(
+      'SELECT faculty_id FROM faculties WHERE user_id = ?',
+      [userId]
+    );
+
+    console.log('Faculty lookup result:', faculty);
+
+    if (faculty.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Faculty record not found'
+      });
+    }
+
+    const facultyId = faculty[0].faculty_id;
+    console.log('Faculty ID:', facultyId);
+
+    // Get all venues assigned to this faculty with their groups and student counts
+    const [venues] = await db.query(`
+      SELECT DISTINCT
+        v.venue_id,
+        v.venue_name,
+        v.location,
+        v.capacity,
+        v.status as venue_status,
+        g.group_id,
+        g.group_code,
+        g.group_name,
+        g.schedule_days,
+        g.schedule_time,
+        g.department,
+        g.max_students,
+        g.status as group_status,
+        COUNT(DISTINCT gs.student_id) as enrolled_students,
+        (
+          SELECT COUNT(DISTINCT a.student_id) 
+          FROM attendance a 
+          WHERE a.venue_id = v.venue_id 
+          AND a.is_present = 1
+          AND DATE(a.created_at) >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+        ) as present_count_30d,
+        (
+          SELECT COUNT(*) 
+          FROM attendance a 
+          WHERE a.venue_id = v.venue_id
+          AND DATE(a.created_at) >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+        ) as total_attendance_30d
+      FROM venue v
+      LEFT JOIN venue_allocation va ON v.venue_id = va.venue_id
+      LEFT JOIN \`groups\` g ON v.venue_id = g.venue_id
+      LEFT JOIN group_students gs ON g.group_id = gs.group_id AND gs.status = 'Active'
+      WHERE (v.assigned_faculty_id = ? OR va.faculty_id = ?)
+        AND v.status = 'Active'
+      GROUP BY v.venue_id, g.group_id
+      ORDER BY v.venue_name, g.group_name
+    `, [facultyId, facultyId]);
+
+    console.log('Venues found:', venues.length);
+    console.log('Venues data:', JSON.stringify(venues, null, 2));
+
+    // Transform into a structured format
+    const classesMap = new Map();
+
+    venues.forEach(row => {
+      if (!classesMap.has(row.venue_id)) {
+        // Calculate attendance percentage
+        const attendancePercentage = row.total_attendance_30d > 0 
+          ? Math.round((row.present_count_30d / row.total_attendance_30d) * 100) 
+          : 0;
+
+        // Determine status based on attendance
+        let status = 'active';
+        if (attendancePercentage >= 90) status = 'excellent';
+        else if (attendancePercentage < 70) status = 'warning';
+        else if (attendancePercentage < 60) status = 'critical';
+
+        classesMap.set(row.venue_id, {
+          id: row.venue_id,
+          code: row.group_code || `VENUE-${row.venue_id}`,
+          title: row.venue_name,
+          section: row.group_name || 'Default Group',
+          dept: row.department || 'General',
+          sem: 'Current Semester',
+          schedule: row.schedule_days && row.schedule_time 
+            ? `${row.schedule_days} • ${row.schedule_time}` 
+            : 'Schedule TBD',
+          students: row.enrolled_students || 0,
+          total: row.capacity || row.max_students || 50,
+          attendance: attendancePercentage,
+          status: status,
+          room: row.location || row.venue_name,
+          tasks: 0,
+          pendingTasks: 0,
+          venue_id: row.venue_id,
+          group_id: row.group_id,
+          groups: []
+        });
+      }
+
+      // Add group info if exists
+      if (row.group_id) {
+        const classData = classesMap.get(row.venue_id);
+        classData.groups.push({
+          group_id: row.group_id,
+          group_code: row.group_code,
+          group_name: row.group_name,
+          department: row.department,
+          schedule_days: row.schedule_days,
+          schedule_time: row.schedule_time,
+          enrolled_students: row.enrolled_students,
+          status: row.group_status
+        });
+      }
+    });
+
+    const classes = Array.from(classesMap.values());
+
+    // Get summary statistics
+    const totalStudents = classes.reduce((sum, c) => sum + c.students, 0);
+    const avgAttendance = classes.length > 0 
+      ? Math.round(classes.reduce((sum, c) => sum + c.attendance, 0) / classes.length) 
+      : 0;
+
+    res.status(200).json({
+      success: true,
+      data: {
+        classes: classes,
+        summary: {
+          totalClasses: classes.length,
+          totalStudents: totalStudents,
+          averageAttendance: avgAttendance,
+          excellentClasses: classes.filter(c => c.status === 'excellent').length,
+          warningClasses: classes.filter(c => c.status === 'warning' || c.status === 'critical').length
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('Error fetching faculty classes:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch classes',
+      error: error.message
+    });
+  }
+};

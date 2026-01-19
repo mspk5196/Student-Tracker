@@ -88,6 +88,7 @@ const AppNavigator = () => {
           <Route path="/" element={<SideTab />}>
             {/* <Route index element={<FacultyDashboard />} /> */}
             <Route path="classes" element={<FacultyClassDetails />} />
+            <Route path="classes/:venueId" element={<FacultyClassDetails />} />
             <Route path="students">
               <Route index element={<StudentsPage />} />
               <Route path=":studentId" element={<StudentHeader />} />

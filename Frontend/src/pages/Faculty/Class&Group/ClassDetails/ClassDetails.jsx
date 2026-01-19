@@ -41,7 +41,7 @@ const ClassDetails = () => {
   const { width } = useWindowSize();
   const isMobile = width <= 768;
   const token = useAuthStore((state) => state.token);
-  const API_URL = import.meta.env.VITE_API_URL;
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
   // --- STATE ---
   const [loading, setLoading] = useState(true);
@@ -58,17 +58,49 @@ const ClassDetails = () => {
   const [skillCurrentPage, setSkillCurrentPage] = useState(1);
   const studentsPerPage = 12;
   const skillsPerPage = 3;
+  const [currentVenueId, setCurrentVenueId] = useState(venueId);
+
+  // --- FETCH FACULTY'S FIRST VENUE IF NO VENUE ID PROVIDED ---
+  useEffect(() => {
+    const fetchFacultyVenue = async () => {
+      if (venueId || !token) return; // Skip if venueId already provided
+      
+      try {
+        const response = await fetch(`${API_URL}/faculty/my-classes`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        const data = await response.json();
+        if (data.success && data.data.classes && data.data.classes.length > 0) {
+          // Use the first assigned venue
+          setCurrentVenueId(data.data.classes[0].id);
+        } else {
+          setError('No venues assigned to you');
+          setLoading(false);
+        }
+      } catch (err) {
+        console.error('Error fetching faculty venues:', err);
+        setError('Failed to fetch assigned venues');
+        setLoading(false);
+      }
+    };
+
+    fetchFacultyVenue();
+  }, [venueId, token, API_URL]);
 
   // --- FETCH VENUE DETAILS ---
   useEffect(() => {
     const fetchVenueDetails = async () => {
-      if (!venueId || !token) return;
+      if (!currentVenueId || !token) return;
       
       setLoading(true);
       setError(null);
       
       try {
-        const response = await fetch(`${API_URL}/groups/venues/${venueId}/details`, {
+        const response = await fetch(`${API_URL}/groups/venues/${currentVenueId}/details`, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
@@ -95,7 +127,7 @@ const ClassDetails = () => {
     };
 
     fetchVenueDetails();
-  }, [venueId, token, API_URL]);
+  }, [currentVenueId, token, API_URL]);
 
   // --- FETCH SKILL COMPLETION DATA (using new API) ---
   useEffect(() => {
