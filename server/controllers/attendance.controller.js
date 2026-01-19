@@ -737,26 +737,49 @@ export const getVenueAttendanceDetails = async (req, res) => {
     }
 
     const selectedDate = date || new Date().toISOString().split('T')[0];
+    const isAllVenues = venueId === 'all';
 
-    // First, get all students enrolled in groups for this venue
-    const [allStudents] = await db.query(`
-      SELECT DISTINCT
-        s.student_id,
-        u.name as student_name,
-        u.ID as roll_number,
-        u.email,
-        u.department,
-        s.year,
-        gs.status as enrollment_status
-      FROM group_students gs
-      INNER JOIN students s ON gs.student_id = s.student_id
-      INNER JOIN users u ON s.user_id = u.user_id
-      INNER JOIN \`groups\` g ON gs.group_id = g.group_id
-      WHERE g.venue_id = ?
-        AND gs.status = 'Active'
-        AND g.status = 'Active'
-      ORDER BY u.name
-    `, [venueId]);
+    // First, get all students enrolled in groups for this venue (or all venues)
+    let allStudents;
+    if (isAllVenues) {
+      // Admin: Get students from ALL active groups
+      [allStudents] = await db.query(`
+        SELECT DISTINCT
+          s.student_id,
+          u.name as student_name,
+          u.ID as roll_number,
+          u.email,
+          u.department,
+          s.year,
+          gs.status as enrollment_status
+        FROM group_students gs
+        INNER JOIN students s ON gs.student_id = s.student_id
+        INNER JOIN users u ON s.user_id = u.user_id
+        INNER JOIN \`groups\` g ON gs.group_id = g.group_id
+        WHERE gs.status = 'Active'
+          AND g.status = 'Active'
+        ORDER BY u.name
+      `);
+    } else {
+      [allStudents] = await db.query(`
+        SELECT DISTINCT
+          s.student_id,
+          u.name as student_name,
+          u.ID as roll_number,
+          u.email,
+          u.department,
+          s.year,
+          gs.status as enrollment_status
+        FROM group_students gs
+        INNER JOIN students s ON gs.student_id = s.student_id
+        INNER JOIN users u ON s.user_id = u.user_id
+        INNER JOIN \`groups\` g ON gs.group_id = g.group_id
+        WHERE g.venue_id = ?
+          AND gs.status = 'Active'
+          AND g.status = 'Active'
+        ORDER BY u.name
+      `, [venueId]);
+    }
 
     if (allStudents.length === 0) {
       return res.status(200).json({
@@ -770,19 +793,35 @@ export const getVenueAttendanceDetails = async (req, res) => {
     }
 
     // Get attendance records for the selected date
-    const [attendanceRecords] = await db.query(`
-      SELECT 
-        a.student_id,
-        a.is_present,
-        a.is_late,
-        a.remarks,
-        asess.session_id,
-        asess.session_name
-      FROM attendance a
-      INNER JOIN attendance_session asess ON a.session_id = asess.session_id
-      WHERE a.venue_id = ?
-        AND (asess.session_name LIKE CONCAT('%', ?, '%') OR DATE(asess.created_at) = ?)
-    `, [venueId, selectedDate, selectedDate]);
+    let attendanceRecords;
+    if (isAllVenues) {
+      [attendanceRecords] = await db.query(`
+        SELECT 
+          a.student_id,
+          a.is_present,
+          a.is_late,
+          a.remarks,
+          asess.session_id,
+          asess.session_name
+        FROM attendance a
+        INNER JOIN attendance_session asess ON a.session_id = asess.session_id
+        WHERE (asess.session_name LIKE CONCAT('%', ?, '%') OR DATE(asess.created_at) = ?)
+      `, [selectedDate, selectedDate]);
+    } else {
+      [attendanceRecords] = await db.query(`
+        SELECT 
+          a.student_id,
+          a.is_present,
+          a.is_late,
+          a.remarks,
+          asess.session_id,
+          asess.session_name
+        FROM attendance a
+        INNER JOIN attendance_session asess ON a.session_id = asess.session_id
+        WHERE a.venue_id = ?
+          AND (asess.session_name LIKE CONCAT('%', ?, '%') OR DATE(asess.created_at) = ?)
+      `, [venueId, selectedDate, selectedDate]);
+    }
 
     // Create a map of attendance by student_id
     const attendanceMap = new Map();
@@ -794,14 +833,25 @@ export const getVenueAttendanceDetails = async (req, res) => {
     });
 
     // Calculate overall attendance percentage for each student
-    const [percentages] = await db.query(`
-      SELECT 
-        student_id,
-        ROUND((SUM(CASE WHEN is_present = 1 THEN 1 ELSE 0 END) * 100.0) / NULLIF(COUNT(*), 0), 1) as attendance_percentage
-      FROM attendance
-      WHERE venue_id = ?
-      GROUP BY student_id
-    `, [venueId]);
+    let percentages;
+    if (isAllVenues) {
+      [percentages] = await db.query(`
+        SELECT 
+          student_id,
+          ROUND((SUM(CASE WHEN is_present = 1 THEN 1 ELSE 0 END) * 100.0) / NULLIF(COUNT(*), 0), 1) as attendance_percentage
+        FROM attendance
+        GROUP BY student_id
+      `);
+    } else {
+      [percentages] = await db.query(`
+        SELECT 
+          student_id,
+          ROUND((SUM(CASE WHEN is_present = 1 THEN 1 ELSE 0 END) * 100.0) / NULLIF(COUNT(*), 0), 1) as attendance_percentage
+        FROM attendance
+        WHERE venue_id = ?
+        GROUP BY student_id
+      `, [venueId]);
+    }
 
     const percentageMap = new Map();
     percentages.forEach(p => percentageMap.set(p.student_id, p.attendance_percentage));
