@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
     Search,
     Add,
@@ -17,6 +17,7 @@ import useAuthStore from '../../../store/useAuthStore'; // Adjust path as needed
 const FacultyAccounts = () => {
     const { token } = useAuthStore();
     const API_URL = import.meta.env.VITE_API_URL;
+    const fileInputRef = useRef(null);
 
     const [facultyData, setFacultyData] = useState([]);
     const [searchTerm, setSearchTerm] = useState('');
@@ -30,6 +31,13 @@ const FacultyAccounts = () => {
     const [menuFaculty, setMenuFaculty] = useState(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    const [successMessage, setSuccessMessage] = useState('');
+
+    // Bulk upload states
+    const [showUploadModal, setShowUploadModal] = useState(false);
+    const [uploadFile, setUploadFile] = useState(null);
+    const [uploading, setUploading] = useState(false);
+    const [uploadResult, setUploadResult] = useState(null);
     
     const [formData, setFormData] = useState({
         name: '',
@@ -308,12 +316,112 @@ const FacultyAccounts = () => {
         }
     };
 
+    // Bulk upload handlers
+    const handleFileSelect = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            const validTypes = ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/vnd.ms-excel'];
+            if (!validTypes.includes(file.type)) {
+                setError('Only Excel files (.xlsx, .xls) are allowed');
+                return;
+            }
+            setUploadFile(file);
+            setUploadResult(null);
+        }
+    };
+
+    const handleBulkUpload = async () => {
+        if (!uploadFile) {
+            setError('Please select a file to upload');
+            return;
+        }
+
+        setUploading(true);
+        setError('');
+        setUploadResult(null);
+
+        try {
+            const formData = new FormData();
+            formData.append('file', uploadFile);
+
+            const response = await fetch(`${API_URL}/faculty/bulk-upload`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                },
+                body: formData
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                setUploadResult(data.summary);
+                setSuccessMessage(data.message);
+                await fetchFaculties();
+            } else {
+                setError(data.message || 'Upload failed');
+            }
+        } catch (err) {
+            console.error('Upload error:', err);
+            setError('Failed to upload file. Please try again.');
+        } finally {
+            setUploading(false);
+        }
+    };
+
+    const handleCloseUploadModal = () => {
+        setShowUploadModal(false);
+        setUploadFile(null);
+        setUploadResult(null);
+        if (fileInputRef.current) {
+            fileInputRef.current.value = '';
+        }
+    };
+
+    const downloadFacultyTemplate = () => {
+        const headers = ['name', 'email', 'facultyId', 'department', 'designation'];
+        const sampleData = [
+            ['Dr. John Doe', 'john.doe@example.com', 'FAC001', 'CSE', 'Professor'],
+            ['Dr. Jane Smith', 'jane.smith@example.com', 'FAC002', 'IT', 'Assistant Professor']
+        ];
+        
+        let csvContent = headers.join(',') + '\n';
+        sampleData.forEach(row => {
+            csvContent += row.join(',') + '\n';
+        });
+
+        const blob = new Blob([csvContent], { type: 'text/csv' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'faculty_upload_template.csv';
+        a.click();
+        window.URL.revokeObjectURL(url);
+    };
+
     return (
         <div style={styles.container}>
             {error && (
                 <div style={styles.errorBanner}>
                     <span>{error}</span>
                     <button onClick={() => setError('')} style={styles.errorClose}>×</button>
+                </div>
+            )}
+
+            {successMessage && (
+                <div style={{
+                    backgroundColor: '#d1fae5',
+                    color: '#065f46',
+                    padding: '12px 16px',
+                    borderRadius: '8px',
+                    marginBottom: '20px',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    fontSize: '14px'
+                }}>
+                    <span>✓ {successMessage}</span>
+                    <button onClick={() => setSuccessMessage('')} style={{ background: 'none', border: 'none', fontSize: '24px', color: '#065f46', cursor: 'pointer', padding: '0 8px' }}>×</button>
                 </div>
             )}
 
@@ -367,6 +475,17 @@ const FacultyAccounts = () => {
                     <button style={styles.addBtn} onClick={openModal} disabled={loading}>
                         <Add sx={{ fontSize: 20 }} />
                         <span>Add New Faculty</span>
+                    </button>
+                    <button 
+                        style={{
+                            ...styles.addBtn,
+                            backgroundColor: '#10b981'
+                        }} 
+                        onClick={() => setShowUploadModal(true)} 
+                        disabled={loading}
+                    >
+                        <CloudUpload sx={{ fontSize: 20 }} />
+                        <span>Bulk Upload</span>
                     </button>
                 </div>
             </div>
@@ -685,6 +804,109 @@ const FacultyAccounts = () => {
                                 </button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Bulk Upload Modal */}
+            {showUploadModal && (
+                <div style={styles.modalOverlay}>
+                    <div style={{ ...styles.modalContent, maxWidth: '500px' }}>
+                        <div style={styles.modalHeader}>
+                            <h2 style={styles.modalTitle}>Bulk Upload Faculties</h2>
+                            <button style={styles.closeBtn} onClick={handleCloseUploadModal}>
+                                <Close sx={{ color: '#64748b' }} />
+                            </button>
+                        </div>
+                        <div style={{ padding: '24px' }}>
+                            <p style={{ fontSize: '14px', color: '#64748b', marginBottom: '16px' }}>
+                                Upload an Excel file (.xlsx, .xls) with faculty data. Required columns: <strong>name</strong>, <strong>email</strong>, <strong>facultyId</strong>. Optional: department, designation.
+                            </p>
+                            
+                            <button
+                                onClick={downloadFacultyTemplate}
+                                style={{
+                                    background: 'none',
+                                    border: '1px solid #3b82f6',
+                                    color: '#3b82f6',
+                                    padding: '8px 16px',
+                                    borderRadius: '6px',
+                                    cursor: 'pointer',
+                                    fontSize: '13px',
+                                    marginBottom: '20px'
+                                }}
+                            >
+                                ⬇ Download Template
+                            </button>
+
+                            <div style={{
+                                border: '2px dashed #e2e8f0',
+                                borderRadius: '8px',
+                                padding: '24px',
+                                textAlign: 'center',
+                                marginBottom: '20px'
+                            }}>
+                                <input
+                                    ref={fileInputRef}
+                                    type="file"
+                                    accept=".xlsx,.xls"
+                                    onChange={handleFileSelect}
+                                    style={{ display: 'none' }}
+                                    id="faculty-file-upload"
+                                />
+                                <label htmlFor="faculty-file-upload" style={{ cursor: 'pointer' }}>
+                                    <CloudUpload sx={{ fontSize: 40, color: '#94a3b8', marginBottom: '8px' }} />
+                                    <p style={{ fontSize: '14px', color: '#64748b', margin: 0 }}>
+                                        {uploadFile ? uploadFile.name : 'Click to select Excel file'}
+                                    </p>
+                                </label>
+                            </div>
+
+                            {uploadResult && (
+                                <div style={{
+                                    backgroundColor: uploadResult.errors > 0 ? '#fef3c7' : '#d1fae5',
+                                    borderRadius: '8px',
+                                    padding: '16px',
+                                    marginBottom: '20px'
+                                }}>
+                                    <p style={{ fontWeight: '600', marginBottom: '8px', color: '#1e293b' }}>Upload Summary</p>
+                                    <p style={{ fontSize: '13px', color: '#475569', margin: '4px 0' }}>Total Records: {uploadResult.totalRecords}</p>
+                                    <p style={{ fontSize: '13px', color: '#10b981', margin: '4px 0' }}>Added: {uploadResult.added}</p>
+                                    <p style={{ fontSize: '13px', color: '#f59e0b', margin: '4px 0' }}>Skipped: {uploadResult.skipped}</p>
+                                    {uploadResult.errorDetails && uploadResult.errorDetails.length > 0 && (
+                                        <div style={{ marginTop: '8px' }}>
+                                            <p style={{ fontSize: '12px', color: '#991b1b', fontWeight: '600' }}>Errors:</p>
+                                            {uploadResult.errorDetails.slice(0, 5).map((err, idx) => (
+                                                <p key={idx} style={{ fontSize: '11px', color: '#991b1b', margin: '2px 0' }}>
+                                                    Row {err.row}: {err.message}
+                                                </p>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+                                <button
+                                    onClick={handleCloseUploadModal}
+                                    style={styles.cancelBtnModal}
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={handleBulkUpload}
+                                    disabled={!uploadFile || uploading}
+                                    style={{
+                                        ...styles.submitBtn,
+                                        backgroundColor: '#10b981',
+                                        opacity: (!uploadFile || uploading) ? 0.6 : 1,
+                                        cursor: (!uploadFile || uploading) ? 'not-allowed' : 'pointer'
+                                    }}
+                                >
+                                    {uploading ? 'Uploading...' : 'Upload Faculties'}
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             )}

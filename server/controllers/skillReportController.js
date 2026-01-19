@@ -2,7 +2,40 @@ import db from '../config/db.js';
 import xlsx from 'xlsx';
 
 /**
+ * Convert Roman numeral to number
+ */
+function romanToNumber(roman) {
+  if (!roman) return 2; // Default to year 2
+  
+  const romanStr = roman.toString().trim().toUpperCase();
+  
+  // If already a number, return it
+  if (/^\d+$/.test(romanStr)) {
+    return parseInt(romanStr);
+  }
+  
+  // Roman numeral mapping
+  const romanMap = {
+    'I': 1,
+    'II': 2,
+    'III': 3,
+    'IV': 4,
+  };
+  
+  return romanMap[romanStr] || 2; // Default to 2 if not found
+}
+
+/**
  * Upload skill reports from Excel - Admin only
+ * New format: id, roll_number, user_id, name, year, email, course_name, venue, attendance, score, attempt, status, slot_date, start_time, end_time
+ * 
+ * Logic:
+ * - Each Excel row is inserted as a new record
+ * - If same student + course + same slot_date exists, SKIP (don't insert)
+ * - If same student + course + different slot_date, INSERT new record
+ * - Attempt count comes from Excel (not auto-incremented)
+ * - id from Excel stored as slot_id
+ * - year supports Roman numerals (I, II, III, IV)
  */
 export const uploadSkillReport = async (req, res) => {
   // Check admin role
@@ -18,10 +51,10 @@ export const uploadSkillReport = async (req, res) => {
 
   try {
     // Parse Excel
-    const workbook = xlsx.read(req.file. buffer, { type:  'buffer' });
+    const workbook = xlsx.read(req.file.buffer, { type: 'buffer' });
     const sheetName = workbook.SheetNames[0];
-    const worksheet = workbook. Sheets[sheetName];
-    const data = xlsx.utils. sheet_to_json(worksheet);
+    const worksheet = workbook.Sheets[sheetName];
+    const data = xlsx.utils.sheet_to_json(worksheet);
 
     if (data.length === 0) {
       return res.status(400).json({ message: 'Excel file is empty' });
@@ -31,70 +64,65 @@ export const uploadSkillReport = async (req, res) => {
       return res.status(400).json({ message: 'Maximum 5000 records allowed per upload' });
     }
 
-    // Pre-fetch lookups for performance
+    // Pre-fetch student lookups for performance
     const [allStudents] = await connection.execute(
-      `SELECT s.student_id, u.ID as roll_number, u.name, u.email 
+      `SELECT s.student_id, u.ID as roll_number, u.name, u.email, u.user_id
        FROM students s 
        JOIN users u ON s.user_id = u.user_id`
     );
 
-    const [allVenues] = await connection.execute(
-      `SELECT venue_id, venue_name FROM venue`
-    );
-
-    // Create lookup maps
+    // Create lookup map by roll_number
     const studentMap = new Map();
     allStudents.forEach(s => {
-      studentMap.set(s.roll_number.toLowerCase().trim(), s);
+      const key = s.roll_number.toLowerCase().trim();
+      studentMap.set(key, s);
     });
-
-    const venueMap = new Map();
-    allVenues.forEach(v => {
-      venueMap.set(v.venue_name.toLowerCase().trim(), v.venue_id);
-    });
+    
+    console.log(`Student map built with ${studentMap.size} entries`);
 
     await connection.beginTransaction();
 
-    const BATCH_SIZE = 100;
     let processedCount = 0;
-    let updatedCount = 0;
     let insertedCount = 0;
+    let skippedCount = 0;
     const errors = [];
 
-    // Process in batches
-    for (let i = 0; i < data.length; i += BATCH_SIZE) {
-      const batch = data. slice(i, i + BATCH_SIZE);
-      
-      for (let j = 0; j < batch.length; j++) {
-        const row = batch[j];
-        const rowIndex = i + j + 2;
+    // Process each row
+    for (let i = 0; i < data.length; i++) {
+      const row = data[i];
+      const rowIndex = i + 2; // Excel row number (1-indexed + header)
 
-        try {
-          const result = await processRow(connection, row, rowIndex, studentMap, venueMap);
-          if (result.success) {
-            processedCount++;
-            if (result.isUpdate) updatedCount++;
-            else insertedCount++;
-          } else {
-            errors.push({ row:  rowIndex, message: result.error });
-          }
-        } catch (error) {
-          errors. push({ row: rowIndex, message: error.message });
+      try {
+        const result = await processSkillRow(connection, row, rowIndex, studentMap);
+        if (result.success) {
+          processedCount++;
+          if (result.inserted) insertedCount++;
+          if (result.skipped) skippedCount++;
+        } else {
+          errors.push({ row: rowIndex, message: result.error });
         }
+      } catch (error) {
+        errors.push({ row: rowIndex, message: error.message });
       }
     }
 
     await connection.commit();
 
+    // Log Excel columns for debugging
+    const firstRow = data[0];
+    const columnNames = firstRow ? Object.keys(firstRow) : [];
+    console.log('Excel columns detected:', columnNames);
+
     res.status(200).json({
       message: 'Skill reports uploaded successfully',
       summary: {
-        totalRecords: data. length,
+        totalRecords: data.length,
         processed: processedCount,
         inserted: insertedCount,
-        updated: updatedCount,
+        skipped: skippedCount,
         errors: errors.length,
-        errorDetails: errors. slice(0, 50)
+        errorDetails: errors.slice(0, 50),
+        columnsDetected: columnNames
       }
     });
 
@@ -103,41 +131,93 @@ export const uploadSkillReport = async (req, res) => {
     console.error('Upload error:', error);
     res.status(500).json({ message: 'Failed to process upload', error: error.message });
   } finally {
-    connection. release();
+    connection.release();
   }
 };
 
 /**
  * Process single row from Excel
- * Expected columns: roll_number, name, email, course_name, venue, attendance, score, status, slot_date, start_time, end_time
+ * Expected columns: id, roll_number, user_id, name, year, email, course_name, venue, attendance, score, attempt, status, slot_date, start_time, end_time
+ * 
+ * IMPORTANT: Excel column "user_id" is compared with database column "users.ID"
+ * Example: Excel user_id = "7376242AL132" matches users.ID = "7376242AL132"
  */
-async function processRow(connection, row, rowIndex, studentMap, venueMap) {
-  // Extract fields
-  const rollNumber = (row.roll_number || row.user_id || '').toString().trim();
+async function processSkillRow(connection, row, rowIndex, studentMap) {
+  // Extract fields from Excel
+  const slotId = parseInt(row.id) || null;
+  
+  // Excel "user_id" column - THIS IS COMPARED WITH users.ID in database
+  // Example: Excel has user_id = "7376242AL132", we match it with users.ID = "7376242AL132"
+  const excelUserIdColumn = (row.user_id || '').toString().trim();
+  
+  const rollNumber = (row.roll_number || '').toString().trim();
+  const studentName = (row.name || '').toString().trim();
+  const year = romanToNumber(row.year);
+  const studentEmail = (row.email || '').toString().trim();
   const courseName = (row.course_name || '').toString().trim();
   const excelVenueName = (row.venue || '').toString().trim();
-  const score = parseFloat(row.score) || 0;
-  const status = validateStatus(row.status);
   const attendance = validateAttendance(row.attendance);
+  const score = parseFloat(row.score) || 0;
+  const attempt = parseInt(row.attempt) || 1;
+  const status = validateStatus(row.status);
   const slotDate = parseExcelDate(row.slot_date);
   const startTime = parseExcelTime(row.start_time);
   const endTime = parseExcelTime(row.end_time);
 
+  // DEBUG: Log what we're reading from Excel
+  console.log(`Row ${rowIndex}: Excel user_id="${excelUserIdColumn}", roll_number="${rollNumber}"`);
+
+  // PRIMARY LOOKUP: Use Excel column "user_id" to find student via users.ID
+  // Excel user_id (e.g., "7376242AL132") must match users.ID (e.g., "7376242AL132")
+  const lookupValue = excelUserIdColumn;
+
   // Validate required fields
-  if (!rollNumber || !courseName || !excelVenueName) {
-    return { 
-      success: false, 
-      error: `Missing required fields - roll_number: ${rollNumber}, course_name: ${courseName}, venue: ${excelVenueName}` 
-    };
+  if (!lookupValue) {
+    return { success: false, error: `Row ${rowIndex}: Missing user_id column - Excel user_id is empty` };
+  }
+  if (!courseName) {
+    return { success: false, error: `Row ${rowIndex}: Missing course_name` };
+  }
+  if (!excelVenueName) {
+    return { success: false, error: `Row ${rowIndex}: Missing venue` };
   }
 
-  // Find student
-  const student = studentMap.get(rollNumber.toLowerCase().trim());
+  // Find student using Excel "user_id" column matched against users.ID
+  let student = studentMap.get(lookupValue.toLowerCase().trim());
+  
+  // Fallback: try direct DB lookup - Excel "user_id" column matched against users.ID
   if (!student) {
-    return { success: false, error: `Student not found: ${rollNumber}` };
+    const [dbStudent] = await connection.execute(
+      `SELECT s.student_id, u.ID as roll_number, u.name, u.email, u.user_id
+       FROM students s 
+       JOIN users u ON s.user_id = u.user_id
+       WHERE LOWER(TRIM(u.ID)) = LOWER(TRIM(?))`,
+      [lookupValue]
+    );
+    
+    if (dbStudent.length > 0) {
+      student = dbStudent[0];
+    }
+  }
+  
+  if (!student) {
+    return { success: false, error: `Row ${rowIndex}: Student not found - Excel user_id "${lookupValue}" does not match any users.ID in database` };
   }
 
-  // Get student's current venue allocation and faculty through their group
+  // Check if record with same student + course + slot_date already exists
+  const [existing] = await connection.execute(
+    `SELECT id FROM student_skills 
+     WHERE student_id = ? AND course_name = ? AND last_slot_date = ?`,
+    [student.student_id, courseName, slotDate]
+  );
+
+  if (existing.length > 0) {
+    // Same date exists - SKIP (don't insert or update)
+    console.log(`Row ${rowIndex}: Skipped - Record already exists for user_id=${lookupValue}, course=${courseName}, date=${slotDate}`);
+    return { success: true, inserted: false, skipped: true };
+  }
+
+  // Get student's current venue allocation
   const [studentVenue] = await connection.execute(
     `SELECT g.venue_id, g.faculty_id 
      FROM group_students gs
@@ -150,59 +230,21 @@ async function processRow(connection, row, rowIndex, studentMap, venueMap) {
   const studentVenueId = studentVenue.length > 0 ? studentVenue[0].venue_id : null;
   const facultyId = studentVenue.length > 0 ? studentVenue[0].faculty_id : null;
 
-  // Check if record exists (student + course_name + excel venue name)
-  const [existing] = await connection.execute(
-    `SELECT id, total_attempts, best_score, status FROM student_skills 
-     WHERE student_id = ? AND course_name = ? AND excel_venue_name = ?`,
-    [student.student_id, courseName, excelVenueName]
+  // INSERT new record
+  await connection.execute(
+    `INSERT INTO student_skills 
+      (slot_id, student_id, year, student_name, student_email, skill_id, course_name, 
+       excel_venue_name, student_venue_id, faculty_id, total_attempts, best_score, 
+       latest_score, status, last_attendance, last_slot_date, last_start_time, 
+       last_end_time, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+    [slotId, student.student_id, year, studentName, studentEmail, courseName, 
+     excelVenueName, studentVenueId, facultyId, attempt, score, score, status, 
+     attendance, slotDate, startTime, endTime]
   );
 
-  if (existing.length > 0) {
-    // UPDATE existing record
-    const currentBest = parseFloat(existing[0].best_score) || 0;
-    const newBestScore = Math.max(currentBest, score);
-    const newAttempts = (existing[0].total_attempts || 0) + 1;
-    
-    // Status update logic: Update to new status from Excel
-    // If previously Cleared and new status is Not Cleared, keep as Cleared
-    let finalStatus = status;
-    if (existing[0].status === 'Cleared' && status === 'Not Cleared') {
-      finalStatus = 'Cleared'; // Once cleared, always cleared
-    }
-
-    await connection.execute(
-      `UPDATE student_skills SET
-        total_attempts = ?,
-        best_score = ?,
-        latest_score = ?,
-        status = ?,
-        student_venue_id = ?,
-        faculty_id = ?,
-        last_attendance = ?,
-        last_slot_date = ?,
-        last_start_time = ?,
-        last_end_time = ?,
-        updated_at = NOW()
-       WHERE id = ?`,
-      [newAttempts, newBestScore, score, finalStatus, studentVenueId, facultyId, attendance, slotDate, startTime, endTime, existing[0].id]
-    );
-
-    return { success: true, isUpdate: true };
-
-  } else {
-    // INSERT new record - each course_name is a separate row for the student
-    await connection.execute(
-      `INSERT INTO student_skills 
-        (student_id, skill_id, course_name, excel_venue_name, student_venue_id, faculty_id,
-         total_attempts, best_score, latest_score, status, last_attendance, 
-         last_slot_date, last_start_time, last_end_time, created_at, updated_at)
-       VALUES (?, NULL, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
-      [student.student_id, courseName, excelVenueName, studentVenueId, facultyId, 
-       score, score, status, attendance, slotDate, startTime, endTime]
-    );
-
-    return { success: true, isUpdate: false };
-  }
+  console.log(`Row ${rowIndex}: Inserted - ${rollNumber}, ${courseName}, ${slotDate}`);
+  return { success: true, inserted: true, skipped: false };
 }
 
 /**
@@ -237,11 +279,11 @@ function parseExcelDate(dateValue) {
   
   if (typeof dateValue === 'number') {
     const date = new Date((dateValue - 25569) * 86400 * 1000);
-    return date. toISOString().split('T')[0];
+    return date.toISOString().split('T')[0];
   }
   
   const parsed = new Date(dateValue);
-  if (! isNaN(parsed.getTime())) {
+  if (!isNaN(parsed.getTime())) {
     return parsed.toISOString().split('T')[0];
   }
   
@@ -252,26 +294,26 @@ function parseExcelDate(dateValue) {
  * Parse Excel time
  */
 function parseExcelTime(timeValue) {
-  if (! timeValue) return null;
+  if (!timeValue) return null;
   
   if (typeof timeValue === 'string') {
-    // Handle "HH:MM: SS" or "HH:MM"
+    // Handle "HH:MM:SS" or "HH:MM"
     if (/^\d{1,2}:\d{2}(:\d{2})?$/.test(timeValue)) {
-      return timeValue. length === 5 ?  `${timeValue}:00` : timeValue;
+      return timeValue.length === 5 ? `${timeValue}:00` : timeValue;
     }
     // Handle "09:00 AM" format
-    const match = timeValue. match(/(\d{1,2}):(\d{2})\s*(AM|PM)?/i);
+    const match = timeValue.match(/(\d{1,2}):(\d{2})\s*(AM|PM)?/i);
     if (match) {
       let hours = parseInt(match[1]);
       const minutes = match[2];
       const period = match[3];
       
       if (period) {
-        if (period. toUpperCase() === 'PM' && hours !== 12) hours += 12;
+        if (period.toUpperCase() === 'PM' && hours !== 12) hours += 12;
         if (period.toUpperCase() === 'AM' && hours === 12) hours = 0;
       }
       
-      return `${hours.toString().padStart(2, '0')}:${minutes}: 00`;
+      return `${hours.toString().padStart(2, '0')}:${minutes}:00`;
     }
   }
   
@@ -331,12 +373,11 @@ export const getFacultyVenues = async (req, res) => {
 
 /**
  * Get skill reports for faculty's venue
+ * Shows only the LATEST record per student/course (closest date to current date)
  */
 export const getSkillReportsForFaculty = async (req, res) => {
   try {
-    const { venueId, page = 1, limit = 50, status, date, search, sortBy = 'updated_at', sortOrder = 'DESC' } = req.body;
-    
-    console.log('Date filter received:', date); // Debug log
+    const { venueId, page = 1, limit = 50, status, date, search, sortBy = 'last_slot_date', sortOrder = 'DESC' } = req.body;
     
     const offset = (parseInt(page) - 1) * parseInt(limit);
 
@@ -345,7 +386,6 @@ export const getSkillReportsForFaculty = async (req, res) => {
     let facultyVenueIds = [];
     
     if (req.user.role !== 'admin') {
-      // Get faculty_id
       const [faculty] = await db.execute(
         `SELECT faculty_id FROM faculties WHERE user_id = ?`,
         [req.user.user_id]
@@ -355,18 +395,20 @@ export const getSkillReportsForFaculty = async (req, res) => {
         return res.status(403).json({ message: 'Faculty record not found' });
       }
 
-      const facultyId = faculty[0].faculty_id;
+      facultyId = faculty[0].faculty_id;
 
-      // Verify faculty has access to THIS specific venue
-      const [venueAccess] = await db.execute(
-        `SELECT v.venue_id, v.venue_name FROM venue v 
-         LEFT JOIN venue_allocation va ON v.venue_id = va.venue_id
-         WHERE v.venue_id = ? AND (v.assigned_faculty_id = ? OR va.faculty_id = ?)`,
-        [parseInt(venueId), facultyId, facultyId]
-      );
+      // Verify faculty has access to this venue
+      if (venueId) {
+        const [venueAccess] = await db.execute(
+          `SELECT v.venue_id FROM venue v 
+           LEFT JOIN venue_allocation va ON v.venue_id = va.venue_id
+           WHERE v.venue_id = ? AND (v.assigned_faculty_id = ? OR va.faculty_id = ?)`,
+          [parseInt(venueId), facultyId, facultyId]
+        );
 
-      if (venueId && venueAccess.length === 0) {
-        return res.status(403).json({ message: 'You do not have access to this venue' });
+        if (venueAccess.length === 0) {
+          return res.status(403).json({ message: 'You do not have access to this venue' });
+        }
       }
       
       // Get all accessible venues for this faculty
@@ -379,14 +421,17 @@ export const getSkillReportsForFaculty = async (req, res) => {
       facultyVenueIds = accessibleVenues.map(v => v.venue_id);
     }
 
-    // Build query - Show students whose current venue matches the selected venue
+    // Build query - Get only the LATEST record per student/course (using subquery)
+    // This ensures we show the record with the most recent slot_date
     let query = `
       SELECT 
         ss.id,
+        ss.slot_id,
         u.ID as roll_number,
-        u.name as student_name,
-        u.email,
+        COALESCE(ss.student_name, u.name) as student_name,
+        COALESCE(ss.student_email, u.email) as email,
         u.department,
+        ss.year,
         ss.course_name,
         ss.excel_venue_name,
         sv.venue_name as student_current_venue,
@@ -400,6 +445,13 @@ export const getSkillReportsForFaculty = async (req, res) => {
         ss.last_end_time,
         ss.updated_at
       FROM student_skills ss
+      INNER JOIN (
+        SELECT student_id, course_name, MAX(last_slot_date) as max_date
+        FROM student_skills
+        GROUP BY student_id, course_name
+      ) latest ON ss.student_id = latest.student_id 
+                AND ss.course_name = latest.course_name 
+                AND ss.last_slot_date = latest.max_date
       JOIN students s ON ss.student_id = s.student_id
       JOIN users u ON s.user_id = u.user_id
       LEFT JOIN venue sv ON ss.student_venue_id = sv.venue_id
@@ -407,43 +459,42 @@ export const getSkillReportsForFaculty = async (req, res) => {
 
     const params = [];
     
-    // If specific venue selected, filter by it
+    // Venue filter
     if (venueId) {
       query += ' AND ss.student_venue_id = ?';
       params.push(parseInt(venueId));
     } else if (facultyVenueIds.length > 0) {
-      // For faculty viewing all venues, only show their accessible venues
       query += ` AND ss.student_venue_id IN (${facultyVenueIds.join(',')})`;
     }
 
+    // Status filter
     if (status && ['Cleared', 'Not Cleared', 'Ongoing'].includes(status)) {
       query += ' AND ss.status = ?';
       params.push(status);
     }
 
+    // Date filter
     if (date) {
       query += ' AND DATE(ss.last_slot_date) = ?';
       params.push(date);
     }
 
-    // Add search filter for name or roll number
+    // Search filter
     if (search && search.trim().length > 0) {
-      query += ' AND (u.name LIKE ? OR u.ID LIKE ? OR ss.course_name LIKE ?)';
+      query += ' AND (u.name LIKE ? OR u.ID LIKE ? OR ss.course_name LIKE ? OR ss.student_name LIKE ?)';
       const searchPattern = `%${search.trim()}%`;
-      params.push(searchPattern, searchPattern, searchPattern);
+      params.push(searchPattern, searchPattern, searchPattern, searchPattern);
     }
 
-    // Sort
-    const allowedSortColumns = ['updated_at', 'best_score', 'total_attempts', 'status'];
-    const sortColumn = allowedSortColumns.includes(sortBy) ? sortBy : 'updated_at';
+    // Sorting - default to most recent date first
+    const allowedSortColumns = ['last_slot_date', 'updated_at', 'best_score', 'total_attempts', 'status'];
+    const sortColumn = allowedSortColumns.includes(sortBy) ? sortBy : 'last_slot_date';
     const order = sortOrder.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
     const limitNum = parseInt(limit);
     const offsetNum = parseInt(offset);
 
-    // Use direct string concatenation for ORDER BY column and LIMIT/OFFSET values
     query += ` ORDER BY ss.${sortColumn} ${order} LIMIT ${limitNum} OFFSET ${offsetNum}`;
 
-    // Execute query with proper error handling
     let reports = [];
     try {
       [reports] = await db.execute(query, params);
@@ -457,9 +508,17 @@ export const getSkillReportsForFaculty = async (req, res) => {
       });
     }
 
-    // Get total count
-    let countQuery = `SELECT COUNT(*) as total 
+    // Get total count (only counting latest records per student/course)
+    let countQuery = `
+      SELECT COUNT(*) as total 
       FROM student_skills ss
+      INNER JOIN (
+        SELECT student_id, course_name, MAX(last_slot_date) as max_date
+        FROM student_skills
+        GROUP BY student_id, course_name
+      ) latest ON ss.student_id = latest.student_id 
+                AND ss.course_name = latest.course_name 
+                AND ss.last_slot_date = latest.max_date
       JOIN students s ON ss.student_id = s.student_id
       JOIN users u ON s.user_id = u.user_id
       WHERE 1=1`;
@@ -483,22 +542,30 @@ export const getSkillReportsForFaculty = async (req, res) => {
     }
 
     if (search && search.trim().length > 0) {
-      countQuery += ' AND (u.name LIKE ? OR u.ID LIKE ? OR ss.course_name LIKE ?)';
+      countQuery += ' AND (u.name LIKE ? OR u.ID LIKE ? OR ss.course_name LIKE ? OR ss.student_name LIKE ?)';
       const searchPattern = `%${search.trim()}%`;
-      countParams.push(searchPattern, searchPattern, searchPattern);
+      countParams.push(searchPattern, searchPattern, searchPattern, searchPattern);
     }
 
     const [countResult] = await db.execute(countQuery, countParams);
     const total = countResult[0].total;
 
-    // Get statistics
-    let statsQuery = `SELECT 
+    // Get statistics (only for latest records per student/course)
+    let statsQuery = `
+      SELECT 
         COUNT(*) as total,
         SUM(CASE WHEN ss.status = 'Cleared' THEN 1 ELSE 0 END) as cleared,
         SUM(CASE WHEN ss.status = 'Not Cleared' THEN 1 ELSE 0 END) as not_cleared,
         SUM(CASE WHEN ss.status = 'Ongoing' THEN 1 ELSE 0 END) as ongoing,
         ROUND(AVG(ss.best_score), 2) as avg_best_score
       FROM student_skills ss
+      INNER JOIN (
+        SELECT student_id, course_name, MAX(last_slot_date) as max_date
+        FROM student_skills
+        GROUP BY student_id, course_name
+      ) latest ON ss.student_id = latest.student_id 
+                AND ss.course_name = latest.course_name 
+                AND ss.last_slot_date = latest.max_date
       JOIN students s ON ss.student_id = s.student_id
       JOIN users u ON s.user_id = u.user_id
       WHERE 1=1`;
@@ -522,9 +589,9 @@ export const getSkillReportsForFaculty = async (req, res) => {
     }
 
     if (search && search.trim().length > 0) {
-      statsQuery += ' AND (u.name LIKE ? OR u.ID LIKE ? OR ss.course_name LIKE ?)';
+      statsQuery += ' AND (u.name LIKE ? OR u.ID LIKE ? OR ss.course_name LIKE ? OR ss.student_name LIKE ?)';
       const searchPattern = `%${search.trim()}%`;
-      statsParams.push(searchPattern, searchPattern, searchPattern);
+      statsParams.push(searchPattern, searchPattern, searchPattern, searchPattern);
     }
 
     const [stats] = await db.execute(statsQuery, statsParams);
@@ -649,6 +716,7 @@ export const searchStudentSkillReports = async (req, res) => {
 
 /**
  * Get skill reports for logged-in student
+ * Shows only the LATEST record per course (most recent slot_date)
  */
 export const getSkillReportsForStudent = async (req, res) => {
   try {
@@ -664,11 +732,14 @@ export const getSkillReportsForStudent = async (req, res) => {
 
     const studentId = student[0].student_id;
 
+    // Get only the latest record per course
     const [reports] = await db.execute(
       `SELECT 
         ss.id,
+        ss.slot_id,
         ss.course_name,
-        v.venue_name,
+        ss.excel_venue_name as venue_name,
+        ss.year,
         ss.total_attempts,
         ss.best_score,
         ss.latest_score,
@@ -680,13 +751,19 @@ export const getSkillReportsForStudent = async (req, res) => {
         ss.created_at,
         ss.updated_at
       FROM student_skills ss
-      LEFT JOIN venue v ON ss.venue_id = v.venue_id
+      INNER JOIN (
+        SELECT course_name, MAX(last_slot_date) as max_date
+        FROM student_skills
+        WHERE student_id = ?
+        GROUP BY course_name
+      ) latest ON ss.course_name = latest.course_name 
+                AND ss.last_slot_date = latest.max_date
       WHERE ss.student_id = ? 
-      ORDER BY ss.updated_at DESC`,
-      [studentId]
+      ORDER BY ss.last_slot_date DESC`,
+      [studentId, studentId]
     );
 
-    // Calculate summary
+    // Calculate summary based on latest records
     const summary = {
       totalCourses: reports.length,
       cleared: reports.filter(r => r.status === 'Cleared').length,
