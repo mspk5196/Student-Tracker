@@ -4,40 +4,24 @@ import axios from 'axios';
 
 const API_URL = import.meta.env.VITE_API_URL;
 
-const SkillProficiencyView = ({ selectedGroup, academicYear, setAcademicYear, selectedVenue, setSelectedVenue }) => {
+const SkillProficiencyView = ({ selectedVenue, selectedVenueName }) => {
   
   // Selected skill (single dropdown selection)
   const [selectedSkill, setSelectedSkill] = useState('');
   const [statusFilter, setStatusFilter] = useState('All Status');
   
   // Backend data states
-  const [venues, setVenues] = useState([]);
   const [skillReports, setSkillReports] = useState([]);
+  const [venueStudents, setVenueStudents] = useState([]); // All students in the venue
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // Fetch venues on component mount
-  useEffect(() => {
-    const fetchVenues = async () => {
-      try {
-        const token = localStorage.getItem('token');
-        const response = await axios.get(`${API_URL}/skill-reports/faculty/venues`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        setVenues(response.data.venues || []);
-      } catch (err) {
-        console.error('Error fetching venues:', err);
-        setError('Failed to load venues');
-      }
-    };
-    fetchVenues();
-  }, []);
-
-  // Fetch skill reports when venue is selected
+  // Fetch skill reports when venue is selected (passed from parent)
   useEffect(() => {
     const fetchSkillReports = async () => {
       if (!selectedVenue) {
         setSkillReports([]);
+        setVenueStudents([]);
         return;
       }
 
@@ -57,6 +41,7 @@ const SkillProficiencyView = ({ selectedGroup, academicYear, setAcademicYear, se
           { headers: { Authorization: `Bearer ${token}` } }
         );
         setSkillReports(response.data.reports || []);
+        setVenueStudents(response.data.venueStudents || []); // Get all venue students
       } catch (err) {
         console.error('Error fetching skill reports:', err);
         setError('Failed to load skill reports');
@@ -84,49 +69,76 @@ const SkillProficiencyView = ({ selectedGroup, academicYear, setAcademicYear, se
     if (!acc[key]) {
       acc[key] = {
         rollNumber: report.roll_number,
-        userId: report.roll_number, // Using roll_number as fallback
+        studentId: report.student_id,
+        userId: report.roll_number,
         name: report.student_name,
         year: report.year || 'N/A',
         courseName: report.course_name,
-        venue: report.venue_name || report.excel_venue_name || 'N/A',
-        skillAttempts: []
+        venue: report.student_current_venue || report.excel_venue_name || 'N/A',
+        skillAttempts: [],
+        latestStatus: report.status
       };
     }
 
-    // Add attempt if it exists
-    if (report.total_attempts > 0) {
-      acc[key].skillAttempts.push({
-        attempt: report.total_attempts,
-        status: report.status,
-        score: report.latest_score || report.best_score,
-        attendance: report.last_attendance || 'N/A',
-        slotDate: report.last_slot_date ? new Date(report.last_slot_date).toISOString().split('T')[0] : 'N/A',
-        startTime: report.last_start_time || 'N/A',
-        endTime: report.last_end_time || 'N/A'
-      });
-    }
+    // Add attempt - always add since all records have total_attempts >= 1
+    acc[key].skillAttempts.push({
+      attempt: report.total_attempts || 1,
+      status: report.status,
+      score: report.latest_score ?? report.best_score ?? 0,
+      attendance: report.last_attendance || 'N/A',
+      slotDate: report.last_slot_date ? new Date(report.last_slot_date).toISOString().split('T')[0] : 'N/A',
+      startTime: report.last_start_time || 'N/A',
+      endTime: report.last_end_time || 'N/A'
+    });
 
     return acc;
   }, {});
 
-  const studentSkillData = Object.values(transformedData);
+  // Get students who have attempted the selected skill
+  const studentsWithSkillData = Object.values(transformedData);
 
-  // Filter student data based on selected skill and status
-  let filteredStudentData = selectedSkill 
-    ? studentSkillData.filter(student => 
-        student.courseName === selectedSkill
-      )
-    : [];
+  // Build complete student list including "Not Attempted" students
+  // Only calculate this when a skill is selected
+  const getCompleteStudentList = () => {
+    if (!selectedSkill) return [];
+    
+    // Get students who have attempted this specific skill
+    const studentsWithThisSkill = studentsWithSkillData.filter(s => s.courseName === selectedSkill);
+    const attemptedStudentIds = new Set(studentsWithThisSkill.map(s => s.rollNumber));
+    
+    // Get students who haven't attempted this skill (from venueStudents)
+    const notAttemptedStudents = venueStudents
+      .filter(vs => !attemptedStudentIds.has(vs.roll_number))
+      .map(vs => ({
+        rollNumber: vs.roll_number,
+        studentId: vs.student_id,
+        userId: vs.roll_number,
+        name: vs.student_name,
+        year: vs.year || 'N/A',
+        courseName: selectedSkill,
+        venue: selectedVenueName || 'N/A',
+        skillAttempts: [], // Empty = Not Attempted
+        latestStatus: 'Not Attempted'
+      }));
+    
+    // Combine both lists
+    return [...studentsWithThisSkill, ...notAttemptedStudents];
+  };
+
+  const allStudentsForSkill = getCompleteStudentList();
 
   // Apply status filter
+  let filteredStudentData = allStudentsForSkill;
+  
   if (statusFilter !== 'All Status') {
-    filteredStudentData = filteredStudentData.filter(student => {
+    filteredStudentData = allStudentsForSkill.filter(student => {
       if (statusFilter === 'Not Attempted') {
         return student.skillAttempts.length === 0;
       } else if (statusFilter === 'Cleared') {
         return student.skillAttempts.some(a => a.status === 'Cleared');
       } else if (statusFilter === 'Not Cleared') {
-        return student.skillAttempts.length > 0 && student.skillAttempts.every(a => a.status === 'Not Cleared');
+        return student.skillAttempts.some(a => a.status === 'Not Cleared') && 
+               !student.skillAttempts.some(a => a.status === 'Cleared');
       } else if (statusFilter === 'Ongoing') {
         return student.skillAttempts.some(a => a.status === 'Ongoing');
       }
@@ -134,18 +146,20 @@ const SkillProficiencyView = ({ selectedGroup, academicYear, setAcademicYear, se
     });
   }
 
-  // Calculate skill stats dynamically from filtered student data
+  // Calculate skill stats from complete student list (before status filter)
   const skillStats = {
-    totalStudents: filteredStudentData.length,
-    cleared: filteredStudentData.filter(s => 
-      s.skillAttempts.length > 0 && 
+    totalStudents: allStudentsForSkill.length,
+    cleared: allStudentsForSkill.filter(s => 
       s.skillAttempts.some(a => a.status === 'Cleared')
     ).length,
-    notCleared: filteredStudentData.filter(s => 
-      s.skillAttempts.length > 0 && 
-      s.skillAttempts.every(a => a.status === 'Not Cleared')
+    notCleared: allStudentsForSkill.filter(s => 
+      s.skillAttempts.some(a => a.status === 'Not Cleared') &&
+      !s.skillAttempts.some(a => a.status === 'Cleared')
     ).length,
-    notAttempted: filteredStudentData.filter(s => s.skillAttempts.length === 0).length,
+    ongoing: allStudentsForSkill.filter(s => 
+      s.skillAttempts.some(a => a.status === 'Ongoing')
+    ).length,
+    notAttempted: allStudentsForSkill.filter(s => s.skillAttempts.length === 0).length,
     avgBestScore: filteredStudentData.filter(s => s.skillAttempts.length > 0).length > 0
       ? (filteredStudentData
           .filter(s => s.skillAttempts.length > 0)
@@ -198,32 +212,8 @@ const SkillProficiencyView = ({ selectedGroup, academicYear, setAcademicYear, se
 
   return (
     <div>
-      {/* Contextual Filters */}
+      {/* Contextual Filters - removed venue selector, now uses parent's venue */}
       <div style={styles.contextFilters}>
-        <div style={styles.filterGroup}>
-          <label style={styles.label}>Academic Year</label>
-          <select style={styles.select} value={academicYear} onChange={(e) => setAcademicYear(e.target.value)}>
-            <option>2024 - 2025</option>
-            <option>2023 - 2024</option>
-          </select>
-        </div>
-        
-        <div style={styles.filterGroup}>
-          <label style={styles.label}>Select Venue</label>
-          <select 
-            style={styles.select} 
-            value={selectedVenue} 
-            onChange={(e) => setSelectedVenue(e.target.value)}
-          >
-            <option value="">-- Select a Venue --</option>
-            {venues.map((venue) => (
-              <option key={venue.venue_id} value={venue.venue_id}>
-                {venue.venue_name}
-              </option>
-            ))}
-          </select>
-        </div>
-        
         <div style={styles.filterGroup}>
           <label style={styles.label}>Status Filter</label>
           <select style={styles.select} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
@@ -241,7 +231,7 @@ const SkillProficiencyView = ({ selectedGroup, academicYear, setAcademicYear, se
             style={styles.select} 
             value={selectedSkill} 
             onChange={(e) => setSelectedSkill(e.target.value)}
-            disabled={!selectedVenue || availableSkills.length === 0}
+            disabled={availableSkills.length === 0}
           >
             <option value="">-- Select a Skill --</option>
             {availableSkills.map((skill) => (
@@ -290,7 +280,7 @@ const SkillProficiencyView = ({ selectedGroup, academicYear, setAcademicYear, se
 
         {!loading && !error && selectedSkill && (
           <>
-        <p style={styles.sectionTitle}>Skill completion status for: {selectedGroup}</p>
+        <p style={styles.sectionTitle}>Skill completion status for: {selectedVenueName}</p>
 
         {/* Statistics Row */}
         <div style={styles.statsRow}>

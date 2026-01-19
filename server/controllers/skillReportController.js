@@ -459,12 +459,22 @@ export const getSkillReportsForFaculty = async (req, res) => {
 
     const params = [];
     
-    // Venue filter
+    // Venue filter - check both student_venue_id and excel_venue_name (for records with NULL venue_id)
     if (venueId) {
-      query += ' AND ss.student_venue_id = ?';
-      params.push(parseInt(venueId));
+      // Get venue name for matching excel_venue_name
+      const [venueInfo] = await db.execute('SELECT venue_name FROM venue WHERE venue_id = ?', [parseInt(venueId)]);
+      const venueName = venueInfo.length > 0 ? venueInfo[0].venue_name : '';
+      
+      query += ' AND (ss.student_venue_id = ? OR (ss.student_venue_id IS NULL AND ss.excel_venue_name = ?))';
+      params.push(parseInt(venueId), venueName);
     } else if (facultyVenueIds.length > 0) {
-      query += ` AND ss.student_venue_id IN (${facultyVenueIds.join(',')})`;
+      // Get venue names for all faculty venues
+      const [venueNames] = await db.execute(
+        `SELECT venue_id, venue_name FROM venue WHERE venue_id IN (${facultyVenueIds.join(',')})`
+      );
+      const venueNameList = venueNames.map(v => `'${v.venue_name.replace(/'/g, "''")}'`).join(',');
+      
+      query += ` AND (ss.student_venue_id IN (${facultyVenueIds.join(',')}) OR (ss.student_venue_id IS NULL AND ss.excel_venue_name IN (${venueNameList})))`;
     }
 
     // Status filter
@@ -524,11 +534,18 @@ export const getSkillReportsForFaculty = async (req, res) => {
       WHERE 1=1`;
     const countParams = [];
     
+    // Venue filter - same logic as main query
     if (venueId) {
-      countQuery += ' AND ss.student_venue_id = ?';
-      countParams.push(parseInt(venueId));
+      const [venueInfo] = await db.execute('SELECT venue_name FROM venue WHERE venue_id = ?', [parseInt(venueId)]);
+      const venueName = venueInfo.length > 0 ? venueInfo[0].venue_name : '';
+      countQuery += ' AND (ss.student_venue_id = ? OR (ss.student_venue_id IS NULL AND ss.excel_venue_name = ?))';
+      countParams.push(parseInt(venueId), venueName);
     } else if (facultyVenueIds.length > 0) {
-      countQuery += ` AND ss.student_venue_id IN (${facultyVenueIds.join(',')})`;
+      const [venueNames] = await db.execute(
+        `SELECT venue_id, venue_name FROM venue WHERE venue_id IN (${facultyVenueIds.join(',')})`
+      );
+      const venueNameList = venueNames.map(v => `'${v.venue_name.replace(/'/g, "''")}'`).join(',');
+      countQuery += ` AND (ss.student_venue_id IN (${facultyVenueIds.join(',')}) OR (ss.student_venue_id IS NULL AND ss.excel_venue_name IN (${venueNameList})))`;
     }
 
     if (status && ['Cleared', 'Not Cleared', 'Ongoing'].includes(status)) {
@@ -571,11 +588,18 @@ export const getSkillReportsForFaculty = async (req, res) => {
       WHERE 1=1`;
     const statsParams = [];
     
+    // Venue filter - same logic as main query
     if (venueId) {
-      statsQuery += ' AND ss.student_venue_id = ?';
-      statsParams.push(parseInt(venueId));
+      const [venueInfo] = await db.execute('SELECT venue_name FROM venue WHERE venue_id = ?', [parseInt(venueId)]);
+      const venueName = venueInfo.length > 0 ? venueInfo[0].venue_name : '';
+      statsQuery += ' AND (ss.student_venue_id = ? OR (ss.student_venue_id IS NULL AND ss.excel_venue_name = ?))';
+      statsParams.push(parseInt(venueId), venueName);
     } else if (facultyVenueIds.length > 0) {
-      statsQuery += ` AND ss.student_venue_id IN (${facultyVenueIds.join(',')})`;
+      const [venueNames] = await db.execute(
+        `SELECT venue_id, venue_name FROM venue WHERE venue_id IN (${facultyVenueIds.join(',')})`
+      );
+      const venueNameList = venueNames.map(v => `'${v.venue_name.replace(/'/g, "''")}'`).join(',');
+      statsQuery += ` AND (ss.student_venue_id IN (${facultyVenueIds.join(',')}) OR (ss.student_venue_id IS NULL AND ss.excel_venue_name IN (${venueNameList})))`;
     }
 
     if (status && ['Cleared', 'Not Cleared', 'Ongoing'].includes(status)) {
@@ -596,10 +620,35 @@ export const getSkillReportsForFaculty = async (req, res) => {
 
     const [stats] = await db.execute(statsQuery, statsParams);
 
+    // Get ALL students enrolled in groups for this venue (for "Not Attempted" filter)
+    let venueStudents = [];
+    if (venueId) {
+      const [students] = await db.execute(`
+        SELECT DISTINCT
+          s.student_id,
+          u.ID as roll_number,
+          u.name as student_name,
+          u.email,
+          u.department,
+          st.year
+        FROM group_students gs
+        INNER JOIN students st ON gs.student_id = st.student_id
+        INNER JOIN users u ON st.user_id = u.user_id
+        INNER JOIN \`groups\` g ON gs.group_id = g.group_id
+        INNER JOIN students s ON gs.student_id = s.student_id
+        WHERE g.venue_id = ?
+          AND gs.status = 'Active'
+          AND g.status = 'Active'
+        ORDER BY u.name
+      `, [parseInt(venueId)]);
+      venueStudents = students;
+    }
+
     // Return response even if no data
     res.status(200).json({
       venue: venueId ? { venue_id: venueId, venue_name: 'Selected Venue' } : { venue_name: 'All Venues' },
       reports: reports || [],
+      venueStudents: venueStudents, // All students in the venue for "Not Attempted" filter
       statistics: stats[0] || {
         total: 0,
         cleared: 0,

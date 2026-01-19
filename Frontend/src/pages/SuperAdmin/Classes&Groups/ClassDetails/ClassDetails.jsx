@@ -2,7 +2,6 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import useAuthStore from '../../../../store/useAuthStore';
 import { encodeIdSimple } from '../../../../utils/idEncoder';
-// MUI Icon Imports
 import { 
   FolderOpen, 
   Assignment, 

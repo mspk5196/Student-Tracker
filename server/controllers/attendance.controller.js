@@ -716,6 +716,149 @@ export const getStudentAttendanceDashboard = async (req, res) => {
   }
 };
 
+/**
+ * Get venue attendance details for a specific date and optional session
+ * Used by GroupInsights -> AttendanceView
+ * 
+ * Tables used:
+ * - attendance: student_id, faculty_id, venue_id, session_id, is_present, is_late, remarks
+ * - attendance_session: session_id, session_name, created_at
+ */
+export const getVenueAttendanceDetails = async (req, res) => {
+  try {
+    const { venueId } = req.params;
+    const { date, session } = req.query;
+    
+    if (!venueId) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Venue ID is required' 
+      });
+    }
+
+    const selectedDate = date || new Date().toISOString().split('T')[0];
+
+    // First, get all students enrolled in groups for this venue
+    const [allStudents] = await db.query(`
+      SELECT DISTINCT
+        s.student_id,
+        u.name as student_name,
+        u.ID as roll_number,
+        u.email,
+        u.department,
+        s.year,
+        gs.status as enrollment_status
+      FROM group_students gs
+      INNER JOIN students s ON gs.student_id = s.student_id
+      INNER JOIN users u ON s.user_id = u.user_id
+      INNER JOIN \`groups\` g ON gs.group_id = g.group_id
+      WHERE g.venue_id = ?
+        AND gs.status = 'Active'
+        AND g.status = 'Active'
+      ORDER BY u.name
+    `, [venueId]);
+
+    if (allStudents.length === 0) {
+      return res.status(200).json({
+        success: true,
+        data: {
+          students: [],
+          summary: { total: 0, present: 0, absent: 0, late: 0, notMarked: 0 },
+          filters: { date: selectedDate, session: session || 'all', venueId }
+        }
+      });
+    }
+
+    // Get attendance records for the selected date
+    const [attendanceRecords] = await db.query(`
+      SELECT 
+        a.student_id,
+        a.is_present,
+        a.is_late,
+        a.remarks,
+        asess.session_id,
+        asess.session_name
+      FROM attendance a
+      INNER JOIN attendance_session asess ON a.session_id = asess.session_id
+      WHERE a.venue_id = ?
+        AND (asess.session_name LIKE CONCAT('%', ?, '%') OR DATE(asess.created_at) = ?)
+    `, [venueId, selectedDate, selectedDate]);
+
+    // Create a map of attendance by student_id
+    const attendanceMap = new Map();
+    attendanceRecords.forEach(record => {
+      // If student has multiple sessions, keep the latest one
+      if (!attendanceMap.has(record.student_id)) {
+        attendanceMap.set(record.student_id, record);
+      }
+    });
+
+    // Calculate overall attendance percentage for each student
+    const [percentages] = await db.query(`
+      SELECT 
+        student_id,
+        ROUND((SUM(CASE WHEN is_present = 1 THEN 1 ELSE 0 END) * 100.0) / NULLIF(COUNT(*), 0), 1) as attendance_percentage
+      FROM attendance
+      WHERE venue_id = ?
+      GROUP BY student_id
+    `, [venueId]);
+
+    const percentageMap = new Map();
+    percentages.forEach(p => percentageMap.set(p.student_id, p.attendance_percentage));
+
+    // Merge attendance data with student data
+    const studentsWithAttendance = allStudents.map(student => {
+      const attendance = attendanceMap.get(student.student_id);
+      let status = 'Not Marked';
+      
+      if (attendance) {
+        if (attendance.is_present === 1 && attendance.is_late === 0) {
+          status = 'Present';
+        } else if (attendance.is_present === 1 && attendance.is_late === 1) {
+          status = 'Late';
+        } else if (attendance.is_late === 1) {
+          status = 'Late';
+        } else {
+          status = 'Absent';
+        }
+      }
+
+      return {
+        ...student,
+        status,
+        session_id: attendance?.session_id || null,
+        session_name: attendance?.session_name || null,
+        remarks: attendance?.remarks || null,
+        attendance_percentage: percentageMap.get(student.student_id) || null
+      };
+    });
+
+    // Calculate summary
+    const total = studentsWithAttendance.length;
+    const present = studentsWithAttendance.filter(s => s.status === 'Present').length;
+    const absent = studentsWithAttendance.filter(s => s.status === 'Absent').length;
+    const late = studentsWithAttendance.filter(s => s.status === 'Late').length;
+    const notMarked = studentsWithAttendance.filter(s => s.status === 'Not Marked').length;
+
+    res.status(200).json({
+      success: true,
+      data: {
+        students: studentsWithAttendance,
+        summary: { total, present, absent, late, notMarked },
+        filters: { date: selectedDate, session: session || 'all', venueId }
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Error fetching venue attendance details:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to fetch venue attendance details',
+      error: error.message 
+    });
+  }
+};
+
 // Test endpoint
 export const testAttendance = async (req, res) => {
   res.status(200).json({
