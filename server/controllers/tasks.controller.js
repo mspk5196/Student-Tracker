@@ -136,9 +136,27 @@ export const createTask = async (req, res) => {
     let faculty_id;
 
     if (req.user.role === 'admin') {
-      // Admin can create tasks - try to get their faculty_id or use user_id
+      // Admin can create tasks - try to get their faculty_id, or use the venue's assigned faculty
       const [faculty] = await connection.query('SELECT faculty_id FROM faculties WHERE user_id = ?', [userId]);
-      faculty_id = faculty.length > 0 ? faculty[0].faculty_id : userId;
+      if (faculty.length > 0) {
+        faculty_id = faculty[0].faculty_id;
+      } else {
+        // Admin is not a faculty - use the venue's assigned faculty instead
+        const [venueData] = await connection.query('SELECT assigned_faculty_id FROM venue WHERE venue_id = ?', [venue_id]);
+        if (venueData.length > 0 && venueData[0].assigned_faculty_id) {
+          faculty_id = venueData[0].assigned_faculty_id;
+        } else {
+          // No faculty assigned to venue - get any active faculty as fallback
+          const [anyFaculty] = await connection.query('SELECT faculty_id FROM faculties LIMIT 1');
+          if (anyFaculty.length === 0) {
+            return res.status(400).json({
+              success: false,
+              message: 'No faculty available. Please create a faculty account first.'
+            });
+          }
+          faculty_id = anyFaculty[0].faculty_id;
+        }
+      }
     } else {
       // Faculty must use their own faculty_id
       const [faculty] = await connection.query('SELECT faculty_id FROM faculties WHERE user_id = ?', [userId]);
@@ -149,6 +167,18 @@ export const createTask = async (req, res) => {
         });
       }
       faculty_id = faculty[0].faculty_id;
+
+      // Check if faculty is assigned to this venue
+      const [venueCheck] = await connection.query(`
+        SELECT venue_id FROM venue WHERE venue_id = ? AND assigned_faculty_id = ?
+      `, [venue_id, faculty_id]);
+
+      if (venueCheck.length === 0) {
+        return res.status(403).json({
+          success: false,
+          message: 'You are not authorized to create tasks for this venue'
+        });
+      }
     }
 
     await connection.beginTransaction();
