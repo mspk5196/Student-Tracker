@@ -172,15 +172,35 @@ export const createRoadmapModule = async (req, res) => {
       });
     }
 
-    // Get user role and determine faculty_id from JWT only
+    // Get user role and determine faculty_id
     let actual_faculty_id;
 
     if (req.user.role === 'admin') {
-      // Admin can create modules - use their user_id or get faculty_id if exists
+      // Admin can create modules for any venue
+      // First check if admin is also a faculty
       const [faculty] = await db.query(`
         SELECT faculty_id FROM faculties WHERE user_id = ?
       `, [user_id]);
-      actual_faculty_id = faculty.length > 0 ? faculty[0].faculty_id : user_id;
+      
+      if (faculty.length > 0) {
+        actual_faculty_id = faculty[0].faculty_id;
+      } else {
+        // Admin is not a faculty - use the venue's assigned faculty
+        const [venueData] = await db.query('SELECT assigned_faculty_id FROM venue WHERE venue_id = ?', [venue_id]);
+        if (venueData.length > 0 && venueData[0].assigned_faculty_id) {
+          actual_faculty_id = venueData[0].assigned_faculty_id;
+        } else {
+          // No faculty assigned to venue - get any active faculty as fallback
+          const [anyFaculty] = await db.query('SELECT faculty_id FROM faculties LIMIT 1');
+          if (anyFaculty.length === 0) {
+            return res.status(400).json({
+              success: false,
+              message: 'No faculty available. Please assign a faculty to this venue first.'
+            });
+          }
+          actual_faculty_id = anyFaculty[0].faculty_id;
+        }
+      }
     } else if (req.user.role === 'faculty') {
       // Faculty must use their own faculty_id
       const [faculty] = await db.query(`
@@ -194,8 +214,19 @@ export const createRoadmapModule = async (req, res) => {
         });
       }
 
-      // Always use the faculty's own faculty_id from JWT
       actual_faculty_id = faculty[0].faculty_id;
+
+      // Check if faculty is assigned to this venue
+      const [venueCheck] = await db.query(`
+        SELECT venue_id FROM venue WHERE venue_id = ? AND assigned_faculty_id = ?
+      `, [venue_id, actual_faculty_id]);
+
+      if (venueCheck.length === 0) {
+        return res.status(403).json({
+          success: false,
+          message: 'You are not authorized to create modules for this venue'
+        });
+      }
     } else {
       return res.status(403).json({
         success: false,
