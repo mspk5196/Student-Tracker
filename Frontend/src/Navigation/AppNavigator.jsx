@@ -93,21 +93,21 @@ const AppNavigator = () => {
               <Route path=":studentId" element={<StudentHeader />} />
             </Route>
             <Route path="attendance" element={<Attendance />} />
-            <Route path="skill-reports" element={<FacultySkillReport />} />  {/* ✅ Skill Reports */}
-            <Route path="group-insights" element={<GroupInsights />} />  {/* ✅ Group Insights for Faculty */}
-            <Route path="tasks" element={<TaskHeader />} />  {/* ✅ Already correct */}
+            <Route path="skill-reports" element={<FacultySkillReport />} /> 
+            <Route path="group-insights" element={<GroupInsights />} />  
+            <Route path="tasks" element={<TaskHeader />} />  
             {/* <Route path="students" element={<div>Students</div>} /> */}
-            <Route path="reports" element={<Reports />} />  {/* ✅ Faculty can also access reports */}
-          </Route>
+            <Route path="reports" element={<Reports />} />
+            </Route>
         )}
 
         {/* STUDENT (role === "student") */}
         {user?.role === "student" && (
           <Route path="/" element={<SideTab />}>
-            {/* <Route index element={<StudentDashboard/>} /> */}
+            <Route index element={<StudentRoadmap />} />
             <Route path="classes" element={<MyClassRoom />}/>
             <Route path="attendance" element={<StudentAttendance />}/>
-            <Route path="/" element={<StudentRoadmap />}/>
+            <Route path="roadmap" element={<StudentRoadmap />}/>
             <Route path="tasks" element={<TasksAssignments />} />
             {/* <Route path="performance" element={<Performance />} /> */}
           </Route>

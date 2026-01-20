@@ -76,8 +76,10 @@ const GroupsClasses = () => {
   const [newStudent, setNewStudent] = useState({
     name: "",
     reg_no: "",
+    email: "",
     department: "",
     year: "",
+    semester: ""
   });
 
   // Show Result Modal Function
@@ -422,7 +424,7 @@ const GroupsClasses = () => {
 
   const handleAddIndividualStudent = async () => {
     if (!newStudent.name || !newStudent.reg_no || !newStudent.department || !newStudent.year) {
-      showResult("error", "Missing Information", "Please fill in all student details.");
+      showResult("error", "Missing Information", "Please fill in all required fields (Name, Roll Number, Department, and Year).");
       return;
     }
 
@@ -443,21 +445,23 @@ const GroupsClasses = () => {
           },
           body: JSON.stringify({
             name: newStudent.name,
-            reg_no: newStudent.reg_no,
+            rollNumber: newStudent.reg_no,
+            email: newStudent.email || undefined,
             department: newStudent.department,
             year: parseInt(newStudent.year),
+            semester: newStudent.semester ? parseInt(newStudent.semester) : undefined
           }),
         }
       );
       const data = await response.json();
       if (data.success) {
         setShowAddStudentModal(false);
-        setNewStudent({ name: "", reg_no: "", department: "", year: "" });
+        setNewStudent({ name: "", reg_no: "", email: "", department: "", year: "", semester: "" });
         setSelectedVenue(null);
         await fetchVenues();
-        showResult("success", "Student Added", data.message || "Student added successfully to the venue.");
+        showResult("success", "Student Added Successfully", data.message || "Student has been added to the class successfully.");
       } else {
-        showResult("error", "Failed to Add Student", data.message);
+        showResult("error", "Failed to Add Student", data.message || "An error occurred while adding the student.");
       }
     } catch (err) {
       console.error("Error adding student:", err);
@@ -1356,48 +1360,6 @@ const GroupsClasses = () => {
               </button>
             </div>
             <div style={s.form}>
-              <div style={{ 
-                padding: '12px', 
-                backgroundColor: '#f8fafc', 
-                borderRadius: '8px', 
-                marginBottom: '16px',
-                border: '1px solid #e2e8f0'
-              }}>
-                <p style={{ 
-                  fontSize: '13px', 
-                  color: '#64748b', 
-                  margin: '0 0 8px 0',
-                  fontWeight: '500'
-                }}>
-                  Quick Test Data:
-                </p>
-                <button
-                  type="button"
-                  style={{
-                    padding: '6px 12px',
-                    backgroundColor: '#3b82f6',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '6px',
-                    fontSize: '13px',
-                    cursor: 'pointer',
-                    fontWeight: '500'
-                  }}
-                  onClick={() => {
-                    const randomNum = Math.floor(Math.random() * 1000);
-                    setNewStudent({
-                      name: `Test Student ${randomNum}`,
-                      reg_no: `REG${new Date().getFullYear()}${randomNum.toString().padStart(4, '0')}`,
-                      department: 'Computer Science',
-                      year: '2'
-                    });
-                  }}
-                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#2563eb'}
-                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#3b82f6'}
-                >
-                  Fill Sample Data
-                </button>
-              </div>
               <div style={s.formGroup}>
                 <label style={s.label}>Student Name *</label>
                 <input
@@ -1411,7 +1373,7 @@ const GroupsClasses = () => {
                 />
               </div>
               <div style={s.formGroup}>
-                <label style={s.label}>Registration Number *</label>
+                <label style={s.label}>Registration Number / Roll Number *</label>
                 <input
                   type="text"
                   style={s.input}
@@ -1419,6 +1381,18 @@ const GroupsClasses = () => {
                   value={newStudent.reg_no}
                   onChange={(e) =>
                     setNewStudent({ ...newStudent, reg_no: e.target.value })
+                  }
+                />
+              </div>
+              <div style={s.formGroup}>
+                <label style={s.label}>Email Address</label>
+                <input
+                  type="email"
+                  style={s.input}
+                  placeholder="Enter email address (optional)"
+                  value={newStudent.email}
+                  onChange={(e) =>
+                    setNewStudent({ ...newStudent, email: e.target.value })
                   }
                 />
               </div>
@@ -1450,13 +1424,33 @@ const GroupsClasses = () => {
                   <option value="4">4th Year</option>
                 </select>
               </div>
+              <div style={s.formGroup}>
+                <label style={s.label}>Semester</label>
+                <select
+                  style={s.input}
+                  value={newStudent.semester}
+                  onChange={(e) =>
+                    setNewStudent({ ...newStudent, semester: e.target.value })
+                  }
+                >
+                  <option value="">Select Semester (optional)</option>
+                  <option value="1">Semester 1</option>
+                  <option value="2">Semester 2</option>
+                  <option value="3">Semester 3</option>
+                  <option value="4">Semester 4</option>
+                  <option value="5">Semester 5</option>
+                  <option value="6">Semester 6</option>
+                  <option value="7">Semester 7</option>
+                  <option value="8">Semester 8</option>
+                </select>
+              </div>
               <div style={s.modalFooter}>
                 <button
                   type="button"
                   style={s.cancelBtn}
                   onClick={() => {
                     setShowAddStudentModal(false);
-                    setNewStudent({ name: "", reg_no: "", department: "", year: "" });
+                    setNewStudent({ name: "", reg_no: "", email: "", department: "", year: "", semester: "" });
                   }}
                 >
                   Cancel

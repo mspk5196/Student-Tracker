@@ -1,6 +1,255 @@
 import db from '../config/db.js';
 import xlsx from 'xlsx';
 
+export const addIndividualStudentToVenue = async (req, res) => {
+  const connection = await db.getConnection();
+
+  try {
+    const { venueId } = req.params;
+    const {
+      name,
+      email,
+      rollNumber,
+      reg_no,
+      department,
+      year,
+      semester,
+    } = req.body;
+
+    const studentName = typeof name === 'string' ? name.trim() : '';
+    const studentRollNumberRaw = rollNumber ?? reg_no;
+    const studentRollNumber =
+      typeof studentRollNumberRaw === 'string'
+        ? studentRollNumberRaw.trim()
+        : String(studentRollNumberRaw ?? '').trim();
+    const studentDepartment = typeof department === 'string' ? department.trim() : '';
+    const studentEmail =
+      typeof email === 'string' && email.trim()
+        ? email.trim().toLowerCase()
+        : `${studentRollNumber}@student.local`;
+
+    const studentYear = Number(year);
+    const studentSemester = Number(semester);
+
+    if (!venueId) {
+      return res.status(400).json({ success: false, message: 'Venue ID is required' });
+    }
+
+    if (!studentName || !studentRollNumber || !studentDepartment) {
+      return res.status(400).json({
+        success: false,
+        message: 'name, rollNumber, and department are required',
+      });
+    }
+
+    if (!Number.isFinite(studentYear) || !Number.isFinite(studentSemester)) {
+      return res.status(400).json({
+        success: false,
+        message: 'year and semester must be valid numbers',
+      });
+    }
+
+    await connection.beginTransaction();
+
+    // Find the active group for this venue.
+    const [groupRows] = await connection.query(
+      `SELECT g.group_id, g.max_students, v.capacity, v.venue_name
+       FROM \`groups\` g
+       INNER JOIN venue v ON v.venue_id = g.venue_id
+       WHERE g.venue_id = ? AND g.status = 'Active'
+       ORDER BY g.group_id DESC
+       LIMIT 1
+       FOR UPDATE`,
+      [venueId]
+    );
+
+    if (groupRows.length === 0) {
+      await connection.rollback();
+      return res.status(404).json({
+        success: false,
+        message: 'No active group found for this venue. Create a group first.',
+      });
+    }
+
+    const group = groupRows[0];
+    const groupId = group.group_id;
+    const venueCapacity = Number(group.capacity) || 0;
+    const groupMaxStudents = Number(group.max_students) || 0;
+    const effectiveCapacity =
+      venueCapacity > 0 && groupMaxStudents > 0
+        ? Math.min(venueCapacity, groupMaxStudents)
+        : Math.max(venueCapacity, groupMaxStudents);
+
+    // Upsert user by roll number (users.ID) or email.
+    const [existingUsers] = await connection.query(
+      `SELECT user_id, email, ID, is_active
+       FROM users
+       WHERE ID = ? OR email = ?
+       LIMIT 1
+       FOR UPDATE`,
+      [studentRollNumber, studentEmail]
+    );
+
+    let userId;
+    if (existingUsers.length > 0) {
+      userId = existingUsers[0].user_id;
+
+      if (existingUsers[0].is_active === 0) {
+        await connection.rollback();
+        return res.status(409).json({
+          success: false,
+          message: 'Student user exists but is inactive. Activate the user before adding.',
+        });
+      }
+
+      // Keep data reasonably up to date (without being destructive).
+      await connection.query(
+        `UPDATE users
+         SET name = ?, department = ?, email = ?, role_id = 3
+         WHERE user_id = ?`,
+        [studentName, studentDepartment, studentEmail, userId]
+      );
+    } else {
+      const [insertUser] = await connection.query(
+        `INSERT INTO users (role_id, name, email, ID, department, is_active)
+         VALUES (3, ?, ?, ?, ?, 1)`,
+        [studentName, studentEmail, studentRollNumber, studentDepartment]
+      );
+
+      userId = insertUser.insertId;
+    }
+
+    // Upsert student record.
+    const [existingStudents] = await connection.query(
+      `SELECT student_id
+       FROM students
+       WHERE user_id = ?
+       LIMIT 1
+       FOR UPDATE`,
+      [userId]
+    );
+
+    let studentId;
+    if (existingStudents.length > 0) {
+      studentId = existingStudents[0].student_id;
+      await connection.query(
+        `UPDATE students
+         SET year = ?, semester = ?
+         WHERE student_id = ?`,
+        [studentYear, studentSemester, studentId]
+      );
+    } else {
+      const [insertStudent] = await connection.query(
+        `INSERT INTO students (user_id, year, semester, assigned_faculty_id)
+         VALUES (?, ?, ?, NULL)`,
+        [userId, studentYear, studentSemester]
+      );
+      studentId = insertStudent.insertId;
+    }
+
+    // Check if student is already in ANY active class.
+    const [existingAllocation] = await connection.query(
+      `SELECT gs.group_id, g.venue_id, v.venue_name
+       FROM group_students gs
+       INNER JOIN \`groups\` g ON g.group_id = gs.group_id
+       INNER JOIN venue v ON v.venue_id = g.venue_id
+       WHERE gs.student_id = ? AND gs.status = 'Active'
+       LIMIT 1
+       FOR UPDATE`,
+      [studentId]
+    );
+
+    if (existingAllocation.length > 0) {
+      const alloc = existingAllocation[0];
+      await connection.rollback();
+
+      if (Number(alloc.venue_id) === Number(venueId)) {
+        return res.status(409).json({
+          success: false,
+          message: 'Student is already present in this class.',
+          data: {
+            venue_id: alloc.venue_id,
+            venue_name: alloc.venue_name,
+            group_id: alloc.group_id,
+          },
+        });
+      }
+
+      return res.status(409).json({
+        success: false,
+        message: 'Student is already assigned to another class.',
+        data: {
+          venue_id: alloc.venue_id,
+          venue_name: alloc.venue_name,
+          group_id: alloc.group_id,
+        },
+      });
+    }
+
+    // Capacity check.
+    if (effectiveCapacity > 0) {
+      const [countRows] = await connection.query(
+        `SELECT COUNT(*) AS cnt
+         FROM group_students
+         WHERE group_id = ? AND status = 'Active'
+         FOR UPDATE`,
+        [groupId]
+      );
+      const currentCount = Number(countRows?.[0]?.cnt ?? 0);
+      if (currentCount >= effectiveCapacity) {
+        await connection.rollback();
+        return res.status(409).json({
+          success: false,
+          message: `Class is full (${currentCount}/${effectiveCapacity}).`,
+        });
+      }
+    }
+
+    // Create allocation.
+    await connection.query(
+      `INSERT INTO group_students (group_id, student_id, status)
+       VALUES (?, ?, 'Active')`,
+      [groupId, studentId]
+    );
+
+    await connection.commit();
+
+    return res.status(201).json({
+      success: true,
+      message: 'Student added to class successfully.',
+      data: {
+        venue_id: Number(venueId),
+        venue_name: group.venue_name,
+        group_id: groupId,
+        user_id: userId,
+        student_id: studentId,
+      },
+    });
+  } catch (error) {
+    try {
+      await connection.rollback();
+    } catch {
+      // ignore rollback errors
+    }
+
+    // Handle duplicate unique constraint (group_id, student_id)
+    if (error?.code === 'ER_DUP_ENTRY') {
+      return res.status(409).json({
+        success: false,
+        message: 'Student is already present in this class.',
+      });
+    }
+
+    console.error('Error adding individual student to venue:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to add student. Please try again.',
+    });
+  } finally {
+    connection.release();
+  }
+};
+
 // ===== VENUE MANAGEMENT =====
 
 // Get all venues

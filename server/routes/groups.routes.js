@@ -6,6 +6,7 @@ import {
   updateVenue,
   deleteVenue,
   assignFacultyToVenue,
+  addIndividualStudentToVenue,
   bulkUploadStudentsToVenue,
   allocateStudentsByRollRange,
   getVenueStudents,
@@ -45,6 +46,7 @@ router.put('/venues/:venueId/assign-faculty', authenticate, assignFacultyToVenue
 // Student allocation routes
 router.post('/venues/:venueId/bulk-upload', authenticate, upload.single('file'), bulkUploadStudentsToVenue);
 router.post('/venues/:venueId/allocate-range', authenticate, allocateStudentsByRollRange);
+router.post('/venues/:venueId/add-student', authenticate, addIndividualStudentToVenue);
 router.get('/venues/:venueId/students', authenticate, getVenueStudents);
 router.delete('/venues/:venueId/students/:studentId', authenticate, removeStudentFromVenue);
 

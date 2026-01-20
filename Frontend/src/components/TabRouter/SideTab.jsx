@@ -111,7 +111,7 @@ const SideTab = () => {
     ],
     student: [
       // { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, section: 'main' },
-      { id: "classes", label: "My Class Room", icon: Home, section: "main" },
+      { id: "classes", label: "My Class Room", icon: Home, section: "top" },
       {
         id: "roadmap",
         label: "Roadmap & Material",
