@@ -36,7 +36,7 @@ const StudentAttendance = () => {
 
     const [searchQuery, setSearchQuery] = useState('');
     const [filter, setFilter] = useState('all');
-    const [selectedDate, setSelectedDate] = useState('');
+    const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 5;
 
@@ -557,7 +557,7 @@ const StudentAttendance = () => {
                     <div style={styles.card}>
                         <div style={styles.cardHeader}>
                             <h2 style={styles.sectionTitle} className="section-title">
-                                {selectedDate ? `Attendance for ${new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}` : 'Recent History'}
+                                {selectedDate ? `Attendance for ${new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}` : 'Attendance History'}
                             </h2>
                             <div style={styles.filterGroup} className="filter-group">
                                 <div style={styles.searchBox} className="search-box">
@@ -579,21 +579,26 @@ const StudentAttendance = () => {
                                     <option value="absent">Absent</option>
                                     <option value="late">Late</option>
                                 </select>
-                                <select
-                                    style={styles.filterSelect}
-                                    value={selectedDate}
-                                    onChange={(e) => {
-                                        setSelectedDate(e.target.value);
-                                        setCurrentPage(1);
-                                    }}
-                                >
-                                    <option value="">All Days</option>
-                                    {uniqueDates.map(date => (
-                                        <option key={date} value={date}>
-                                            {new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                                        </option>
-                                    ))}
-                                </select>
+                                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                                    <Calendar size={14} style={{ position: 'absolute', left: '10px', color: '#9CA3AF', zIndex: 1 }} />
+                                    <input
+                                        type="date"
+                                        style={{
+                                            ...styles.filterSelect,
+                                            paddingLeft: '32px',
+                                            minWidth: '160px',
+                                            cursor: 'pointer'
+                                        }}
+                                        value={selectedDate}
+                                        onChange={(e) => {
+                                            setSelectedDate(e.target.value);
+                                            setCurrentPage(1);
+                                        }}
+                                        max={uniqueDates.length > 0 ? uniqueDates[0] : new Date().toISOString().split('T')[0]}
+                                        min={uniqueDates.length > 0 ? uniqueDates[uniqueDates.length - 1] : ''}
+                                        placeholder="Select date"
+                                    />
+                                </div>
                             </div>
                         </div>
 
@@ -860,7 +865,7 @@ const styles = {
     },
     mainLayout: {
         display: 'grid',
-        gridTemplateColumns: '1fr 400px',
+        gridTemplateColumns: '1fr 450px',
         gap: '24px'
     },
     sectionTitle: {
@@ -886,7 +891,10 @@ const styles = {
     subjectInfo: {
         display: 'flex',
         flexDirection: 'column',
-        gap: '4px'
+        gap: '4px',
+        flex: 1,
+        minWidth: 0,
+        overflow: 'hidden'
     },
     subjectCode: {
         fontSize: '11px',
@@ -902,11 +910,18 @@ const styles = {
         fontSize: '16px',
         fontWeight: '700',
         color: '#111827',
-        margin: 0
+        margin: 0,
+        whiteSpace: 'nowrap',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        maxWidth: '100%'
     },
     classCounts: {
         fontSize: '13px',
-        color: '#6B7280'
+        color: '#6B7280',
+        whiteSpace: 'nowrap',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis'
     },
     percentGroup: {
         display: 'flex',
@@ -989,12 +1004,17 @@ const styles = {
         justifyContent: 'space-between',
         alignItems: 'center',
         padding: '16px 24px',
-        borderBottom: '1px solid #F3F4F6'
+        borderBottom: '1px solid #F3F4F6',
+        gap: '12px',
+        minWidth: 0
     },
     historyLeft: {
         display: 'flex',
         alignItems: 'center',
-        gap: '12px'
+        gap: '12px',
+        flex: 1,
+        minWidth: 0,
+        overflow: 'hidden'
     },
     statusIndicator: {
         width: '32px',
@@ -1007,22 +1027,35 @@ const styles = {
     historyDetails: {
         display: 'flex',
         flexDirection: 'column',
-        gap: '2px'
+        gap: '2px',
+        flex: 1,
+        minWidth: 0,
+        overflow: 'hidden'
     },
     historySubject: {
         fontSize: '14px',
         fontWeight: '600',
-        color: '#1F2937'
+        color: '#1F2937',
+        whiteSpace: 'nowrap',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        maxWidth: '100%'
     },
     historyMeta: {
         display: 'flex',
         alignItems: 'center',
         fontSize: '12px',
-        color: '#6B7280'
+        color: '#6B7280',
+        whiteSpace: 'nowrap',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        maxWidth: '100%'
     },
     historyStatusText: {
         fontSize: '11px',
-        fontWeight: '700'
+        fontWeight: '700',
+        whiteSpace: 'nowrap',
+        flexShrink: 0
     },
     // Pagination Styles
     paginationContainer: {
