@@ -51,8 +51,8 @@ export const addIndividualStudentToVenue = async (req, res) => {
 
     await connection.beginTransaction();
 
-    // Find the active group for this venue.
-    const [groupRows] = await connection.query(
+    // Find the active group for this venue, or auto-create one if none exists.
+    let [groupRows] = await connection.query(
       `SELECT g.group_id, g.max_students, v.capacity, v.venue_name
        FROM \`groups\` g
        INNER JOIN venue v ON v.venue_id = g.venue_id
@@ -63,12 +63,42 @@ export const addIndividualStudentToVenue = async (req, res) => {
       [venueId]
     );
 
+    // Auto-create a default group if none exists
     if (groupRows.length === 0) {
-      await connection.rollback();
-      return res.status(404).json({
-        success: false,
-        message: 'No active group found for this venue. Create a group first.',
-      });
+      // First, get venue details
+      const [venueRows] = await connection.query(
+        `SELECT venue_id, venue_name, capacity, assigned_faculty_id FROM venue WHERE venue_id = ? FOR UPDATE`,
+        [venueId]
+      );
+
+      if (venueRows.length === 0) {
+        await connection.rollback();
+        return res.status(404).json({
+          success: false,
+          message: 'Venue not found.',
+        });
+      }
+
+      const venue = venueRows[0];
+      const groupCode = `V${venueId}-DEFAULT`;
+      const groupName = `${venue.venue_name} - Default Group`;
+
+      await connection.query(`
+        INSERT INTO \`groups\` (group_code, group_name, venue_id, faculty_id, schedule_days, schedule_time, max_students, department, status, created_at)
+        VALUES (?, ?, ?, ?, 'Mon-Fri', '09:00-17:00', ?, 'General', 'Active', NOW())
+      `, [groupCode, groupName, venueId, venue.assigned_faculty_id || null, venue.capacity || 50]);
+
+      // Re-fetch the newly created group
+      [groupRows] = await connection.query(
+        `SELECT g.group_id, g.max_students, v.capacity, v.venue_name
+         FROM \`groups\` g
+         INNER JOIN venue v ON v.venue_id = g.venue_id
+         WHERE g.venue_id = ? AND g.status = 'Active'
+         ORDER BY g.group_id DESC
+         LIMIT 1
+         FOR UPDATE`,
+        [venueId]
+      );
     }
 
     const group = groupRows[0];
@@ -337,12 +367,22 @@ export const createVenue = async (req, res) => {
       VALUES (?, ?, ?, ?, 'Active', NOW())
     `, [venue_name, capacity, location || '', assigned_faculty_id || null]);
 
+    const venueId = result.insertId;
+
+    // Auto-create a default group for this venue
+    const groupCode = `V${venueId}-DEFAULT`;
+    const groupName = `${venue_name} - Default Group`;
+    await connection.query(`
+      INSERT INTO \`groups\` (group_code, group_name, venue_id, faculty_id, schedule_days, schedule_time, max_students, department, status, created_at)
+      VALUES (?, ?, ?, ?, 'Mon-Fri', '09:00-17:00', ?, 'General', 'Active', NOW())
+    `, [groupCode, groupName, venueId, assigned_faculty_id || null, capacity || 50]);
+
     await connection.commit();
 
     res.status(201).json({ 
       success: true, 
       message: 'Venue created successfully!',
-      data: { venue_id: result.insertId }
+      data: { venue_id: venueId }
     });
 
   } catch (error) {

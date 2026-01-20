@@ -22,7 +22,7 @@ import useAuthStore from "../../../store/useAuthStore";
 const GroupsClasses = () => {
   const navigate = useNavigate();
   const { token } = useAuthStore();
-  const API_URL = import.meta.env.VITE_API_URL;
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/pbl/api';
 
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
