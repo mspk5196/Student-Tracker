@@ -94,7 +94,7 @@ const AppNavigator = () => {
               <Route path=":studentId" element={<StudentHeader />} />
             </Route>
             <Route path="attendance" element={<Attendance />} />
-            <Route path="skill-reports" element={<FacultySkillReport />} />  {/* ✅ Skill Reports */}
+            {/* <Route path="skill-reports" element={<FacultySkillReport />} />  ✅ Skill Reports */}
             <Route path="group-insights" element={<GroupInsights />} />  {/* ✅ Group Insights for Faculty */}
             <Route path="tasks" element={<TaskHeader />} />  {/* ✅ Already correct */}
             {/* <Route path="students" element={<div>Students</div>} /> */}
