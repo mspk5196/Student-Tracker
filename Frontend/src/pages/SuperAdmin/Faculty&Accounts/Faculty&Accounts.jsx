@@ -283,7 +283,9 @@ const FacultyAccounts = () => {
     };
 
     const handleDelete = async (faculty) => {
-        if (! window.confirm(`Are you sure you want to delete ${faculty.name}?`)) {
+        const confirmMessage = `Are you sure you want to delete ${faculty.name}?\n\nNote: This faculty will be unassigned from all their groups. The groups will show as "Not Assigned" until a new faculty is assigned.`;
+        
+        if (!window.confirm(confirmMessage)) {
             return;
         }
 
@@ -303,7 +305,11 @@ const FacultyAccounts = () => {
 
             if (data.success) {
                 await fetchFaculties(); 
-                alert('Faculty deleted successfully!');
+                const message = data.affectedGroups > 0 
+                    ? `Faculty deleted successfully! ${data.affectedGroups} group(s) have been unassigned and will show as "Not Assigned".`
+                    : 'Faculty deleted successfully!';
+                setSuccessMessage(message);
+                setTimeout(() => setSuccessMessage(''), 5000);
             } else {
                 setError(data.message || 'Failed to delete faculty');
             }

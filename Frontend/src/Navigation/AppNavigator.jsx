@@ -1,5 +1,3 @@
-
-
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import useAuthStore from "../store/useAuthStore";
 
@@ -8,7 +6,6 @@ import SideTab from "../components/TabRouter/SideTab";
 
 // Pages
 import Login from "../pages/LoginPage/Login";
-
 
 // Super Admin Pages
 //Super Admin -> Dashboard
@@ -30,26 +27,30 @@ import TaskHeader from "../pages/SuperAdmin/Task&Assignments/TaskHeader/TaskHead
 //Super Admin -> Skill Reports
 import AdminSkillReport from "../pages/SuperAdmin/SkillReports/AdminSkillReport";
 //Super Admin -> Group Insights
-import GroupInsights from "../pages/SuperAdmin/GroupInsights/GroupInsights";
+import AdminGroupInsights from "../pages/SuperAdmin/GroupInsights/GroupInsights";
 
 // Faculty Pages
-import ClassHeader from "../pages/Faculty/Class&Group/ClassHeader/ClassHeader";
-import MyClasses from "../pages/Faculty/Class&Group/MyClasses/MyClasses";
-import AllClasses from "../pages/Faculty/Class&Group/AllClasses/AllClasses";
+//Faculty -> Class & Group
 import FacultyClassDetails from "../pages/Faculty/Class&Group/ClassDetails/ClassDetails";
-import StudentsPage from "../pages/SuperAdmin/studentsPage/AllStudents/studentsPage";
-import Reports from "../pages/SuperAdmin/Reports&Analytics/Reporst&analytics";
-//Faculty -> Skill Reports
-import FacultySkillReport from "../pages/Faculty/SkillReports/FacultySkillReport";
+//Faculty -> Students
+import FacultyStudentsPage from "../pages/Faculty/studentsPage/AllStudents/studentsPage";
+import FacultyStudentHeader from "../pages/Faculty/studentsPage/studentHeader/StudentHeader";
+//Faculty -> Group Insights
+import FacultyGroupInsights from "../pages/Faculty/GroupInsights/GroupInsights";
+//Faculty -> Attendance
+import FacultyAttendance from "../pages/Faculty/AttendancePage/Attendance";
+//Faculty -> Task & Assignments
+import FacultyTaskHeader from "../pages/Faculty/Task&Assignments/TaskHeader/TaskHeader";
+//Faculty -> Reports & Analytics
+import FacultyReports from "../pages/Faculty/Reports&Analytics/Reporst&analytics";
 
 // Student Pages
-import StudentDashboard from "../pages/Student/Dashboard/StudentDashboard";
+// import StudentDashboard from "../pages/Student/Dashboard/StudentDashboard";
 import MyClassRoom from "../pages/Student/MyClassRoom/MyClassRoom";
 import StudentAttendance from "../pages/Student/StudentAttendance/Attendance";
-import TasksAssignments from "../pages/Student/Tasks&Assignments/Tasks&Assignment"
+import TasksAssignments from "../pages/Student/Tasks&Assignments/Tasks&Assignment";
 import StudentRoadmap from "../pages/Student/RoadMap&Material/RoadMap&Material";
 
-import Performance from "../pages/Student/Performance/Performance";
 const AppNavigator = () => {
   const user = useAuthStore((s) => s.user);
 
@@ -60,7 +61,7 @@ const AppNavigator = () => {
         <Route path="/login" element={<Login />} />
 
         {/* Not logged in → only login */}
-        {! user && <Route path="*" element={<Navigate to="/login" replace />} />}
+        {!user && <Route path="*" element={<Navigate to="/login" replace />} />}
 
         {/* ADMIN (role === "admin") */}
         {user?.role === "admin" && (
@@ -72,43 +73,41 @@ const AppNavigator = () => {
               <Route path=":venueId" element={<ClassDetails />} />
             </Route>
             <Route path="students">
-              <Route index element={<StudentsPage />} />
+              <Route index element={<StudentPage />} />
               <Route path=":studentId" element={<StudentHeader />} />
             </Route>
             <Route path="attendance" element={<Attendance />} />
-            <Route path="tasks" element={<TaskHeader />} />  {/* ✅ Already correct */}
-            <Route path="skill-reports" element={<AdminSkillReport />} />  {/* ✅ Skill Reports */}
-            <Route path="group-insights" element={<GroupInsights />} /> {/* ✅ Group Insights */}
-            <Route path="reports" element={<ReportsAnalytics />} />  {/* ✅ Already correct */}
+            <Route path="tasks" element={<TaskHeader />} />
+            <Route path="skill-reports" element={<AdminSkillReport />} />
+            <Route path="group-insights" element={<AdminGroupInsights />} />
+            <Route path="reports" element={<ReportsAnalytics />} />
           </Route>
         )}
 
         {/* FACULTY (role === "faculty") */}
         {user?.role === "faculty" && (
           <Route path="/" element={<SideTab />}>
-            {/* <Route index element={<FacultyDashboard />} /> */}
+            <Route index element={<FacultyClassDetails />} />
             <Route path="classes" element={<FacultyClassDetails />} />
             <Route path="classes/:venueId" element={<FacultyClassDetails />} />
             <Route path="students">
-              <Route index element={<StudentsPage />} />
-              <Route path=":studentId" element={<StudentHeader />} />
+              <Route index element={<FacultyStudentsPage />} />
+              <Route path=":studentId" element={<FacultyStudentHeader />} />
             </Route>
-            <Route path="attendance" element={<Attendance />} />
-            {/* <Route path="skill-reports" element={<FacultySkillReport />} />  ✅ Skill Reports */}
-            <Route path="group-insights" element={<GroupInsights />} />  {/* ✅ Group Insights for Faculty */}
-            <Route path="tasks" element={<TaskHeader />} />  {/* ✅ Already correct */}
-            {/* <Route path="students" element={<div>Students</div>} /> */}
-            <Route path="reports" element={<Reports />} />
-            </Route>
+            <Route path="attendance" element={<FacultyAttendance />} />
+            <Route path="group-insights" element={<FacultyGroupInsights />} />
+            <Route path="tasks" element={<FacultyTaskHeader />} />
+            <Route path="reports" element={<FacultyReports />} />
+          </Route>
         )}
 
         {/* STUDENT (role === "student") */}
         {user?.role === "student" && (
           <Route path="/" element={<SideTab />}>
             <Route index element={<StudentRoadmap />} />
-            <Route path="classes" element={<MyClassRoom />}/>
-            <Route path="attendance" element={<StudentAttendance />}/>
-            <Route path="roadmap" element={<StudentRoadmap />}/>
+            <Route path="classes" element={<MyClassRoom />} />
+            <Route path="attendance" element={<StudentAttendance />} />
+            <Route path="roadmap" element={<StudentRoadmap />} />
             <Route path="tasks" element={<TasksAssignments />} />
             {/* <Route path="performance" element={<Performance />} /> */}
           </Route>

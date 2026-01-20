@@ -22,7 +22,6 @@ const AttendanceDashboard = ({ studentId }) => {
   const [hoveredData, setHoveredData] = useState(null);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
 
-  // Pagination states
   const [subPage, setSubPage] = useState(0);
   const [wsPage, setWsPage] = useState(0);
   const LIMIT = 5;
@@ -54,11 +53,9 @@ const AttendanceDashboard = ({ studentId }) => {
 
       const data = await response.json();
       if (data.success) {
-        setDashboardData(data. data);
-        
-        // Set available years (current and previous)
+        setDashboardData(data.data);
         const currentYear = new Date().getFullYear();
-        setAvailableYears([currentYear. toString(), (currentYear - 1).toString()]);
+        setAvailableYears([currentYear.toString(), (currentYear - 1).toString()]);
       }
     } catch (err) {
       console.error('Error fetching attendance dashboard:', err);
@@ -79,44 +76,50 @@ const AttendanceDashboard = ({ studentId }) => {
     );
   }
 
-  const paginatedSubjects = dashboardData.subjects. slice(subPage * LIMIT, (subPage + 1) * LIMIT);
-  const paginatedSkills = dashboardData.skills. slice(wsPage * LIMIT, (wsPage + 1) * LIMIT);
+  const paginatedSubjects = dashboardData.subjects.slice(subPage * LIMIT, (subPage + 1) * LIMIT);
+  const paginatedSkills = dashboardData.skills.slice(wsPage * LIMIT, (wsPage + 1) * LIMIT);
 
   return (
     <div className="dashboard-container">
       <style>{`
-        .dashboard-container { background-color: #f8faff; font-family: 'Inter', sans-serif; padding: 15px;border-radius:10px; min-height: 100vh; color: #1e293b; overflow-x: hidden; }
-        .section-grid { display: grid; gap: 24px; margin-bottom: 24px; width: 100%; }
-        . top-stats { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
-        .middle-content { grid-template-columns: minmax(0, 2. 5fr) 350px; }
-        .bottom-content { grid-template-columns:  repeat(auto-fit, minmax(400px, 1fr)); }
-
-        @media (max-width: 1100px) {
-          .middle-content { grid-template-columns: 1fr; }
-          .bottom-content { grid-template-columns: 1fr; }
+        .dashboard-container { background-color: #f8faff; font-family: 'Inter', sans-serif; padding: 15px; border-radius:10px; min-height: 100vh; color: #1e293b; overflow-x: hidden; }
+        .section-grid { display: grid; gap: 20px; margin-bottom: 24px; width: 100%; grid-template-columns: 1fr; }
+        
+        /* Responsive Grid Logic */
+        @media (min-width: 768px) {
+          .top-stats { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+          .bottom-content { grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); }
         }
 
-        . card { background: white; border-radius: 12px; padding: 24px; border: 1px solid #edf2f7; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02); display: flex; flex-direction: column; min-width: 0; }
-        . card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
+        @media (min-width: 1100px) {
+          .middle-content { grid-template-columns: minmax(0, 2.5fr) 350px; }
+        }
+
+        .card { background: white; border-radius: 12px; padding: 20px; border: 1px solid #edf2f7; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02); display: flex; flex-direction: column; min-width: 0; }
+        .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
         .header-title-lg { font-size: 18px; color: #1e293b; font-weight: 800; }
         .year-select { padding: 6px 12px; border-radius: 8px; border: 1px solid #e2e8f0; background: #fff; font-weight: 600; cursor: pointer; outline: none; }
-        .chart-scroll-wrapper { overflow-x: auto; padding-bottom: 10px; min-width: 0; }
-        . chart-container { height: 250px; display: flex; align-items: flex-end; gap: 24px; padding: 20px 10px 0 10px; min-width: 850px; border-bottom: 1px solid #f1f5f9; }
+        
+        .chart-scroll-wrapper { overflow-x: auto; padding-bottom: 10px; min-width: 0; -webkit-overflow-scrolling: touch; }
+        .chart-container { height: 250px; display: flex; align-items: flex-end; gap: 24px; padding: 20px 10px 0 10px; min-width: 850px; border-bottom: 1px solid #f1f5f9; }
         .chart-col { display: flex; flex-direction: column; align-items: center; width: 60px; height: 100%; justify-content: flex-end; cursor: pointer; position: relative; }
         .bar-group { display: flex; align-items: flex-end; gap: 5px; height: 100%; }
-        . bar { width: 14px; border-radius: 4px 4px 0 0; transition: height 0.8s cubic-bezier(0.17, 0.67, 0.83, 0.67); height: 0; }
+        .bar { width: 14px; border-radius: 4px 4px 0 0; transition: height 0.8s cubic-bezier(0.17, 0.67, 0.83, 0.67); height: 0; }
         .bar-ac { background: #2144BA; }
         .bar-ws { background: #F59E0B; }
         .month-label { font-size: 11px; color: #94a3b8; font-weight: 700; margin-top: 10px; }
+        
         .chart-tooltip { position: fixed; pointer-events: none; background: #1e293b; color: white; padding: 10px 14px; border-radius: 8px; font-size: 12px; z-index: 9999; box-shadow: 0 10px 15px rgba(0,0,0,0.2); transform: translate(-50%, -110%); line-height: 1.6; }
-        .pagination-footer { display: flex; justify-content: space-between; align-items: center; padding-top: 20px; border-top: 1px solid #f1f5f9; margin-top: auto; }
-        .showing-text { color: #5e718d; font-size: 14px; }
-        .page-btn { border: 1px solid #e2e8f0; background: white; padding: 6px 14px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor:  pointer; transition: all 0.2s; }
-        .page-btn:not(. disabled):hover { background: #f8fafc; border-color: #cbd5e1; }
-        . page-btn.disabled { color: #cbd5e1; cursor: not-allowed; opacity: 0.6; }
-        .stat-val { font-size: 36px; font-weight: 800; margin:  8px 0; }
-        . stat-sub { font-size: 13px; color: #64748b; font-weight: 500; }
-        .status-row { display: flex; align-items: center; justify-content: space-between; padding: 14px 0; border-bottom:  1px solid #f8fafc; }
+        
+        .pagination-footer { display: flex; justify-content: space-between; align-items: center; padding-top: 20px; border-top: 1px solid #f1f5f9; margin-top: auto; flex-wrap: wrap; gap: 10px; }
+        .showing-text { color: #5e718d; font-size: 13px; }
+        .page-btn { border: 1px solid #e2e8f0; background: white; padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
+        
+        .stat-val { font-size: 32px; font-weight: 800; margin: 8px 0; }
+        @media (min-width: 768px) { .stat-val { font-size: 36px; } }
+        
+        .stat-sub { font-size: 13px; color: #64748b; font-weight: 500; }
+        .status-row { display: flex; align-items: center; justify-content: space-between; padding: 14px 0; border-bottom: 1px solid #f8fafc; }
         .status-icon { padding: 8px; border-radius: 8px; display: flex; }
         .bg-green { background: #DCFCE7; color: #166534; }
         .bg-orange { background: #FEF3C7; color: #92400e; }
@@ -128,7 +131,7 @@ const AttendanceDashboard = ({ studentId }) => {
       {hoveredData && (
         <div className="chart-tooltip" style={{ left: mousePos.x, top: mousePos.y }}>
           <strong style={{fontSize: '14px'}}>{hoveredData.month} {selectedYear}</strong><br/>
-          <span style={{color: '#93c5fd'}}>●</span> general:  {hoveredData.general}%<br/>
+          <span style={{color: '#93c5fd'}}>●</span> general: {hoveredData.general}%<br/>
           <span style={{color: '#fcd34d'}}>●</span> skill: {hoveredData.skill}%
         </div>
       )}
@@ -149,10 +152,10 @@ const AttendanceDashboard = ({ studentId }) => {
         <div className="card chart-card">
           <div className="card-header">
             <div className="header-title-lg">Attendance Trends</div>
-            <div style={{display: 'flex', alignItems: 'center', gap:  '15px'}}>
-              <div style={{ display: 'flex', gap: '12px', fontSize: '11px', fontWeight: 800 }}>
-                <span style={{ display: 'flex', alignItems:  'center', gap: '4px' }}><div style={{ width: 8, height: 8, background: '#2144BA' }} /> GENERAL</span>
-                <span style={{ display: 'flex', alignItems: 'center', gap:  '4px' }}><div style={{ width: 8, height:  8, background: '#F59E0B' }} /> SKILL</span>
+            <div style={{display: 'flex', alignItems: 'center', gap: '15px', flexWrap: 'wrap'}}>
+              <div style={{ display: 'flex', gap: '12px', fontSize: '10px', fontWeight: 800 }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><div style={{ width: 8, height: 8, background: '#2144BA' }} /> GENERAL</span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><div style={{ width: 8, height: 8, background: '#F59E0B' }} /> SKILL</span>
               </div>
               <select className="year-select" value={selectedYear} onChange={(e) => setSelectedYear(e.target.value)}>
                 {availableYears.map(year => (
@@ -193,9 +196,9 @@ const AttendanceDashboard = ({ studentId }) => {
             };
             return (
               <div className="status-row" key={i}>
-                <div style={{display: 'flex', alignItems: 'center', gap:  '12px', fontWeight: 600}}>
+                <div style={{display: 'flex', alignItems: 'center', gap: '12px', fontWeight: 600}}>
                   <div className={`status-icon bg-${item.theme}`}>{icons[item.theme]}</div>
-                  <span>{item.label}</span>
+                  <span style={{fontSize: '14px'}}>{item.label}</span>
                 </div>
                 <div style={{ fontWeight: 800, fontSize: '16px' }}>{item.count}</div>
               </div>
@@ -237,10 +240,10 @@ const AttendanceDashboard = ({ studentId }) => {
           <div className="header-title-lg" style={{marginBottom: '20px'}}>Recent Skills</div>
           <div style={{ flex: 1 }}>
             {paginatedSkills.map((w, i) => (
-              <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 0', borderBottom: '1px solid #f8fafc' }}>
-                <div>
-                  <div style={{ fontWeight: 700, fontSize: '14px' }}>{w.name}</div>
-                  <div style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 600, marginTop: '2px' }}>{w.type} • {w.date}</div>
+              <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 0', borderBottom: '1px solid #f8fafc', gap: '10px' }}>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontWeight: 700, fontSize: '14px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{w.name}</div>
+                  <div style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 600, marginTop: '2px' }}>{w.type} • {w.date}</div>
                 </div>
                 <Badge status={w.status} />
               </div>
@@ -248,7 +251,7 @@ const AttendanceDashboard = ({ studentId }) => {
           </div>
           <Pagination 
             currentPage={wsPage} 
-            totalCount={dashboardData.skills. length} 
+            totalCount={dashboardData.skills.length} 
             type="skills" 
             onNext={() => setWsPage(p => p + 1)} 
             onPrev={() => setWsPage(p => p - 1)}
@@ -267,8 +270,8 @@ const Pagination = ({ currentPage, totalCount, type, onNext, onPrev }) => {
   return (
     <div className="pagination-footer">
       <div className="showing-text">Showing <strong>{start}-{end}</strong> of {totalCount} {type}</div>
-      <div style={{ display: 'flex', gap: '10px' }}>
-        <button className={`page-btn ${currentPage === 0 ? 'disabled' : ''}`} onClick={currentPage > 0 ?  onPrev : null}>Previous</button>
+      <div style={{ display: 'flex', gap: '8px' }}>
+        <button className={`page-btn ${currentPage === 0 ? 'disabled' : ''}`} onClick={currentPage > 0 ? onPrev : null}>Prev</button>
         <button className={`page-btn ${end >= totalCount ? 'disabled' : ''}`} onClick={end < totalCount ? onNext : null}>Next</button>
       </div>
     </div>
@@ -283,8 +286,8 @@ const Badge = ({ status }) => {
   };
   const theme = themes[status];
   return (
-    <div style={{ backgroundColor: theme.bg, color: theme.text, padding: '4px 12px', borderRadius: '8px', fontSize: '11px', fontWeight: 800, display: 'flex', alignItems: 'center', gap:  '4px' }}>
-      {theme.icon} {status. toUpperCase()}
+    <div style={{ backgroundColor: theme.bg, color: theme.text, padding: '4px 10px', borderRadius: '8px', fontSize: '10px', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}>
+      {theme.icon} {status.toUpperCase()}
     </div>
   );
 };

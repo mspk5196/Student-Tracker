@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import {
     Pencil, Trash2, FileText, Youtube, Download,
@@ -48,7 +49,7 @@ const StudyRoadmap = ({
                 });
 
                 const data = await response.json();
-                console.log('Roadmap API Response:', data);
+
                 
                 if (data.success) {
                     setRoadmap(data.data);
@@ -102,7 +103,7 @@ const StudyRoadmap = ({
                 status: 'draft'
             };
 
-            console.log('Adding day:', newDay);
+           
 
             // Send to backend
             const response = await fetch(`${API_URL}/roadmap`, {
@@ -115,7 +116,6 @@ const StudyRoadmap = ({
             });
 
             const data = await response.json();
-            console.log('Add day response:', data);
             
             if (data.success) {
                 // Create local object with the returned ID
@@ -129,7 +129,7 @@ const StudyRoadmap = ({
 
                 const updatedRoadmap = [...roadmap, newModule];
                 setRoadmap(updatedRoadmap);
-                console.log("Day added successfully!");
+                
             } else {
                 alert('Failed to add day: ' + data.message);
             }
@@ -184,7 +184,6 @@ const StudyRoadmap = ({
             });
 
             const data = await response.json();
-            console.log('Save edit response:', data);
             
             if (data.success) {
                 const updatedRoadmap = roadmap.map(item =>
@@ -228,7 +227,6 @@ const StudyRoadmap = ({
             });
 
             const data = await response.json();
-            console.log('Delete response:', data);
             
             if (data.success) {
                 const updatedRoadmap = roadmap.filter(item => item.roadmap_id !== id);
@@ -340,12 +338,6 @@ const StudyRoadmap = ({
                 formData.append('resource_url', newResource.url.trim());
             }
 
-            console.log('Adding resource:', {
-                roadmap_id: currentModuleId,
-                resource_name: newResource.name,
-                resource_type: newResource.kind,
-                hasFile: !!selectedFile
-            });
 
             const response = await fetch(`${API_URL}/roadmap/resources`, {
                 method: 'POST',
@@ -356,7 +348,7 @@ const StudyRoadmap = ({
             });
 
             const data = await response.json();
-            console.log('Add resource response:', data);
+            
             
             if (data.success) {
                 // Find the module and update its resources
@@ -455,9 +447,7 @@ const StudyRoadmap = ({
                 }
             });
 
-            const data = await response.json();
-            console.log('Delete resource response:', data);
-            
+            const data = await response.json();            
             if (data.success) {
                 // Update local state
                 const updatedRoadmap = roadmap.map(item => {

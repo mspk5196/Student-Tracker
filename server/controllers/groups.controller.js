@@ -1088,7 +1088,7 @@ export const getVenueDetails = async (req, res) => {
   try {
     const { venueId } = req.params;
 
-    // Get venue basic info with faculty details
+    // Get venue basic info
     const [venueInfo] = await db.query(`
       SELECT 
         v.venue_id,
@@ -1097,15 +1097,8 @@ export const getVenueDetails = async (req, res) => {
         v.location,
         v.status,
         v.created_at,
-        v.assigned_faculty_id,
-        f.faculty_id,
-        f.designation as faculty_designation,
-        u.name as faculty_name,
-        u.email as faculty_email,
-        u.department as faculty_department
+        v.assigned_faculty_id
       FROM venue v
-      LEFT JOIN faculties f ON v.assigned_faculty_id = f.faculty_id
-      LEFT JOIN users u ON f.user_id = u.user_id
       WHERE v.venue_id = ?
     `, [venueId]);
 
@@ -1180,7 +1173,7 @@ export const getVenueDetails = async (req, res) => {
       SELECT COUNT(*) as total_roadmap_days FROM roadmap WHERE venue_id = ?
     `, [venueId]);
 
-    // Get group info for the venue
+    // Get group info for the venue with faculty details
     const [groupInfo] = await db.query(`
       SELECT 
         g.group_id,
@@ -1190,8 +1183,15 @@ export const getVenueDetails = async (req, res) => {
         g.schedule_time,
         g.max_students,
         g.department,
-        g.status
+        g.status,
+        g.faculty_id,
+        f.designation as faculty_designation,
+        u.name as faculty_name,
+        u.email as faculty_email,
+        u.department as faculty_department
       FROM \`groups\` g
+      LEFT JOIN faculties f ON g.faculty_id = f.faculty_id
+      LEFT JOIN users u ON f.user_id = u.user_id
       WHERE g.venue_id = ?
       LIMIT 1
     `, [venueId]);
@@ -1204,6 +1204,7 @@ export const getVenueDetails = async (req, res) => {
       : 0;
 
     const venue = venueInfo[0];
+    const group = groupInfo.length > 0 ? groupInfo[0] : null;
 
     res.status(200).json({ 
       success: true, 
@@ -1216,14 +1217,23 @@ export const getVenueDetails = async (req, res) => {
           status: venue.status,
           created_at: venue.created_at
         },
-        faculty: (venue.faculty_id || venue.assigned_faculty_id) ? {
-          faculty_id: venue.faculty_id || venue.assigned_faculty_id,
-          name: venue.faculty_name,
-          email: venue.faculty_email,
-          department: venue.faculty_department,
-          designation: venue.faculty_designation
+        faculty: group && group.faculty_id ? {
+          faculty_id: group.faculty_id,
+          name: group.faculty_name,
+          email: group.faculty_email,
+          department: group.faculty_department,
+          designation: group.faculty_designation
         } : null,
-        group: groupInfo.length > 0 ? groupInfo[0] : null,
+        group: group ? {
+          group_id: group.group_id,
+          group_code: group.group_code,
+          group_name: group.group_name,
+          schedule_days: group.schedule_days,
+          schedule_time: group.schedule_time,
+          max_students: group.max_students,
+          department: group.department,
+          status: group.status
+        } : null,
         students: students,
         statistics: {
           total_students: totalStudents,
