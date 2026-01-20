@@ -30,7 +30,7 @@ services:
     env_file:
       - /envs/stf-backend.env
     volumes:
-      - ./server/uploads:/app/uploads
+      - /opt/uploads/student-tracking:/app/uploads
     depends_on:
       - mysql
     restart: unless-stopped
