@@ -18,7 +18,8 @@ export const getAllFaculties = async (req, res) => {
         CASE 
           WHEN u.is_active = 1 THEN 'Active'
           WHEN u.is_active = 0 THEN 'Inactive'
-          ELSE 'On Leave'
+          WHEN u.is_active = 2 THEN 'On Leave'
+          ELSE 'Unknown'
         END as status
       FROM users u
       INNER JOIN faculties f ON u. user_id = f.user_id
