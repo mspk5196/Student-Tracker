@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useOutletContext, useNavigate } from 'react-router-dom';
 import {
   MoreVertical, Clock, Users, Plus,
@@ -6,138 +6,85 @@ import {
   ChevronRight, CheckCircle, XCircle, Edit2,
   Download, Eye, MessageSquare, Settings, TrendingUp
 } from 'lucide-react';
+import useAuthStore from '../../../../store/useAuthStore';
 
-// Static data (can be moved to a separate file or API)
-const STATIC_DATA = {
-  classes: [
-    {
-      id: 1,
-      code: 'CS-201',
-      title: 'Data Structures',
-      section: 'CS-A',
-      dept: 'Computer Science',
-      sem: 'Sem 3',
-      schedule: 'Mon 10:00 AM • Wed 10:00 AM',
-      students: 45,
-      total: 60,
-      attendance: 92,
-      status: 'active',
-      tasks: 2,
-      pendingTasks: 3,
-      room: 'Lab 3',
-      teacher: 'Dr. Smith',
-      nextSession: 'Today, 10:00 AM'
-    },
-    {
-      id: 2,
-      code: 'CS-105',
-      title: 'Programming Basics',
-      section: 'CS-B',
-      dept: 'Computer Science',
-      sem: 'Sem 1',
-      schedule: 'Tue 11:15 AM • Thu 11:15 AM',
-      students: 52,
-      total: 60,
-      attendance: 86,
-      status: 'active',
-      tasks: 1,
-      pendingTasks: 5,
-      room: 'Room 204',
-      teacher: 'Prof. Johnson',
-      nextSession: 'Tomorrow, 11:15 AM'
-    },
-    {
-      id: 3,
-      code: 'AI-310',
-      title: 'Intro to AI',
-      section: 'AI-A',
-      dept: 'Artificial Intelligence',
-      sem: 'Sem 5',
-      schedule: 'Fri 02:00 PM',
-      students: 38,
-      total: 40,
-      attendance: 78,
-      status: 'warning',
-      tasks: 3,
-      pendingTasks: 8,
-      room: 'Seminar Hall',
-      teacher: 'Dr. Lee',
-      nextSession: 'Friday, 02:00 PM'
-    },
-    {
-      id: 4,
-      code: 'SE-402',
-      title: 'Software Engineering',
-      section: 'SE-C',
-      dept: 'Computer Science',
-      sem: 'Sem 6',
-      schedule: 'Mon 02:00 PM • Thu 10:00 AM',
-      students: 41,
-      total: 50,
-      attendance: 95,
-      status: 'excellent',
-      tasks: 4,
-      pendingTasks: 2,
-      room: 'Room 301',
-      teacher: 'Prof. Garcia',
-      nextSession: 'Monday, 02:00 PM'
-    },
-    {
-      id: 5,
-      code: 'CS-301',
-      title: 'Algorithms',
-      section: 'CS-C',
-      dept: 'Computer Science',
-      sem: 'Sem 4',
-      schedule: 'Tue 09:00 AM • Thu 09:00 AM',
-      students: 48,
-      total: 55,
-      attendance: 88,
-      status: 'active',
-      tasks: 2,
-      pendingTasks: 4,
-      room: 'Lab 2',
-      teacher: 'Dr. Wilson',
-      nextSession: 'Thursday, 09:00 AM'
-    },
-    {
-      id: 6,
-      code: 'AI-415',
-      title: 'Machine Learning',
-      section: 'AI-B',
-      dept: 'Artificial Intelligence',
-      sem: 'Sem 6',
-      schedule: 'Mon 01:00 PM • Wed 01:00 PM',
-      students: 35,
-      total: 40,
-      attendance: 82,
-      status: 'active',
-      tasks: 3,
-      pendingTasks: 6,
-      room: 'Lab 5',
-      teacher: 'Prof. Chen',
-      nextSession: 'Wednesday, 01:00 PM'
-    }
-  ],
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
-  attendanceThresholds: {
-    excellent: 90,
-    good: 80,
-    warning: 70,
-    critical: 60
-  }
+// Attendance thresholds for status calculation
+const attendanceThresholds = {
+  excellent: 90,
+  good: 80,
+  warning: 70,
+  critical: 60
 };
 
 const ClassesGrid = () => {
-  const { searchQuery } = useOutletContext();
+  const outletContext = useOutletContext() || {};
+  const searchQuery = outletContext.searchQuery || '';
   const navigate = useNavigate();
+  const { token } = useAuthStore();
 
-  const [classes, setClasses] = useState(STATIC_DATA.classes);
-  const [filteredClasses, setFilteredClasses] = useState(STATIC_DATA.classes);
+  const [classes, setClasses] = useState([]);
+  const [filteredClasses, setFilteredClasses] = useState([]);
   const [activeMenu, setActiveMenu] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [summary, setSummary] = useState({
+    totalClasses: 0,
+    totalStudents: 0,
+    averageAttendance: 0,
+    excellentClasses: 0,
+    warningClasses: 0
+  });
 
-  // Filter classes
-  React.useEffect(() => {
+  // Fetch classes from API
+  useEffect(() => {
+    const fetchClasses = async () => {
+      if (!token) {
+        console.log('No token available, waiting...');
+        return;
+      }
+      
+      console.log('Fetching classes from:', `${API_URL}/faculty/my-classes`);
+      setLoading(true);
+      setError(null);
+      try {
+        const response = await fetch(`${API_URL}/faculty/my-classes`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        console.log('Response status:', response.status);
+        const data = await response.json();
+        console.log('Response data:', data);
+        
+        if (data.success) {
+          setClasses(data.data.classes || []);
+          setFilteredClasses(data.data.classes || []);
+          setSummary(data.data.summary || {});
+        } else {
+          setError(data.message || 'Failed to fetch classes');
+        }
+      } catch (err) {
+        console.error('Error fetching classes:', err);
+        setError('Failed to fetch classes');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchClasses();
+  }, [token]);
+
+  // Filter classes based on search
+  useEffect(() => {
+    if (!searchQuery) {
+      setFilteredClasses(classes);
+      return;
+    }
+    
     let result = classes.filter(c =>
       c.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       c.code.toLowerCase().includes(searchQuery.toLowerCase())
@@ -546,35 +493,102 @@ const ClassesGrid = () => {
           color: #94a3b8;
           font-size: 14px;
         }
+
+        .loading-container {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          padding: 60px 20px;
+          color: #64748b;
+        }
+
+        .loading-spinner {
+          width: 40px;
+          height: 40px;
+          border: 3px solid #f1f5f9;
+          border-top: 3px solid #2563eb;
+          border-radius: 50%;
+          animation: spin 1s linear infinite;
+          margin-bottom: 16px;
+        }
+
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+
+        .error-container {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          padding: 60px 20px;
+          color: #dc2626;
+        }
+
+        .error-icon {
+          margin-bottom: 16px;
+        }
+
+        .retry-btn {
+          margin-top: 16px;
+          padding: 10px 20px;
+          background: #2563eb;
+          color: white;
+          border: none;
+          border-radius: 8px;
+          cursor: pointer;
+          font-weight: 600;
+        }
+
+        .retry-btn:hover {
+          background: #1d4ed8;
+        }
       `}</style>
 
+      {loading ? (
+        <div className="loading-container">
+          <div className="loading-spinner"></div>
+          <p>Loading your classes...</p>
+        </div>
+      ) : error ? (
+        <div className="error-container">
+          <XCircle size={48} className="error-icon" />
+          <p>{error}</p>
+          <button className="retry-btn" onClick={() => window.location.reload()}>
+            Retry
+          </button>
+        </div>
+      ) : (
+        <>
       {/* Stats Summary */}
       <div className="stats-summary">
         <div className="stat-card">
           <div className="stat-label">Total Classes</div>
-          <div className="stat-value">{classes.length}</div>
+          <div className="stat-value">{summary.totalClasses || classes.length}</div>
           <div className="stat-change positive">
-            <TrendingUp size={12} /> +2 from last month
+            <TrendingUp size={12} /> Venues assigned
           </div>
         </div>
 
         <div className="stat-card">
           <div className="stat-label">Total Students</div>
           <div className="stat-value">
-            {classes.reduce((sum, c) => sum + c.students, 0)}
+            {summary.totalStudents || classes.reduce((sum, c) => sum + (c.students || 0), 0)}
           </div>
           <div className="stat-change positive">
-            <TrendingUp size={12} /> +45 this semester
+            <TrendingUp size={12} /> Enrolled students
           </div>
         </div>
 
         <div className="stat-card">
           <div className="stat-label">Avg Attendance</div>
           <div className="stat-value">
-            {Math.round(classes.reduce((sum, c) => sum + c.attendance, 0) / classes.length)}%
+            {summary.averageAttendance || (classes.length > 0 ? Math.round(classes.reduce((sum, c) => sum + (c.attendance || 0), 0) / classes.length) : 0)}%
           </div>
           <div className="stat-change positive">
-            <TrendingUp size={12} /> +3% from last week
+            <TrendingUp size={12} /> Last 30 days
           </div>
         </div>
       </div>
@@ -707,6 +721,8 @@ const ClassesGrid = () => {
           })
         )}
       </div>
+        </>
+      )}
     </div>
   );
 };

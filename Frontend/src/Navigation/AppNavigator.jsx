@@ -88,12 +88,13 @@ const AppNavigator = () => {
           <Route path="/" element={<SideTab />}>
             {/* <Route index element={<FacultyDashboard />} /> */}
             <Route path="classes" element={<FacultyClassDetails />} />
+            <Route path="classes/:venueId" element={<FacultyClassDetails />} />
             <Route path="students">
               <Route index element={<StudentsPage />} />
               <Route path=":studentId" element={<StudentHeader />} />
             </Route>
             <Route path="attendance" element={<Attendance />} />
-            <Route path="skill-reports" element={<FacultySkillReport />} />  {/* ✅ Skill Reports */}
+            {/* <Route path="skill-reports" element={<FacultySkillReport />} />  ✅ Skill Reports */}
             <Route path="group-insights" element={<GroupInsights />} />  {/* ✅ Group Insights for Faculty */}
             <Route path="tasks" element={<TaskHeader />} />  {/* ✅ Already correct */}
             {/* <Route path="students" element={<div>Students</div>} /> */}
