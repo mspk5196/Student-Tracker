@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useEffect } from 'react';
 // Material Icons
 import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
@@ -6,37 +7,37 @@ import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import SearchIcon from '@mui/icons-material/Search';
 import FileDownloadIcon from '@mui/icons-material/FileDownload';
-import DescriptionIcon from '@mui/icons-material/Description'; // PDF
-import CodeIcon from '@mui/icons-material/Code'; // CPP
-import FolderZipIcon from '@mui/icons-material/FolderZip'; // ZIP
+import DescriptionIcon from '@mui/icons-material/Description';
+import CodeIcon from '@mui/icons-material/Code';
+import FolderZipIcon from '@mui/icons-material/FolderZip';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import Menu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
 import IconButton from '@mui/material/IconButton';
-
-// Mock Initial Data
-const MOCK_SUBMISSIONS = [
-    { id: '2023001', name: 'John Doe', date: 'Oct 24, 10:30 AM', file: 'linked_list_impl.cpp', file_path: null, status: 'Pending Review', grade: '', action: 'Save', type: 'code', isLate: false, course: 'CS-201' },
-    { id: '2023015', name: 'Sarah Smith', date: 'Oct 23, 04:15 PM', file: 'project_v1.zip', file_path: null, status: 'Graded', grade: '92', action: 'Edit', type: 'zip', isLate: false, course: 'CS-201' },
-    { id: '2023042', name: 'Mike Peters', date: 'Oct 25, 09:00 AM', file: 'assignment_final.pdf', file_path: null, status: 'Needs Revision', grade: '65', action: 'Update', isLate: true, course: 'CS-201' },
-    { id: '2023088', name: 'Emily Chen', date: 'Oct 24, 11:45 AM', file: 'data_structs.cpp', file_path: null, status: 'Pending Review', grade: '', action: 'Save', type: 'code', isLate: false, course: 'CS-202' },
-    { id: '2023090', name: 'Alex Hall', date: 'Oct 24, 02:30 PM', file: 'test_sort.cpp', file_path: null, status: 'Pending Review', grade: '', action: 'Save', type: 'code', isLate: false, course: 'CS-201' },
-    { id: '2023095', name: 'Zoe Kemp', date: 'Oct 23, 09:15 AM', file: 'manual_v1.pdf', file_path: null, status: 'Graded', grade: '88', action: 'Edit', type: 'pdf', isLate: false, course: 'CS-202' },
-    { id: '2023099', name: 'Brian Lux', date: 'Oct 26, 10:00 AM', file: 'analysis.pdf', file_path: null, status: 'Pending Review', grade: '', action: 'Save', type: 'pdf', isLate: true, course: 'CS-201' },
-    { id: '2023102', name: 'Tim Cook', date: 'Oct 22, 11:00 AM', file: 'main.cpp', file_path: null, status: 'Graded', grade: '95', action: 'Edit', type: 'code', isLate: false, course: 'CS-201' },
-];
+import { useLocation, useNavigate } from 'react-router-dom';
+import useAuthStore from '../../../store/useAuthStore';
 
 const ReportsAnalytics = () => {
+    const location = useLocation();
+    const navigate = useNavigate();
+    const { token, user } = useAuthStore();
+    const API_URL = import.meta.env.VITE_API_URL;
+    
+    // Get task info from navigation state
+    const taskId = location.state?.taskId;
+    const taskTitle = location.state?.taskTitle;
+
     // --- States ---
-    const [submissions, setSubmissions] = useState(MOCK_SUBMISSIONS);
+    const [submissions, setSubmissions] = useState([]);
     const [searchTerm, setSearchTerm] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
     const [filters, setFilters] = useState({
         status: 'All Statuses',
         course: 'All Courses',
-        assignment: 'All Assignments' // For now purely visual as we don't have assignment ID in mock data
+        assignment: 'All Assignments'
     });
+    const [loading, setLoading] = useState(false);
 
     // Menu States
     const [anchorElStatus, setAnchorElStatus] = useState(null);
@@ -44,15 +45,77 @@ const ReportsAnalytics = () => {
 
     const itemsPerPage = 5;
 
+    // Fetch submissions from backend
+    useEffect(() => {
+        const fetchSubmissions = async () => {
+            if (!taskId) return;
+
+            setLoading(true);
+            
+            try {
+                const response = await fetch(
+                    `${API_URL}/tasks/submissions/${taskId}? status=${filters.status}&search=${searchTerm}&page=${currentPage}&limit=${itemsPerPage}`,
+                    {
+                        headers: {
+                            'Authorization':  `Bearer ${token}`,
+                            'Content-Type': 'application/json'
+                        }
+                    }
+                );
+
+                const data = await response.json();
+                
+
+                if (data.success) {
+                    const transformed = data.data.map(sub => ({
+                        id: sub.student_roll,
+                        submission_id: sub.submission_id,
+                        name: sub.student_name,
+                        date: sub.submitted_at ?  new Date(sub.submitted_at).toLocaleString('en-US', {
+                            month: 'short',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                        }) : 'Not submitted',
+                        file: sub.file_name || 'No file',
+                        file_path: sub.file_path || null,
+                        status: sub.status,
+                        grade: sub.grade !== null ? sub.grade. toString() : '',
+                        action: sub.status === 'Graded' ?  'Edit' : 'Save',
+                        type: getFileType(sub.file_name),
+                        isLate: sub.is_late,
+                        course: 'CS-201'
+                    }));
+                    
+                    setSubmissions(transformed);
+                }
+            } catch (err) {
+                console.error(' Error fetching submissions:', err);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchSubmissions();
+    }, [taskId, currentPage, filters. status, searchTerm, token, API_URL]);
+
+    const getFileType = (filename) => {
+        if (!filename) return 'pdf';
+        const ext = filename. split('.').pop().toLowerCase();
+        if (['cpp', 'c', 'py', 'js', 'java']. includes(ext)) return 'code';
+        if (['zip', 'rar']. includes(ext)) return 'zip';
+        return 'pdf';
+    };
+
     // --- Computed Stats ---
     const stats = useMemo(() => {
         const total = submissions.length;
         const pending = submissions.filter(s => s.status === 'Pending Review').length;
         const late = submissions.filter(s => s.isLate).length;
 
-        const gradedSubs = submissions.filter(s => s.grade && !isNaN(s.grade));
+        const gradedSubs = submissions.filter(s => s.grade && ! isNaN(s.grade));
         const avgScore = gradedSubs.length > 0
-            ? Math.round(gradedSubs.reduce((acc, curr) => acc + Number(curr.grade), 0) / gradedSubs.length)
+            ? Math.round(gradedSubs. reduce((acc, curr) => acc + Number(curr.grade), 0) / gradedSubs.length)
             : 0;
 
         return { total, pending, late, avgScore };
@@ -63,7 +126,7 @@ const ReportsAnalytics = () => {
         return submissions.filter(item => {
             const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase()) || item.id.includes(searchTerm);
             const matchesStatus = filters.status === 'All Statuses' || item.status === filters.status;
-            const matchesCourse = filters.course === 'All Courses' || item.course === filters.course;
+            const matchesCourse = filters.course === 'All Courses' || item. course === filters.course;
 
             return matchesSearch && matchesStatus && matchesCourse;
         });
@@ -77,44 +140,63 @@ const ReportsAnalytics = () => {
 
     // --- Handlers ---
     const handleGradeChange = (id, newVal) => {
-        // Validating numeric input (0-100) or empty
         if (newVal !== '' && (isNaN(newVal) || newVal < 0 || newVal > 100)) return;
 
         setSubmissions(prev => prev.map(sub =>
-            sub.id === id ? { ...sub, grade: newVal } : sub
+            sub.id === id ?  { ...sub, grade: newVal } : sub
         ));
     };
 
-    const handleAction = (id, currentAction) => {
-        setSubmissions(prev => prev.map(sub => {
-            if (sub.id !== id) return sub;
+    const handleAction = async (id, currentAction) => {
+        const submission = submissions.find(s => s.id === id);
 
-            if (currentAction === 'Save' || currentAction === 'Update') {
-                if (sub.grade === '') {
-                    alert('Please enter a grade before saving.');
-                    return sub; // Do nothing if grade is empty
-                }
-                const isRevision = Number(sub.grade) < 50; // Logic: < 50 needs revision
-                return {
-                    ...sub,
-                    status: isRevision ? 'Needs Revision' : 'Graded',
-                    action: isRevision ? 'Update' : 'Edit'
-                };
-            } else if (currentAction === 'Edit') {
-                // When clicking edit, we might want to make it look active or just depend on the input field being available.
-                // In this implementation, the input is always available unless we disable it. 
-                // Let's toggle the status briefly or just keep it as graded but allow editing.
-                // For better UX, let's switch action back to 'Save' so user confirms changes.
-                return { ...sub, action: 'Save' };
+        if (currentAction === 'Save' || currentAction === 'Update') {
+            if (submission. grade === '') {
+                alert('Please enter a grade before saving.');
+                return;
             }
-            return sub;
-        }));
+
+            try {
+                const response = await fetch(`${API_URL}/tasks/grade/${submission.submission_id}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        grade: Number(submission.grade)
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    setSubmissions(prev => prev.map(sub => {
+                        if (sub.id !== id) return sub;
+                        return {
+                            ...sub,
+                            status: data.data.status,
+                            action: data.data.status === 'Graded' ?  'Edit' : 'Update'
+                        };
+                    }));
+                } else {
+                    alert(data.message || 'Failed to save grade');
+                }
+            } catch (err) {
+                console.error(' Error saving grade:', err);
+                alert('Failed to save grade');
+            }
+        } else if (currentAction === 'Edit') {
+            setSubmissions(prev => prev.map(sub =>
+                sub.id === id ? { ...sub, action: 'Save' } : sub
+            ));
+        }
     };
 
     const handleExport = () => {
         const csvContent = "data:text/csv;charset=utf-8,"
             + "ID,Name,Date,File,Status,Grade\n"
-            + filteredSubmissions.map(e => `${e.id},${e.name},${e.date},${e.file},${e.status},${e.grade}`).join("\n");
+            + filteredSubmissions. map(e => `${e.id},${e. name},${e.date},${e.file},${e.status},${e.grade}`).join("\n");
         const encodedUri = encodeURI(csvContent);
         const link = document.createElement("a");
         link.setAttribute("href", encodedUri);
@@ -126,23 +208,46 @@ const ReportsAnalytics = () => {
 
     const getFileIcon = (type) => {
         switch (type) {
-            case 'code': return <CodeIcon sx={{ fontSize: 18 }} />;
+            case 'code':  return <CodeIcon sx={{ fontSize: 18 }} />;
             case 'zip': return <FolderZipIcon sx={{ fontSize: 18 }} />;
             case 'pdf': return <DescriptionIcon sx={{ fontSize: 18 }} />;
             default: return <DescriptionIcon sx={{ fontSize: 18 }} />;
         }
     };
 
+    // If no task selected
+    if (!taskId) {
+        return (
+            <div style={{ padding: '40px', textAlign: 'center' }}>
+                <h2>No Task Selected</h2>
+                <p style={{ color: '#64748b' }}>Please select an assignment from the tasks page.</p>
+                <button 
+                    onClick={() => navigate('/tasks')}
+                    style={{
+                        marginTop: '20px',
+                        padding: '10px 20px',
+                        backgroundColor: '#3b82f6',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '8px',
+                        cursor: 'pointer'
+                    }}
+                >
+                    Go to Tasks
+                </button>
+            </div>
+        );
+    }
+
     return (
         <div className="dashboard-wrapper">
             <style>{`
             @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
-            .dashboard-wrapper {
+            . dashboard-wrapper {
             font-family: 'Inter', sans-serif;
             background-color: #f8fafc;
             min-height: 100vh;
-            padding: 2px;
             color: #1e293b;
             }
 
@@ -152,6 +257,19 @@ const ReportsAnalytics = () => {
             grid-template-columns: repeat(4, 1fr);
             gap: 24px;
             margin-bottom: 32px;
+            }
+
+            @media (max-width: 1024px) {
+            .stats-grid {
+            grid-template-columns: repeat(2, 1fr);
+            }
+            }
+
+            @media (max-width: 640px) {
+            .stats-grid {
+            grid-template-columns: 1fr;
+            gap: 16px;
+            }
             }
 
             .stat-card {
@@ -188,6 +306,12 @@ const ReportsAnalytics = () => {
             gap: 16px;
             }
 
+            @media (max-width: 768px) {
+            .toolbar {
+            flex-direction: column;
+            }
+            }
+
             .filters { display: flex; gap: 12px; flex-wrap: wrap; }
 
             .btn-ui {
@@ -206,11 +330,17 @@ const ReportsAnalytics = () => {
             }
 
             .btn-ui:hover { background: #f1f5f9; border-color: #cbd5e1; }
-            .btn-ui.active { background: #eff6ff; border-color: #3b82f6; color: #1d4ed8; }
+            . btn-ui.active { background: #eff6ff; border-color: #3b82f6; color: #1d4ed8; }
 
             .search-box {
             position: relative;
-            width: 320px;
+             width: 320px;
+            }
+
+            @media (max-width: 768px) {
+            .search-box {
+            width: 100%;
+            }
             }
 
             .search-box input {
@@ -222,18 +352,37 @@ const ReportsAnalytics = () => {
             outline: none;
             }
 
-            .search-box input:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
+             .search-box input:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
+
+            /* Table */
+            .table-wrap {
+             background: white;            border: 1px solid #e2e8f0;
+           border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+            overflow: hidden;
+          }
 
             /* Table */
             .table-wrap {
             background: white;
-            border: 1px solid #e2e8f0;
+            border:  1px solid #e2e8f0;
             border-radius: 12px;
             box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
             overflow: hidden;
             }
 
+            @media (max-width: 768px) {
+            .table-wrap {
+            overflow-x: auto;
+            }
+            }
+
             table { width: 100%; border-collapse: collapse; }
+
+            @media (max-width: 768px) {
+            table { min-width: 800px; }
+            }
+
             th { 
             background: #fcfdfe; 
             padding: 16px 24px; 
@@ -247,7 +396,7 @@ const ReportsAnalytics = () => {
             td { padding: 16px 24px; border-bottom: 1px solid #f1f5f9; transition: background 0.1s; vertical-align: middle; }
             tr:hover td { background: #f8fafc; }
 
-            .avatar {
+            . avatar {
             width: 40px;
             height: 40px;
             border-radius: 50%;
@@ -277,8 +426,8 @@ const ReportsAnalytics = () => {
             .status-tag {
             padding: 6px 12px;
             border-radius: 8px;
-            font-size: 13px;
-            font-weight: 600;
+            font-size:  13px;
+            font-weight:  600;
             display: inline-flex;
             align-items: center;
             gap: 10px;
@@ -287,7 +436,7 @@ const ReportsAnalytics = () => {
             }
 
             .tag-pending { background: #fffcf0; border-color: #fde68a; color: #d97706; }
-            .tag-graded { background: #f0fdf4; border-color: #bcf3cc; color: #166534; }
+            .tag-graded { background: #f0fdf4; border-color:  #bcf3cc; color: #166534; }
             .tag-revision { background: #fef2f2; border-color: #fecaca; color: #991b1b; }
 
             /* Action Buttons */
@@ -321,6 +470,13 @@ const ReportsAnalytics = () => {
             background: #fcfdfe;
             border-top: 1px solid #e2e8f0;
             }
+
+            @media (max-width: 640px) {
+            .pagination-bar {
+            flex-direction: column;
+            gap: 16px;
+            }
+            }
         `}</style>
 
             {/* --- STATS CARDS --- */}
@@ -328,7 +484,7 @@ const ReportsAnalytics = () => {
                 <StatCard
                     title="Total Submissions"
                     value={stats.total}
-                    trend={<><ArrowUpwardIcon sx={{ fontSize: 16 }} /> +{submissions.length - MOCK_SUBMISSIONS.length + 3} this week</>}
+                    trend={<><ArrowUpwardIcon sx={{ fontSize: 16 }} /> +{submissions.length + 3} this week</>}
                     color="trend-up"
                 />
                 <StatCard
@@ -340,7 +496,7 @@ const ReportsAnalytics = () => {
                 <StatCard
                     title="Average Score"
                     value={`${stats.avgScore}%`}
-                    trend={<><ArrowUpwardIcon sx={{ fontSize: 16 }} /> Top 10% class avg</>}
+                    trend={<><ArrowUpwardIcon sx={{ fontSize:  16 }} /> Top 10% class avg</>}
                     color="trend-up"
                 />
                 <StatCard
@@ -355,7 +511,7 @@ const ReportsAnalytics = () => {
             <div className="toolbar">
                 <div className="filters">
                     {/* Course Filter */}
-                    <div onClick={(e) => setAnchorElCourse(e.currentTarget)} className={`btn-ui ${filters.course !== 'All Courses' ? 'active' : ''}`}>
+                    <div onClick={(e) => setAnchorElCourse(e. currentTarget)} className={`btn-ui ${filters.course !== 'All Courses' ? 'active' : ''}`}>
                         {filters.course} <ExpandMoreIcon fontSize="small" />
                     </div>
                     <Menu
@@ -363,7 +519,7 @@ const ReportsAnalytics = () => {
                         open={Boolean(anchorElCourse)}
                         onClose={() => setAnchorElCourse(null)}
                     >
-                        <MenuItem onClick={() => { setFilters({ ...filters, course: 'All Courses' }); setAnchorElCourse(null); }}>All Courses</MenuItem>
+                        <MenuItem onClick={() => { setFilters({ ... filters, course: 'All Courses' }); setAnchorElCourse(null); }}>All Courses</MenuItem>
                         <MenuItem onClick={() => { setFilters({ ...filters, course: 'CS-201' }); setAnchorElCourse(null); }}>CS-201: Data Structures</MenuItem>
                         <MenuItem onClick={() => { setFilters({ ...filters, course: 'CS-202' }); setAnchorElCourse(null); }}>CS-202: Algorithms</MenuItem>
                     </Menu>
@@ -413,7 +569,13 @@ const ReportsAnalytics = () => {
                         </tr>
                     </thead>
                     <tbody>
-                        {currentItems.length === 0 ? (
+                        {loading ? (
+                            <tr>
+                                <td colSpan="6" style={{ textAlign: 'center', padding: '40px', color: '#94a3b8' }}>
+                                    Loading submissions...
+                                </td>
+                            </tr>
+                        ) : currentItems.length === 0 ? (
                             <tr>
                                 <td colSpan="6" style={{ textAlign: 'center', padding: '40px', color: '#94a3b8' }}>
                                     No submissions found.
@@ -425,7 +587,7 @@ const ReportsAnalytics = () => {
                                     <td>
                                         <div style={{ display: 'flex', gap: '14px', alignItems: 'center' }}>
                                             <div className="avatar" style={student.name.startsWith('M') ? { background: '#fef3c7', color: '#b45309' } : {}}>
-                                                {student.name.split(' ').map(n => n[0]).join('')}
+                                                {student. name.split(' ').map(n => n[0]).join('')}
                                             </div>
                                             <div>
                                                 <div style={{ fontWeight: 600 }}>{student.name}</div>
@@ -457,8 +619,8 @@ const ReportsAnalytics = () => {
                                         )}
                                     </td>
                                     <td>
-                                        <div className={`status-tag ${student.status === 'Graded' ? 'tag-graded' :
-                                                student.status === 'Needs Revision' ? 'tag-revision' : 'tag-pending'
+                                        <div className={`status-tag ${student.status === 'Graded' ? 'tag-graded' : 
+                                                student.status === 'Needs Revision' ? 'tag-revision' :  'tag-pending'
                                             }`}>
                                             {student.status}
                                         </div>
@@ -477,7 +639,7 @@ const ReportsAnalytics = () => {
                                     </td>
                                     <td style={{ textAlign: 'right' }}>
                                         <button
-                                            className={student.action === 'Save' || student.action === 'Update' ? 'save-btn' : 'edit-btn'}
+                                            className={student.action === 'Save' || student.action === 'Update' ?  'save-btn' : 'edit-btn'}
                                             onClick={() => handleAction(student.id, student.action)}
                                         >
                                             {student.action}
@@ -491,7 +653,7 @@ const ReportsAnalytics = () => {
                 {/* --- PAGINATION FOOTER --- */}
                 <div className="pagination-bar">
                     <div style={{ fontSize: 14, color: '#64748b' }}>
-                        Showing <b>{currentItems.length > 0 ? indexOfFirstItem + 1 : 0}-{Math.min(indexOfLastItem, filteredSubmissions.length)}</b> of <b>{filteredSubmissions.length}</b> submissions
+                        Showing <b>{currentItems.length > 0 ? indexOfFirstItem + 1 :  0}-{Math.min(indexOfLastItem, filteredSubmissions.length)}</b> of <b>{filteredSubmissions.length}</b> submissions
                     </div>
                     <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
                         <button
@@ -502,7 +664,7 @@ const ReportsAnalytics = () => {
                         >
                             <ChevronLeftIcon />
                         </button>
-                        {totalPages > 0 && [...Array(totalPages)].map((_, i) => (
+                        {totalPages > 0 && [... Array(totalPages)].map((_, i) => (
                             <button
                                 key={i}
                                 className="btn-ui"
@@ -519,7 +681,7 @@ const ReportsAnalytics = () => {
                         ))}
                         <button
                             className="btn-ui"
-                            style={{ padding: '5px 8px' }}
+                            style={{ padding:  '5px 8px' }}
                             disabled={currentPage === totalPages || totalPages === 0}
                             onClick={() => setCurrentPage(prev => prev + 1)}
                         >

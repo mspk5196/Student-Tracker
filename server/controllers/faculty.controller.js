@@ -220,31 +220,39 @@ export const deleteFaculty = async (req, res) => {
     if (facultyRecord.length > 0) {
       const facultyId = facultyRecord[0].faculty_id;
 
-      // Set faculty_id to NULL in groups table (removes assignment but keeps group)
-      await connection.query(
-        'UPDATE `groups` SET faculty_id = NULL WHERE faculty_id = ?',
+      // Get count of affected groups before deleting
+      const [groupsCount] = await connection.query(
+        'SELECT COUNT(*) as count FROM `groups` WHERE faculty_id = ?',
         [facultyId]
       );
-
-      // Set faculty_id to NULL in student_skills table
-      await connection.query(
-        'UPDATE student_skills SET faculty_id = NULL WHERE faculty_id = ?',
-        [facultyId]
-      );
+      
+      const affectedGroups = groupsCount[0].count;
 
       // Delete from faculties table
+      // The foreign key ON DELETE SET NULL constraint will automatically
+      // set faculty_id to NULL in groups and student_skills tables
       await connection.query('DELETE FROM faculties WHERE user_id = ?', [userId]);
+
+      await connection.commit();
+
+      res.status(200).json({ 
+        success: true, 
+        message: affectedGroups > 0 
+          ? `Faculty deleted successfully. ${affectedGroups} group(s) have been unassigned.`
+          : 'Faculty deleted successfully.',
+        affectedGroups
+      });
+
+    } else {
+      // No faculty record found, just delete user
+      await connection.query('DELETE FROM users WHERE user_id = ?', [userId]);
+      await connection.commit();
+      
+      res.status(200).json({ 
+        success: true, 
+        message: 'Faculty deleted successfully.'
+      });
     }
-
-    // Delete from users table
-    await connection.query('DELETE FROM users WHERE user_id = ?', [userId]);
-
-    await connection.commit();
-
-    res.status(200).json({ 
-      success: true, 
-      message: 'Faculty deleted successfully' 
-    });
 
   } catch (error) {
     await connection.rollback();
