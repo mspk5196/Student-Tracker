@@ -1,229 +1,257 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from "react";
 import {
-    FileText,
-    Youtube,
-    Download,
-    ExternalLink,
-    CheckCircle2,
-    Circle,
-    BookOpen,
-    Clock,
-    ChevronRight,
-    Search,
-    Book,
-    ChevronLeft,
-    Loader
-} from 'lucide-react';
-import useAuthStore from '../../../store/useAuthStore';
+  FileText,
+  Youtube,
+  Download,
+  ExternalLink,
+  CheckCircle2,
+  Circle,
+  BookOpen,
+  Clock,
+  ChevronRight,
+  Search,
+  Book,
+  ChevronLeft,
+  Loader,
+} from "lucide-react";
+import useAuthStore from "../../../store/useAuthStore";
 
 const StudentRoadmap = () => {
-    const { token, user } = useAuthStore();
-    const API_URL = import.meta.env.VITE_API_URL;
+  const { token, user } = useAuthStore();
+  const API_URL = import.meta.env.VITE_API_URL;
 
-    const [roadmapData, setRoadmapData] = useState([]);
-    const [venue, setVenue] = useState(null);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState('');
-    const [searchQuery, setSearchQuery] = useState('');
-    const [completedModules, setCompletedModules] = useState([]);
-    const [currentPage, setCurrentPage] = useState(1);
-    const modulesPerPage = 10;
+  const [roadmapData, setRoadmapData] = useState([]);
+  const [venue, setVenue] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [completedModules, setCompletedModules] = useState([]);
+  const [modulesTab, setModulesTab] = useState("active");
+  const [currentPage, setCurrentPage] = useState(1);
+  const modulesPerPage = 10;
 
-    // Fetch roadmap data from backend
-    useEffect(() => {
-        fetchRoadmapData();
-    }, []);
+  // Fetch roadmap data from backend
+  useEffect(() => {
+    fetchRoadmapData();
+  }, []);
 
-    const fetchRoadmapData = async () => {
-        setLoading(true);
-        setError('');
-        try {
-            const response = await fetch(`${API_URL}/roadmap/student`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                }
-            });
+  const fetchRoadmapData = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const response = await fetch(`${API_URL}/roadmap/student`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
 
-            const data = await response.json();
-            
-            if (data.success) {
-                setRoadmapData(data.data || []);
-                setVenue(data.venue);
-            } else {
-                setError(data.message || 'Failed to fetch roadmap');
-            }
-        } catch (err) {
-            console.error('Error fetching roadmap:', err);
-            setError('Failed to load roadmap. Please try again.');
-        } finally {
-            setLoading(false);
-        }
-    };
+      const data = await response.json();
 
-    // Filter modules based on search query
-    const filteredModules = roadmapData.filter(module => 
-        module.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        module.description?.toLowerCase().includes(searchQuery.toLowerCase())
+      if (data.success) {
+        setRoadmapData(data.data || []);
+        setVenue(data.venue);
+      } else {
+        setError(data.message || "Failed to fetch roadmap");
+      }
+    } catch (err) {
+      console.error("Error fetching roadmap:", err);
+      setError("Failed to load roadmap. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const isModuleCompleted = (module) => {
+    return (
+      completedModules.includes(module.roadmap_id) ||
+      module.is_completed === 1 ||
+      module.is_completed === true
     );
+  };
 
-    // Pagination
-    const totalPages = Math.ceil(filteredModules.length / modulesPerPage) || 1;
-    const startIdx = (currentPage - 1) * modulesPerPage;
-    const endIdx = startIdx + modulesPerPage;
-    const paginatedModules = filteredModules.slice(startIdx, endIdx);
+  // Search + tab filter
+  const searchedModules = roadmapData.filter(
+    (module) =>
+      module.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      module.description?.toLowerCase().includes(searchQuery.toLowerCase()),
+  );
 
-    // Reset page if current page exceeds new total after filtering
-    useEffect(() => {
-        if (currentPage > totalPages) {
-            setCurrentPage(1);
-        }
-    }, [currentPage, totalPages]);
+  const filteredModules = searchedModules.filter((module) => {
+    const completed = isModuleCompleted(module);
+    return modulesTab === "completed" ? completed : !completed;
+  });
 
-    const Pagination = ({ currentPage, totalPages, onPageChange }) => {
-        const getPageNumbers = () => {
-            const pages = [];
-            const maxVisible = 3;
+  const sidebarModules = roadmapData.filter((module) => {
+    const completed = isModuleCompleted(module);
+    return modulesTab === "completed" ? completed : !completed;
+  });
 
-            if (totalPages <= maxVisible) {
-                for (let i = 1; i <= totalPages; i++) pages.push(i);
-            } else if (currentPage <= 2) {
-                pages.push(1, 2, 3);
-            } else if (currentPage >= totalPages - 1) {
-                pages.push(totalPages - 2, totalPages - 1, totalPages);
-            } else {
-                pages.push(currentPage - 1, currentPage, currentPage + 1);
-            }
-            return pages;
-        };
+  // Pagination
+  const totalPages = Math.ceil(filteredModules.length / modulesPerPage) || 1;
+  const startIdx = (currentPage - 1) * modulesPerPage;
+  const endIdx = startIdx + modulesPerPage;
+  const paginatedModules = filteredModules.slice(startIdx, endIdx);
 
-        if (totalPages <= 1) return null;
+  // Reset page if current page exceeds new total after filtering
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(1);
+    }
+  }, [currentPage, totalPages]);
 
-        const start = (currentPage - 1) * modulesPerPage + 1;
-        const end = Math.min(currentPage * modulesPerPage, filteredModules.length);
+  const Pagination = ({
+    currentPage,
+    totalPages,
+    onPageChange,
+    totalItems,
+  }) => {
+    const getPageNumbers = () => {
+      const pages = [];
+      const maxVisible = 3;
 
-        return (
-            <div className="pagination-wrapper">
-                <span className="pagination-info">
-                    Showing {start}-{end} of {filteredModules.length} modules
-                </span>
-                <div className="pagination">
-                    <button
-                        className="pagination-btn"
-                        onClick={() => onPageChange(currentPage - 1)}
-                        disabled={currentPage === 1}
-                    >
-                        <ChevronLeft size={16} />
-                    </button>
-
-                    {getPageNumbers().map((page) => (
-                        <button
-                            key={page}
-                            className={`pagination-number ${currentPage === page ? 'active' : ''}`}
-                            onClick={() => onPageChange(page)}
-                        >
-                            {page}
-                        </button>
-                    ))}
-
-                    <button
-                        className="pagination-btn"
-                        onClick={() => onPageChange(currentPage + 1)}
-                        disabled={currentPage === totalPages}
-                    >
-                        <ChevronRight size={16} />
-                    </button>
-                </div>
-            </div>
-        );
+      if (totalPages <= maxVisible) {
+        for (let i = 1; i <= totalPages; i++) pages.push(i);
+      } else if (currentPage <= 2) {
+        pages.push(1, 2, 3);
+      } else if (currentPage >= totalPages - 1) {
+        pages.push(totalPages - 2, totalPages - 1, totalPages);
+      } else {
+        pages.push(currentPage - 1, currentPage, currentPage + 1);
+      }
+      return pages;
     };
 
-    const handleResourceAction = async (resource) => {
-        if (resource.resource_type === 'pdf' && resource.resource_id) {
-            // Download PDF with authentication
-            try {
-                const response = await fetch(`${API_URL}/roadmap/resources/download/${resource.resource_id}`, {
-                    method: 'GET',
-                    headers: {
-                        'Authorization': `Bearer ${token}`
-                    }
-                });
+    if (totalPages <= 1) return null;
 
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    alert(errorData.message || 'Failed to download file');
-                    return;
-                }
-
-                // Create a blob from the response
-                const blob = await response.blob();
-                
-                // Create a temporary URL for the blob
-                const url = window.URL.createObjectURL(blob);
-                
-                // Create a temporary anchor element and trigger download
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `${resource.resource_name}.pdf`;
-                document.body.appendChild(a);
-                a.click();
-                
-                // Clean up
-                window.URL.revokeObjectURL(url);
-                document.body.removeChild(a);
-            } catch (error) {
-                console.error('Download error:', error);
-                alert('Failed to download file. Please try again.');
-            }
-        } else if (resource.resource_url) {
-            // Open link or video
-            window.open(resource.resource_url, '_blank');
-        } else {
-            alert("No link available.");
-        }
-    };
-
-    const toggleComplete = (id) => {
-        setCompletedModules(prev =>
-            prev.includes(id) ? prev.filter(mid => mid !== id) : [...prev, id]
-        );
-    };
-
-    const calculateProgress = () => {
-        if (!roadmapData.length) return 0;
-        const completed = roadmapData.filter(m => completedModules.includes(m.roadmap_id)).length;
-        return Math.round((completed / roadmapData.length) * 100);
-    };
-
-    const getResourceIcon = (type) => {
-        switch(type) {
-            case 'pdf':
-                return <FileText size={16} />;
-            case 'video':
-                return <Youtube size={16} />;
-            case 'link':
-                return <ExternalLink size={16} />;
-            default:
-                return <FileText size={16} />;
-        }
-    };
-
-    const getResourceTypeLabel = (type) => {
-        switch(type) {
-            case 'pdf':
-                return 'PDF Document';
-            case 'video':
-                return 'Video Link';
-            case 'link':
-                return 'Web Resource';
-            default:
-                return 'Resource';
-        }
-    };
+    const start = (currentPage - 1) * modulesPerPage + 1;
+    const end = Math.min(currentPage * modulesPerPage, totalItems);
 
     return (
-        <>
-            <style>{`
+      <div className="pagination-wrapper">
+        <span className="pagination-info">
+          Showing {start}-{end} of {totalItems} modules
+        </span>
+        <div className="pagination">
+          <button
+            className="pagination-btn"
+            onClick={() => onPageChange(currentPage - 1)}
+            disabled={currentPage === 1}
+          >
+            <ChevronLeft size={16} />
+          </button>
+
+          {getPageNumbers().map((page) => (
+            <button
+              key={page}
+              className={`pagination-number ${currentPage === page ? "active" : ""}`}
+              onClick={() => onPageChange(page)}
+            >
+              {page}
+            </button>
+          ))}
+
+          <button
+            className="pagination-btn"
+            onClick={() => onPageChange(currentPage + 1)}
+            disabled={currentPage === totalPages}
+          >
+            <ChevronRight size={16} />
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+  const handleResourceAction = async (resource) => {
+    if (resource.resource_type === "pdf" && resource.resource_id) {
+      // Download PDF with authentication
+      try {
+        const response = await fetch(
+          `${API_URL}/roadmap/resources/download/${resource.resource_id}`,
+          {
+            method: "GET",
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          },
+        );
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          alert(errorData.message || "Failed to download file");
+          return;
+        }
+
+        // Create a blob from the response
+        const blob = await response.blob();
+
+        // Create a temporary URL for the blob
+        const url = window.URL.createObjectURL(blob);
+
+        // Create a temporary anchor element and trigger download
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${resource.resource_name}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+
+        // Clean up
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      } catch (error) {
+        console.error("Download error:", error);
+        alert("Failed to download file. Please try again.");
+      }
+    } else if (resource.resource_url) {
+      // Open link or video
+      window.open(resource.resource_url, "_blank");
+    } else {
+      alert("No link available.");
+    }
+  };
+
+  const toggleComplete = (id) => {
+    setCompletedModules((prev) =>
+      prev.includes(id) ? prev.filter((mid) => mid !== id) : [...prev, id],
+    );
+  };
+
+  const calculateProgress = () => {
+    if (!roadmapData.length) return 0;
+    const completed = roadmapData.filter((m) => isModuleCompleted(m)).length;
+    return Math.round((completed / roadmapData.length) * 100);
+  };
+
+  const getResourceIcon = (type) => {
+    switch (type) {
+      case "pdf":
+        return <FileText size={16} />;
+      case "video":
+        return <Youtube size={16} />;
+      case "link":
+        return <ExternalLink size={16} />;
+      default:
+        return <FileText size={16} />;
+    }
+  };
+
+  const getResourceTypeLabel = (type) => {
+    switch (type) {
+      case "pdf":
+        return "PDF Document";
+      case "video":
+        return "Video Link";
+      case "link":
+        return "Web Resource";
+      default:
+        return "Resource";
+    }
+  };
+
+  return (
+    <>
+      <style>{`
                 * {
                     box-sizing: border-box;
                 }
@@ -232,6 +260,8 @@ const StudentRoadmap = () => {
                     font-family: "Inter", sans-serif;
                     background-color: #F8F9FB;
                     min-height: 100vh;
+                    padding: 2px;
+                    width: 100%;
                 }
                 
                 .header {
@@ -327,8 +357,32 @@ const StudentRoadmap = () => {
                     display: grid;
                     grid-template-columns: 1fr 340px;
                     gap: 24px;
-                    max-width: 1300px;
-                    margin: 0 auto;
+                    max-width: 100%;
+                    margin: 0;
+                }
+
+                .tab-buttons {
+                    display: flex;
+                    gap: 12px;
+                    margin-bottom: 16px;
+                }
+
+                .tab-btn {
+                    flex: 1;
+                    padding: 10px 12px;
+                    border: none;
+                    border-radius: 8px;
+                    background-color: #F3F4F6;
+                    color: #6B7280;
+                    font-size: 14px;
+                    font-weight: 600;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                }
+
+                .tab-btn.active {
+                    background-color: #0066FF;
+                    color: #FFFFFF;
                 }
                 
                 .roadmap-col {
@@ -686,6 +740,7 @@ const StudentRoadmap = () => {
                 /* Mobile Responsive Styles */
                 @media (max-width: 768px) {
                     .page-wrapper {
+                        padding: 20px 16px;
                     }
                     
                     .header {
@@ -815,174 +870,291 @@ const StudentRoadmap = () => {
                     }
                 }
             `}</style>
-            
-            <div className="page-wrapper">
-                <header className="header">
-                    <div className="header-info">
-                        <div className="breadcrumb">
-                            <Book size={16} /> Roadmap & Material {venue && `/ ${venue.venue_name}`}
-                        </div>
-                        <h1 className="page-title">
-                            {venue ? `Learning Roadmap - ${venue.venue_name}` : 'My Learning Roadmap'}
-                        </h1>
-                        {venue && (
-                            <div className="instructor-info">
-                                <div className="avatar">{venue.venue_name.charAt(0)}</div>
-                                <span>{venue.venue_name}</span>
-                            </div>
-                        )}
-                    </div>
-                    <div className="progress-section">
-                        <div className="progress-text">
-                            <span className="progress-label">Track Progress</span>
-                            <span className="progress-percent">{calculateProgress()}%</span>
-                        </div>
-                        <div className="progress-bar-bg">
-                            <div className="progress-bar-fill" style={{ width: `${calculateProgress()}%` }} />
-                        </div>
-                    </div>
-                </header>
 
-                <div className="main-content">
-                    <div className="roadmap-col">
-                        {loading ? (
-                            <div style={{ textAlign: 'center', padding: '60px 20px', color: '#64748b' }}>
-                                <Loader size={40} style={{ margin: '0 auto 16px', animation: 'spin 1s linear infinite' }} />
-                                <p>Loading roadmap...</p>
-                            </div>
-                        ) : error ? (
-                            <div style={{ textAlign: 'center', padding: '60px 20px', color: '#ef4444' }}>
-                                <p>{error}</p>
-                            </div>
-                        ) : filteredModules.length === 0 ? (
-                            <div style={{ textAlign: 'center', padding: '60px 20px', color: '#64748b' }}>
-                                <BookOpen size={48} style={{ margin: '0 auto 16px', opacity: 0.5 }} />
-                                <p>No roadmap modules available yet.</p>
-                                {!venue && <p style={{ fontSize: '14px', marginTop: '8px' }}>You haven't been assigned to a venue.</p>}
-                            </div>
-                        ) : (
-                            <>
-                                <div className="module-list">
-                                    {paginatedModules.map((module, index) => {
-                                        const isCompleted = completedModules.includes(module.roadmap_id);
-
-                                        return (
-                                            <div key={module.roadmap_id}>
-                                                {index !== 0 && <div className="timeline-connector" />}
-                                                <div className="module-card">
-                                                    <div className="card-header">
-                                                        <div className="card-header-left">
-                                                            <div
-                                                                className={`module-number ${isCompleted ? 'completed' : ''}`}
-                                                                onClick={() => toggleComplete(module.roadmap_id)}
-                                                                style={{ cursor: 'pointer' }}
-                                                            >
-                                                                {isCompleted ? <CheckCircle2 size={24} /> : `D${module.day}`}
-                                                            </div>
-                                                            <div className="module-title-group">
-                                                                <h3 className="module-title">{module.title}</h3>
-                                                                <div className="module-meta">
-                                                                    <Clock size={12} style={{ marginRight: 4 }} /> 
-                                                                    {module.faculty_name ? `Instructor: ${module.faculty_name}` : 'Estimated 2-3 hours'}
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                        <div className="status-badge">
-                                                            {isCompleted ? 'Completed' : module.status === 'published' ? 'Available' : 'Draft'}
-                                                        </div>
-                                                    </div>
-
-                                                    <div className="card-body">
-                                                        <p className="description">{module.description || 'No description provided.'}</p>
-
-                                                        {module.resources && module.resources.length > 0 && (
-                                                            <>
-                                                                <div className="resource-header">
-                                                                    <BookOpen size={16} style={{ marginRight: 8 }} />
-                                                                    Learning Resources ({module.resources.length})
-                                                                </div>
-
-                                                                <div className="resource-grid">
-                                                                    {module.resources.map(res => (
-                                                                        <div
-                                                                            key={res.resource_id}
-                                                                            className="resource-item"
-                                                                            onClick={() => handleResourceAction(res)}
-                                                                        >
-                                                                            <div className="resource-icon">
-                                                                                {getResourceIcon(res.resource_type)}
-                                                                            </div>
-                                                                            <div className="resource-info">
-                                                                                <div className="resource-name">{res.resource_name}</div>
-                                                                                <div className="resource-type">{getResourceTypeLabel(res.resource_type)}</div>
-                                                                            </div>
-                                                                            <div className="resource-action">
-                                                                                {res.resource_type === 'pdf' ? <Download size={14} /> : <ChevronRight size={14} />}
-                                                                            </div>
-                                                                        </div>
-                                                                    ))}
-                                                                </div>
-                                                            </>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-
-                                <Pagination
-                                    currentPage={currentPage}
-                                    totalPages={totalPages}
-                                    onPageChange={setCurrentPage}
-                                />
-                            </>
-                        )}
-                    </div>
-
-                    <div className="sidebar-col">
-                        <div className="search-box">
-                            <Search size={18} className="search-icon" />
-                            <input
-                                className="search-input"
-                                placeholder="Search modules..."
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                            />
-                        </div>
-
-                        <div className="section-heading">All Modules ({roadmapData.length})</div>
-                        <div className="skill-list">
-                            {roadmapData.length === 0 && !loading ? (
-                                <div style={{ padding: '20px', textAlign: 'center', color: '#94a3b8', fontSize: '14px' }}>
-                                    No modules available
-                                </div>
-                            ) : (
-                                roadmapData.map((module, index) => {
-                                    const isCompleted = completedModules.includes(module.roadmap_id);
-                                    return (
-                                        <div
-                                            key={module.roadmap_id}
-                                            className="skill-item"
-                                            style={{ cursor: 'default' }}
-                                        >
-                                            <div className="skill-icon-box" style={{ backgroundColor: isCompleted ? '#10b981' : '#3b82f6' }}>
-                                                {isCompleted ? '✓' : `D${module.day}`}
-                                            </div>
-                                            <div className="skill-info">
-                                                <div className="skill-name">{module.title}</div>
-                                                <div className="skill-code">Day {module.day} • {module.resources?.length || 0} resources</div>
-                                            </div>
-                                        </div>
-                                    );
-                                })
-                            )}
-                        </div>
-                    </div>
-                </div>
+      <div className="page-wrapper">
+        <header className="header">
+          <div className="header-info">
+            <div className="breadcrumb">
+              <Book size={16} /> Roadmap & Material{" "}
+              {venue && `/ ${venue.venue_name}`}
             </div>
-        </>
-    );
+            <h1 className="page-title">
+              {venue
+                ? `Learning Roadmap - ${venue.venue_name}`
+                : "My Learning Roadmap"}
+            </h1>
+            {venue && (
+              <div className="instructor-info">
+                <div className="avatar">{venue.venue_name.charAt(0)}</div>
+                <span>{venue.venue_name}</span>
+              </div>
+            )}
+          </div>
+          <div className="progress-section">
+            <div className="progress-text">
+              <span className="progress-label">Track Progress</span>
+              <span className="progress-percent">{calculateProgress()}%</span>
+            </div>
+            <div className="progress-bar-bg">
+              <div
+                className="progress-bar-fill"
+                style={{ width: `${calculateProgress()}%` }}
+              />
+            </div>
+          </div>
+        </header>
+
+        <div className="main-content">
+          <div className="roadmap-col">
+            {loading ? (
+              <div
+                style={{
+                  textAlign: "center",
+                  padding: "60px 20px",
+                  color: "#64748b",
+                }}
+              >
+                <Loader
+                  size={40}
+                  style={{
+                    margin: "0 auto 16px",
+                    animation: "spin 1s linear infinite",
+                  }}
+                />
+                <p>Loading roadmap...</p>
+              </div>
+            ) : error ? (
+              <div
+                style={{
+                  textAlign: "center",
+                  padding: "60px 20px",
+                  color: "#ef4444",
+                }}
+              >
+                <p>{error}</p>
+              </div>
+            ) : filteredModules.length === 0 ? (
+              <div
+                style={{
+                  textAlign: "center",
+                  padding: "60px 20px",
+                  color: "#64748b",
+                }}
+              >
+                <BookOpen
+                  size={48}
+                  style={{ margin: "0 auto 16px", opacity: 0.5 }}
+                />
+                <p>
+                  {modulesTab === "completed"
+                    ? "No completed modules yet."
+                    : "No active modules found."}
+                </p>
+                {!venue && modulesTab !== "completed" && (
+                  <p style={{ fontSize: "14px", marginTop: "8px" }}>
+                    You haven't been assigned to a venue.
+                  </p>
+                )}
+              </div>
+            ) : (
+              <>
+                <div className="module-list">
+                  {paginatedModules.map((module, index) => {
+                    const isCompleted = isModuleCompleted(module);
+
+                    return (
+                      <div key={module.roadmap_id}>
+                        {index !== 0 && <div className="timeline-connector" />}
+                        <div className="module-card">
+                          <div className="card-header">
+                            <div className="card-header-left">
+                              <div
+                                className={`module-number ${isCompleted ? "completed" : ""}`}
+                                onClick={() =>
+                                  toggleComplete(module.roadmap_id)
+                                }
+                                style={{ cursor: "pointer" }}
+                              >
+                                {isCompleted ? (
+                                  <CheckCircle2 size={24} />
+                                ) : (
+                                  `D${module.day}`
+                                )}
+                              </div>
+                              <div className="module-title-group">
+                                <h3 className="module-title">{module.title}</h3>
+                                <div className="module-meta">
+                                  <Clock size={12} style={{ marginRight: 4 }} />
+                                  {module.faculty_name
+                                    ? `Instructor: ${module.faculty_name}`
+                                    : "Estimated 2-3 hours"}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="status-badge">
+                              {isCompleted
+                                ? "Completed"
+                                : module.status === "published"
+                                  ? "Available"
+                                  : "Draft"}
+                            </div>
+                          </div>
+
+                          <div className="card-body">
+                            <p className="description">
+                              {module.description || "No description provided."}
+                            </p>
+
+                            {module.resources &&
+                              module.resources.length > 0 && (
+                                <>
+                                  <div className="resource-header">
+                                    <BookOpen
+                                      size={16}
+                                      style={{ marginRight: 8 }}
+                                    />
+                                    Learning Resources (
+                                    {module.resources.length})
+                                  </div>
+
+                                  <div className="resource-grid">
+                                    {module.resources.map((res) => (
+                                      <div
+                                        key={res.resource_id}
+                                        className="resource-item"
+                                        onClick={() =>
+                                          handleResourceAction(res)
+                                        }
+                                      >
+                                        <div className="resource-icon">
+                                          {getResourceIcon(res.resource_type)}
+                                        </div>
+                                        <div className="resource-info">
+                                          <div className="resource-name">
+                                            {res.resource_name}
+                                          </div>
+                                          <div className="resource-type">
+                                            {getResourceTypeLabel(
+                                              res.resource_type,
+                                            )}
+                                          </div>
+                                        </div>
+                                        <div className="resource-action">
+                                          {res.resource_type === "pdf" ? (
+                                            <Download size={14} />
+                                          ) : (
+                                            <ChevronRight size={14} />
+                                          )}
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </>
+                              )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  onPageChange={setCurrentPage}
+                  totalItems={filteredModules.length}
+                />
+              </>
+            )}
+          </div>
+
+          <div className="sidebar-col">
+            <div className="search-box">
+              <Search size={18} className="search-icon" />
+              <input
+                className="search-input"
+                placeholder="Search modules..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+
+            <div className="tab-buttons">
+              <button
+                className={`tab-btn ${modulesTab === "active" ? "active" : ""}`}
+                onClick={() => {
+                  setModulesTab("active");
+                  setCurrentPage(1);
+                }}
+                type="button"
+              >
+                Active
+              </button>
+              <button
+                className={`tab-btn ${modulesTab === "completed" ? "active" : ""}`}
+                onClick={() => {
+                  setModulesTab("completed");
+                  setCurrentPage(1);
+                }}
+                type="button"
+              >
+                Completed
+              </button>
+            </div>
+
+            <div className="section-heading">
+              {modulesTab === "completed"
+                ? `Completed Modules (${sidebarModules.length})`
+                : `Active Modules (${sidebarModules.length})`}
+            </div>
+            <div className="skill-list">
+              {sidebarModules.length === 0 && !loading ? (
+                <div
+                  style={{
+                    padding: "20px",
+                    textAlign: "center",
+                    color: "#94a3b8",
+                    fontSize: "14px",
+                  }}
+                >
+                  {modulesTab === "completed"
+                    ? "No completed modules yet"
+                    : "No active modules"}
+                </div>
+              ) : (
+                sidebarModules.map((module, index) => {
+                  const isCompleted = isModuleCompleted(module);
+                  return (
+                    <div
+                      key={module.roadmap_id}
+                      className="skill-item"
+                      style={{ cursor: "default" }}
+                    >
+                      <div
+                        className="skill-icon-box"
+                        style={{
+                          backgroundColor: isCompleted ? "#10b981" : "#3b82f6",
+                        }}
+                      >
+                        {isCompleted ? "✓" : `D${module.day}`}
+                      </div>
+                      <div className="skill-info">
+                        <div className="skill-name">{module.title}</div>
+                        <div className="skill-code">
+                          Day {module.day} • {module.resources?.length || 0}{" "}
+                          resources
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </>
+  );
 };
 
 export default StudentRoadmap;

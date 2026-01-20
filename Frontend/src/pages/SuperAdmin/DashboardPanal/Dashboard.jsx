@@ -159,7 +159,13 @@ const EducationDashboard = () => {
   };
 
   // Format metrics data for display
-  const metricsData = metrics.length > 0 ? metrics : [
+  const metricsData = metrics.length > 0 ? metrics.map(m => ({
+    ...m,
+    icon: m.id === 1 ? <PeopleAltOutlined sx={{ fontSize: 20, color: '#64748b' }} /> :
+          m.id === 2 ? <LayersOutlined sx={{ fontSize: 20, color: '#64748b' }} /> :
+          m.id === 3 ? <TimelineOutlined sx={{ fontSize: 20, color: '#64748b' }} /> :
+          <ErrorOutline sx={{ fontSize: 20, color: '#64748b' }} />
+  })) : [
     { id: 1, label: 'Total Students', value: '0', trend: '+0%', trendContext: 'from last semester', isPositive: true, icon: <PeopleAltOutlined sx={{ fontSize: 20, color: '#64748b' }} /> },
     { id: 2, label: 'Active Groups', value: '0', context: 'Active classes this term', icon: <LayersOutlined sx={{ fontSize: 20, color: '#64748b' }} /> },
     { id: 3, label: 'Avg Attendance', value: '0%', trend: '+0%', trendContext: 'vs last week', isPositive: true, icon: <TimelineOutlined sx={{ fontSize: 20, color: '#64748b' }} /> },

@@ -450,7 +450,7 @@ const TasksAssignments = () => {
   const [tasksData, setTasksData] = useState({});
   const [venueInfo, setVenueInfo] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [selectedSubject, setSelectedSubject] = useState("REACT-101");
   const [searchQuery, setSearchQuery] = useState("");
@@ -474,26 +474,25 @@ const TasksAssignments = () => {
 
   const fetchTasks = async () => {
     setLoading(true);
-    setError('');
+    setError("");
     try {
       const response = await fetch(`${API_URL}/tasks/student`, {
         headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
       });
 
       const data = await response.json();
-      
-      
+
       if (data.success) {
         setTasksData(data.data.groupedTasks || {});
         setVenueInfo({
           venue_name: data.data.venue_name,
           venue_id: data.data.venue_id,
-          student_id: data.data.student_id
+          student_id: data.data.student_id,
         });
-        
+
         // Set first subject as selected
         const firstKey = Object.keys(data.data.groupedTasks || {})[0];
         if (firstKey) {
@@ -502,19 +501,19 @@ const TasksAssignments = () => {
 
         // Extract completed task IDs
         const completedIds = [];
-        Object.values(data.data.groupedTasks || {}).forEach(subject => {
-          subject.tasks.forEach(task => {
-            if (task.status === 'completed') {
+        Object.values(data.data.groupedTasks || {}).forEach((subject) => {
+          subject.tasks.forEach((task) => {
+            if (task.status === "completed") {
               completedIds.push(task.id);
             }
           });
         });
         setCompletedTasks(completedIds);
       } else {
-        setError(data.message || 'Failed to fetch tasks');
+        setError(data.message || "Failed to fetch tasks");
       }
     } catch (err) {
-      console.error('Error fetching student tasks:', err);
+      console.error("Error fetching student tasks:", err);
       setError(`Failed to load tasks: ${err.message}`);
     } finally {
       setLoading(false);
@@ -541,10 +540,10 @@ const TasksAssignments = () => {
   const filteredSubjectKeys = subjectKeys.filter((key) => {
     const subjectTasks = DISPLAY_TASKS_DATA[key].tasks;
     const allTasksCompleted = subjectTasks.every(
-      (task) => task.status === "completed"
+      (task) => task.status === "completed",
     );
     const hasActiveTasks = subjectTasks.some(
-      (task) => task.status !== "completed"
+      (task) => task.status !== "completed",
     );
 
     if (skillsTab === "active") return hasActiveTasks;
@@ -553,13 +552,13 @@ const TasksAssignments = () => {
   });
 
   const totalSubjectPages = Math.ceil(
-    filteredSubjectKeys.length / subjectsPerPage
+    filteredSubjectKeys.length / subjectsPerPage,
   );
   const subjectStartIdx = (currentSubjectPage - 1) * subjectsPerPage;
   const subjectEndIdx = subjectStartIdx + subjectsPerPage;
   const paginatedSubjects = filteredSubjectKeys.slice(
     subjectStartIdx,
-    subjectEndIdx
+    subjectEndIdx,
   );
 
   const calculateProgress = () => {
@@ -586,36 +585,39 @@ const TasksAssignments = () => {
 
     setSubmitting(true);
     const formData = new FormData();
-    formData.append('submission_type', submissionType);
-    
-    if (submissionType === 'file' && uploadFile) {
-      formData.append('file', uploadFile);
-    } else if (submissionType === 'link') {
-      formData.append('link_url', externalLink);
+    formData.append("submission_type", submissionType);
+
+    if (submissionType === "file" && uploadFile) {
+      formData.append("file", uploadFile);
+    } else if (submissionType === "link") {
+      formData.append("link_url", externalLink);
     }
 
     try {
-      const response = await fetch(`${API_URL}/tasks/${selectedTask.id}/submit`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
+      const response = await fetch(
+        `${API_URL}/tasks/${selectedTask.id}/submit`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          body: formData,
         },
-        body: formData
-      });
+      );
 
       const data = await response.json();
 
       if (data.success) {
-        alert(data.message || 'Assignment submitted successfully!');
+        alert(data.message || "Assignment submitted successfully!");
         setCompletedTasks((prev) => [...new Set([...prev, selectedTask.id])]);
         closeModal();
         fetchTasks(); // Refresh tasks
       } else {
-        alert(data.message || 'Failed to submit assignment');
+        alert(data.message || "Failed to submit assignment");
       }
     } catch (err) {
-      console.error('Error submitting assignment:', err);
-      alert('Failed to submit assignment. Please try again.');
+      console.error("Error submitting assignment:", err);
+      alert("Failed to submit assignment. Please try again.");
     } finally {
       setSubmitting(false);
     }
@@ -639,10 +641,13 @@ const TasksAssignments = () => {
       alert("No reference link available yet.");
       return;
     }
-    
+
     // If it's a download link from backend, add API_URL prefix
-    if (material.fileUrl && material.fileUrl.includes('/api/roadmap/resources/download/')) {
-      window.open(`${API_URL}${material.fileUrl}`, '_blank');
+    if (
+      material.fileUrl &&
+      material.fileUrl.includes("/api/roadmap/resources/download/")
+    ) {
+      window.open(`${API_URL}${material.fileUrl}`, "_blank");
     } else {
       window.open(link, "_blank");
     }
@@ -716,7 +721,7 @@ const TasksAssignments = () => {
       <style>{`
                 * { box-sizing: border-box; margin: 0; padding: 0; }
                 body { margin: 0; }
-                .page-wrapper { font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background-color: #F8F9FB; min-height: 100vh; padding:6px; }
+                .page-wrapper { font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background-color: #F8F9FB; min-height: 100vh; padding: 28px; width: 100%; }
                 .header { background-color: #FFFFFF; padding: 32px; border-radius: 16px; border: 1px solid #E5E7EB; display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
                 .header-info { flex: 1; }
                 .breadcrumb { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #6B7280; margin-bottom: 12px; }
@@ -836,16 +841,24 @@ const TasksAssignments = () => {
 
       {loading ? (
         <div className="page-wrapper">
-          <div style={{ 
-            display: 'flex', 
-            flexDirection: 'column',
-            justifyContent: 'center', 
-            alignItems: 'center', 
-            height: '400px',
-            gap: '16px'
-          }}>
-            <Loader size={48} color="#0066FF" style={{ animation: 'spin 1s linear infinite' }} />
-            <p style={{ fontSize: '16px', color: '#6B7280' }}>Loading assignments...</p>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "center",
+              alignItems: "center",
+              height: "400px",
+              gap: "16px",
+            }}
+          >
+            <Loader
+              size={48}
+              color="#0066FF"
+              style={{ animation: "spin 1s linear infinite" }}
+            />
+            <p style={{ fontSize: "16px", color: "#6B7280" }}>
+              Loading assignments...
+            </p>
           </div>
           <style>{`
             @keyframes spin {
@@ -856,26 +869,37 @@ const TasksAssignments = () => {
         </div>
       ) : error && Object.keys(DISPLAY_TASKS_DATA).length === 0 ? (
         <div className="page-wrapper">
-          <div style={{ 
-            display: 'flex', 
-            flexDirection: 'column',
-            justifyContent: 'center', 
-            alignItems: 'center', 
-            height: '400px',
-            gap: '16px'
-          }}>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "center",
+              alignItems: "center",
+              height: "400px",
+              gap: "16px",
+            }}
+          >
             <AlertCircle size={48} color="#EF4444" />
-            <p style={{ fontSize: '16px', color: '#6B7280', textAlign: 'center', maxWidth: '400px' }}>{error}</p>
-            <button 
+            <p
+              style={{
+                fontSize: "16px",
+                color: "#6B7280",
+                textAlign: "center",
+                maxWidth: "400px",
+              }}
+            >
+              {error}
+            </p>
+            <button
               onClick={fetchTasks}
               style={{
-                padding: '10px 24px',
-                background: '#0066FF',
-                color: '#FFFFFF',
-                border: 'none',
-                borderRadius: '8px',
-                fontWeight: '600',
-                cursor: 'pointer'
+                padding: "10px 24px",
+                background: "#0066FF",
+                color: "#FFFFFF",
+                border: "none",
+                borderRadius: "8px",
+                fontWeight: "600",
+                cursor: "pointer",
               }}
             >
               Retry
@@ -884,346 +908,352 @@ const TasksAssignments = () => {
         </div>
       ) : (
         <div className="page-wrapper">
-        <header className="header">
-          <div className="header-info">
-            <div className="breadcrumb">
-              <ClipboardCheck size={16} /> Tasks & Assignments /{" "}
-              {selectedSubject}
+          <header className="header">
+            <div className="header-info">
+              <div className="breadcrumb">
+                <ClipboardCheck size={16} /> Tasks & Assignments /{" "}
+                {selectedSubject}
+              </div>
+              <h1 className="page-title">{subjectData?.title}</h1>
+              <p className="subtext-header">
+                {subjectData?.instructor
+                  ? `Instructor: ${subjectData.instructor}`
+                  : "Manage your assignments and track submissions"}
+                {venueInfo && ` • Venue: ${venueInfo.venue_name}`}
+              </p>
             </div>
-            <h1 className="page-title">{subjectData?.title}</h1>
-            <p className="subtext-header">
-              {subjectData?.instructor ? `Instructor: ${subjectData.instructor}` : 'Manage your assignments and track submissions'}
-              {venueInfo && ` • Venue: ${venueInfo.venue_name}`}
-            </p>
-          </div>
-          <div className="progress-section">
-            <div className="progress-text">
-              <span className="progress-label">Completion</span>
-              <span className="progress-percent">{calculateProgress()}%</span>
+            <div className="progress-section">
+              <div className="progress-text">
+                <span className="progress-label">Completion</span>
+                <span className="progress-percent">{calculateProgress()}%</span>
+              </div>
+              <div className="progress-bar-bg">
+                <div
+                  className="progress-bar-fill"
+                  style={{ width: `${calculateProgress()}%` }}
+                />
+              </div>
             </div>
-            <div className="progress-bar-bg">
-              <div
-                className="progress-bar-fill"
-                style={{ width: `${calculateProgress()}%` }}
-              />
-            </div>
-          </div>
-        </header>
+          </header>
 
-        <div className="main-content">
-          <div className="task-col">
-            {filteredTasks.length > 0 ? (
-              <>
-                {filteredTasks.map((task) => {
-                  const isCompleted = task.status === "completed";
-                  return (
-                    <div key={task.id} className="task-card">
-                      <div className="card-header">
-                        <div className="card-header-left">
-                          <div
-                            className={`task-number ${
-                              isCompleted ? "completed" : ""
-                            }`}
-                          >
-                            {isCompleted ? (
-                              <CheckCircle2 size={24} />
-                            ) : (
-                              `D${task.day}`
-                            )}
-                          </div>
-                          <div className="task-title-group">
-                            <h3 className="task-title">{task.title}</h3>
-                            <div className="task-meta">
-                              <Clock size={12} style={{ marginRight: 4 }} /> Due{" "}
-                              {task.dueDate}
+          <div className="main-content">
+            <div className="task-col">
+              {filteredTasks.length > 0 ? (
+                <>
+                  {filteredTasks.map((task) => {
+                    const isCompleted = task.status === "completed";
+                    return (
+                      <div key={task.id} className="task-card">
+                        <div className="card-header">
+                          <div className="card-header-left">
+                            <div
+                              className={`task-number ${
+                                isCompleted ? "completed" : ""
+                              }`}
+                            >
+                              {isCompleted ? (
+                                <CheckCircle2 size={24} />
+                              ) : (
+                                `D${task.day}`
+                              )}
+                            </div>
+                            <div className="task-title-group">
+                              <h3 className="task-title">{task.title}</h3>
+                              <div className="task-meta">
+                                <Clock size={12} style={{ marginRight: 4 }} />{" "}
+                                Due {task.dueDate}
+                              </div>
                             </div>
                           </div>
+                          <div className="status-badge">
+                            {isCompleted
+                              ? "Completed"
+                              : task.status === "overdue"
+                                ? "Overdue"
+                                : "Pending"}
+                          </div>
                         </div>
-                        <div className="status-badge">
-                          {isCompleted
-                            ? "Completed"
-                            : task.status === "overdue"
-                            ? "Overdue"
-                            : "Pending"}
-                        </div>
-                      </div>
 
-                      <div className="card-body">
-                        <p className="description">{task.description}</p>
-                        <div className="reference-section">
-                          <div className="reference-header">
-                            <BookOpen size={16} /> Reference Material
-                          </div>
-                          {task.materials && task.materials.length ? (
-                            <div className="reference-grid">
-                              {task.materials.map((material) => (
-                                <div
-                                  key={`${task.id}-${material.name}`}
-                                  className="reference-item"
-                                  onClick={() => openMaterial(material)}
-                                >
-                                  <div className="ref-icon">
-                                    {material.type === "link" ? (
-                                      <ExternalLink size={16} />
-                                    ) : (
-                                      <FileText size={16} />
-                                    )}
-                                  </div>
-                                  <div className="ref-text">
-                                    <div className="ref-title">
-                                      {material.name}
-                                    </div>
-                                    <div className="ref-meta">
-                                      {material.type === "link"
-                                        ? "External link"
-                                        : "Faculty file"}
-                                      {material.provider
-                                        ? ` • ${material.provider}`
-                                        : " • Faculty"}
-                                    </div>
-                                  </div>
-                                  <div className="ref-action">
-                                    {material.type === "file" ? (
-                                      <Download size={14} />
-                                    ) : (
-                                      <ChevronRight size={14} />
-                                    )}
-                                  </div>
-                                </div>
-                              ))}
+                        <div className="card-body">
+                          <p className="description">{task.description}</p>
+                          <div className="reference-section">
+                            <div className="reference-header">
+                              <BookOpen size={16} /> Reference Material
                             </div>
-                          ) : (
-                            <div className="reference-empty">
-                              Reference material will show here once the faculty
-                              shares it.
-                            </div>
-                          )}
-                        </div>
-                        <div className="action-footer">
-                          <div style={{ color: "#64748B", fontSize: 13 }}>
-                            {task.score ? `Max Score: ${task.score}` : ""}
-                          </div>
-                          <div>
-                            {task.status === "completed" ? (
-                              <div className="grade-info">
-                                Submitted • Grade: {task.grade || "Pending"}
+                            {task.materials && task.materials.length ? (
+                              <div className="reference-grid">
+                                {task.materials.map((material) => (
+                                  <div
+                                    key={`${task.id}-${material.name}`}
+                                    className="reference-item"
+                                    onClick={() => openMaterial(material)}
+                                  >
+                                    <div className="ref-icon">
+                                      {material.type === "link" ? (
+                                        <ExternalLink size={16} />
+                                      ) : (
+                                        <FileText size={16} />
+                                      )}
+                                    </div>
+                                    <div className="ref-text">
+                                      <div className="ref-title">
+                                        {material.name}
+                                      </div>
+                                      <div className="ref-meta">
+                                        {material.type === "link"
+                                          ? "External link"
+                                          : "Faculty file"}
+                                        {material.provider
+                                          ? ` • ${material.provider}`
+                                          : " • Faculty"}
+                                      </div>
+                                    </div>
+                                    <div className="ref-action">
+                                      {material.type === "file" ? (
+                                        <Download size={14} />
+                                      ) : (
+                                        <ChevronRight size={14} />
+                                      )}
+                                    </div>
+                                  </div>
+                                ))}
                               </div>
                             ) : (
-                              <button
-                                className="action-btn"
-                                onClick={() => setSelectedTask(task)}
-                              >
-                                View & Submit <ChevronRight size={14} />
-                              </button>
+                              <div className="reference-empty">
+                                Reference material will show here once the
+                                faculty shares it.
+                              </div>
                             )}
                           </div>
+                          <div className="action-footer">
+                            <div style={{ color: "#64748B", fontSize: 13 }}>
+                              {task.score ? `Max Score: ${task.score}` : ""}
+                            </div>
+                            <div>
+                              {task.status === "completed" ? (
+                                <div className="grade-info">
+                                  Submitted • Grade: {task.grade || "Pending"}
+                                </div>
+                              ) : (
+                                <button
+                                  className="action-btn"
+                                  onClick={() => setSelectedTask(task)}
+                                >
+                                  View & Submit <ChevronRight size={14} />
+                                </button>
+                              )}
+                            </div>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  );
-                })}
-              </>
-            ) : (
-              <div className="empty-state">
-                <AlertCircle size={48} color="#94A3B8" />
-                <p>No tasks found.</p>
-              </div>
-            )}
-          </div>
-
-          <div className="sidebar-col">
-            <div className="search-box">
-              <Search size={18} className="search-icon" />
-              <input
-                className="search-input"
-                placeholder="Search assignments..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
+                    );
+                  })}
+                </>
+              ) : (
+                <div className="empty-state">
+                  <AlertCircle size={48} color="#94A3B8" />
+                  <p>No tasks found.</p>
+                </div>
+              )}
             </div>
 
-            <div>
-              <div
-                style={{ display: "flex", gap: "12px", marginBottom: "16px" }}
-              >
-                <button
-                  onClick={() => {
-                    setSkillsTab("active");
-                    setCurrentSubjectPage(1);
-                  }}
-                  style={{
-                    flex: 1,
-                    padding: "10px 12px",
-                    border: "none",
-                    borderRadius: "8px",
-                    backgroundColor:
-                      skillsTab === "active" ? "#0066FF" : "#F3F4F6",
-                    color: skillsTab === "active" ? "#FFFFFF" : "#6B7280",
-                    fontSize: "14px",
-                    fontWeight: "600",
-                    cursor: "pointer",
-                    transition: "all 0.2s",
-                  }}
+            <div className="sidebar-col">
+              <div className="search-box">
+                <Search size={18} className="search-icon" />
+                <input
+                  className="search-input"
+                  placeholder="Search assignments..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+
+              <div>
+                <div
+                  style={{ display: "flex", gap: "12px", marginBottom: "16px" }}
                 >
-                  Active
-                </button>
-                <button
-                  onClick={() => {
-                    setSkillsTab("completed");
-                    setCurrentSubjectPage(1);
-                  }}
-                  style={{
-                    flex: 1,
-                    padding: "10px 12px",
-                    border: "none",
-                    borderRadius: "8px",
-                    backgroundColor:
-                      skillsTab === "completed" ? "#0066FF" : "#F3F4F6",
-                    color: skillsTab === "completed" ? "#FFFFFF" : "#6B7280",
-                    fontSize: "14px",
-                    fontWeight: "600",
-                    cursor: "pointer",
-                    transition: "all 0.2s",
-                  }}
-                >
-                  Completed
-                </button>
-              </div>
-              <div className="section-heading">Skills</div>
-              <div className="subject-list">
-                {paginatedSubjects.map((key) => (
-                  <div
-                    key={key}
-                    className={`subject-item ${
-                      selectedSubject === key ? "active" : ""
-                    }`}
-                    onClick={() => handleSubjectChange(key)}
-                  >
-                    <div className="subject-icon-box">{key.charAt(0)}</div>
-                    <div className="subject-info">
-                      <div className="subject-name">
-                        {DISPLAY_TASKS_DATA[key].title}
-                      </div>
-                      <div className="subject-code">{key}</div>
-                    </div>
-                    {selectedSubject === key && (
-                      <ChevronRight size={16} color="#0066FF" />
-                    )}
-                  </div>
-                ))}
-              </div>
-              <Pagination
-                currentPage={currentSubjectPage}
-                totalPages={totalSubjectPages}
-                onPageChange={setCurrentSubjectPage}
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Submission Modal */}
-        {selectedTask && (
-          <div className="modal-overlay" onClick={closeModal}>
-            <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-              <div className="modal-header">
-                <h3 className="modal-title">Submit Assignment</h3>
-                <button className="close-btn" onClick={closeModal}>
-                  <X size={20} />
-                </button>
-              </div>
-
-              <div className="modal-body">
-                <div className="task-info">
-                  <h4 className="task-info-name">{selectedTask.title}</h4>
-                  <p className="task-info-desc">
-                    {selectedTask.description ||
-                      "No additional instructions provided."}
-                  </p>
-                </div>
-
-                <div className="type-toggle">
                   <button
-                    className={`toggle-btn ${
-                      submissionType === "file" ? "active" : ""
-                    }`}
-                    onClick={() => setSubmissionType("file")}
+                    onClick={() => {
+                      setSkillsTab("active");
+                      setCurrentSubjectPage(1);
+                    }}
+                    style={{
+                      flex: 1,
+                      padding: "10px 12px",
+                      border: "none",
+                      borderRadius: "8px",
+                      backgroundColor:
+                        skillsTab === "active" ? "#0066FF" : "#F3F4F6",
+                      color: skillsTab === "active" ? "#FFFFFF" : "#6B7280",
+                      fontSize: "14px",
+                      fontWeight: "600",
+                      cursor: "pointer",
+                      transition: "all 0.2s",
+                    }}
                   >
-                    File Upload
+                    Active
                   </button>
                   <button
-                    className={`toggle-btn ${
-                      submissionType === "link" ? "active" : ""
-                    }`}
-                    onClick={() => setSubmissionType("link")}
+                    onClick={() => {
+                      setSkillsTab("completed");
+                      setCurrentSubjectPage(1);
+                    }}
+                    style={{
+                      flex: 1,
+                      padding: "10px 12px",
+                      border: "none",
+                      borderRadius: "8px",
+                      backgroundColor:
+                        skillsTab === "completed" ? "#0066FF" : "#F3F4F6",
+                      color: skillsTab === "completed" ? "#FFFFFF" : "#6B7280",
+                      fontSize: "14px",
+                      fontWeight: "600",
+                      cursor: "pointer",
+                      transition: "all 0.2s",
+                    }}
                   >
-                    Link Submission
+                    Completed
                   </button>
                 </div>
-
-                {submissionType === "file" ? (
-                  <div>
-                    <input
-                      type="file"
-                      id="task-upload"
-                      hidden
-                      accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
-                      onChange={handleFileUpload}
-                    />
-                    <label htmlFor="task-upload" className="upload-box">
-                      {uploadFile ? (
-                        <div className="file-selected">
-                          <FileText size={32} color="#0066FF" />
-                          <span className="file-name">{uploadFile.name}</span>
-                          <span className="file-size">
-                            {(uploadFile.size / 1024 / 1024).toFixed(2)} MB
-                          </span>
+                <div className="section-heading">Skills</div>
+                <div className="subject-list">
+                  {paginatedSubjects.map((key) => (
+                    <div
+                      key={key}
+                      className={`subject-item ${
+                        selectedSubject === key ? "active" : ""
+                      }`}
+                      onClick={() => handleSubjectChange(key)}
+                    >
+                      <div className="subject-icon-box">{key.charAt(0)}</div>
+                      <div className="subject-info">
+                        <div className="subject-name">
+                          {DISPLAY_TASKS_DATA[key].title}
                         </div>
-                      ) : (
-                        <>
-                          <CloudUpload size={32} color="#94A3B8" />
-                          <div className="upload-prompt">
-                            Click to upload or drag and drop
-                          </div>
-                          <div className="upload-sub">
-                            PDF, Word Docs or Images (Max 10MB)
-                          </div>
-                        </>
+                        <div className="subject-code">{key}</div>
+                      </div>
+                      {selectedSubject === key && (
+                        <ChevronRight size={16} color="#0066FF" />
                       )}
-                    </label>
-                  </div>
-                ) : (
-                  <div className="link-section">
-                    <label className="input-label">
-                      External URL (GitHub, Drive, etc)
-                    </label>
-                    <div className="link-input-wrapper">
-                      <ExternalLink size={18} className="link-icon" />
-                      <input
-                        className="link-input"
-                        placeholder="Paste your link here..."
-                        value={externalLink}
-                        onChange={(e) => setExternalLink(e.target.value)}
-                      />
                     </div>
-                  </div>
-                )}
-
-                <button
-                  className="submit-btn"
-                  onClick={submitAssignment}
-                  disabled={submitting || (!uploadFile && !externalLink)}
-                  style={{ 
-                    opacity: (uploadFile || externalLink) && !submitting ? 1 : 0.6,
-                    cursor: submitting ? 'not-allowed' : 'pointer'
-                  }}
-                >
-                  {submitting ? 'Submitting...' : 'Submit Assignment'}
-                </button>
+                  ))}
+                </div>
+                <Pagination
+                  currentPage={currentSubjectPage}
+                  totalPages={totalSubjectPages}
+                  onPageChange={setCurrentSubjectPage}
+                />
               </div>
             </div>
           </div>
-        )}
-      </div>
+
+          {/* Submission Modal */}
+          {selectedTask && (
+            <div className="modal-overlay" onClick={closeModal}>
+              <div
+                className="modal-content"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="modal-header">
+                  <h3 className="modal-title">Submit Assignment</h3>
+                  <button className="close-btn" onClick={closeModal}>
+                    <X size={20} />
+                  </button>
+                </div>
+
+                <div className="modal-body">
+                  <div className="task-info">
+                    <h4 className="task-info-name">{selectedTask.title}</h4>
+                    <p className="task-info-desc">
+                      {selectedTask.description ||
+                        "No additional instructions provided."}
+                    </p>
+                  </div>
+
+                  <div className="type-toggle">
+                    <button
+                      className={`toggle-btn ${
+                        submissionType === "file" ? "active" : ""
+                      }`}
+                      onClick={() => setSubmissionType("file")}
+                    >
+                      File Upload
+                    </button>
+                    <button
+                      className={`toggle-btn ${
+                        submissionType === "link" ? "active" : ""
+                      }`}
+                      onClick={() => setSubmissionType("link")}
+                    >
+                      Link Submission
+                    </button>
+                  </div>
+
+                  {submissionType === "file" ? (
+                    <div>
+                      <input
+                        type="file"
+                        id="task-upload"
+                        hidden
+                        accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
+                        onChange={handleFileUpload}
+                      />
+                      <label htmlFor="task-upload" className="upload-box">
+                        {uploadFile ? (
+                          <div className="file-selected">
+                            <FileText size={32} color="#0066FF" />
+                            <span className="file-name">{uploadFile.name}</span>
+                            <span className="file-size">
+                              {(uploadFile.size / 1024 / 1024).toFixed(2)} MB
+                            </span>
+                          </div>
+                        ) : (
+                          <>
+                            <CloudUpload size={32} color="#94A3B8" />
+                            <div className="upload-prompt">
+                              Click to upload or drag and drop
+                            </div>
+                            <div className="upload-sub">
+                              PDF, Word Docs or Images (Max 10MB)
+                            </div>
+                          </>
+                        )}
+                      </label>
+                    </div>
+                  ) : (
+                    <div className="link-section">
+                      <label className="input-label">
+                        External URL (GitHub, Drive, etc)
+                      </label>
+                      <div className="link-input-wrapper">
+                        <ExternalLink size={18} className="link-icon" />
+                        <input
+                          className="link-input"
+                          placeholder="Paste your link here..."
+                          value={externalLink}
+                          onChange={(e) => setExternalLink(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  <button
+                    className="submit-btn"
+                    onClick={submitAssignment}
+                    disabled={submitting || (!uploadFile && !externalLink)}
+                    style={{
+                      opacity:
+                        (uploadFile || externalLink) && !submitting ? 1 : 0.6,
+                      cursor: submitting ? "not-allowed" : "pointer",
+                    }}
+                  >
+                    {submitting ? "Submitting..." : "Submit Assignment"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
       )}
     </>
   );
