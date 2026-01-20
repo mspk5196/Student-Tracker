@@ -561,6 +561,7 @@ const FacultyAccounts = () => {
                                                         style={styles.inlineSelect}
                                                     >
                                                         <option value={1}>Active</option>
+                                                        <option value={2}>On Leave</option>
                                                         <option value={0}>Inactive</option>
                                                     </select>
                                                 </td>

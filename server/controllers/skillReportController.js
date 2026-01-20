@@ -528,23 +528,25 @@ export const getSkillReportsForFaculty = async (req, res) => {
 
     const params = [];
     
-    // Venue filter - check both student_venue_id and excel_venue_name (for records with NULL venue_id)
+    // Venue filter - Filter by students who are ENROLLED in groups for the selected venue
+    // This ensures we only show skill data for students actually assigned to the venue
     // If admin selects "all", skip venue filtering
     if (venueId && !isAllVenues) {
-      // Get venue name for matching excel_venue_name
-      const [venueInfo] = await db.execute('SELECT venue_name FROM venue WHERE venue_id = ?', [parseInt(venueId)]);
-      const venueName = venueInfo.length > 0 ? venueInfo[0].venue_name : '';
-      
-      query += ' AND (ss.student_venue_id = ? OR (ss.student_venue_id IS NULL AND ss.excel_venue_name = ?))';
-      params.push(parseInt(venueId), venueName);
+      query += ` AND ss.student_id IN (
+        SELECT gs.student_id 
+        FROM group_students gs
+        INNER JOIN \`groups\` g ON gs.group_id = g.group_id
+        WHERE g.venue_id = ? AND gs.status = 'Active' AND g.status = 'Active'
+      )`;
+      params.push(parseInt(venueId));
     } else if (facultyVenueIds.length > 0 && !isAllVenues) {
-      // Get venue names for all faculty venues
-      const [venueNames] = await db.execute(
-        `SELECT venue_id, venue_name FROM venue WHERE venue_id IN (${facultyVenueIds.join(',')})`
-      );
-      const venueNameList = venueNames.map(v => `'${v.venue_name.replace(/'/g, "''")}'`).join(',');
-      
-      query += ` AND (ss.student_venue_id IN (${facultyVenueIds.join(',')}) OR (ss.student_venue_id IS NULL AND ss.excel_venue_name IN (${venueNameList})))`;
+      // Filter by students enrolled in any of faculty's venues
+      query += ` AND ss.student_id IN (
+        SELECT gs.student_id 
+        FROM group_students gs
+        INNER JOIN \`groups\` g ON gs.group_id = g.group_id
+        WHERE g.venue_id IN (${facultyVenueIds.join(',')}) AND gs.status = 'Active' AND g.status = 'Active'
+      )`;
     }
     // If isAllVenues is true (admin), no venue filter is applied
 
@@ -605,18 +607,22 @@ export const getSkillReportsForFaculty = async (req, res) => {
       WHERE 1=1`;
     const countParams = [];
     
-    // Venue filter - same logic as main query (skip if "all" venues for admin)
+    // Venue filter - same logic as main query (filter by group membership)
     if (venueId && !isAllVenues) {
-      const [venueInfo] = await db.execute('SELECT venue_name FROM venue WHERE venue_id = ?', [parseInt(venueId)]);
-      const venueName = venueInfo.length > 0 ? venueInfo[0].venue_name : '';
-      countQuery += ' AND (ss.student_venue_id = ? OR (ss.student_venue_id IS NULL AND ss.excel_venue_name = ?))';
-      countParams.push(parseInt(venueId), venueName);
+      countQuery += ` AND ss.student_id IN (
+        SELECT gs.student_id 
+        FROM group_students gs
+        INNER JOIN \`groups\` g ON gs.group_id = g.group_id
+        WHERE g.venue_id = ? AND gs.status = 'Active' AND g.status = 'Active'
+      )`;
+      countParams.push(parseInt(venueId));
     } else if (facultyVenueIds.length > 0 && !isAllVenues) {
-      const [venueNames] = await db.execute(
-        `SELECT venue_id, venue_name FROM venue WHERE venue_id IN (${facultyVenueIds.join(',')})`
-      );
-      const venueNameList = venueNames.map(v => `'${v.venue_name.replace(/'/g, "''")}'`).join(',');
-      countQuery += ` AND (ss.student_venue_id IN (${facultyVenueIds.join(',')}) OR (ss.student_venue_id IS NULL AND ss.excel_venue_name IN (${venueNameList})))`;
+      countQuery += ` AND ss.student_id IN (
+        SELECT gs.student_id 
+        FROM group_students gs
+        INNER JOIN \`groups\` g ON gs.group_id = g.group_id
+        WHERE g.venue_id IN (${facultyVenueIds.join(',')}) AND gs.status = 'Active' AND g.status = 'Active'
+      )`;
     }
 
     if (status && ['Cleared', 'Not Cleared', 'Ongoing'].includes(status)) {
@@ -659,18 +665,22 @@ export const getSkillReportsForFaculty = async (req, res) => {
       WHERE 1=1`;
     const statsParams = [];
     
-    // Venue filter - same logic as main query (skip if "all" venues for admin)
+    // Venue filter - same logic as main query (filter by group membership)
     if (venueId && !isAllVenues) {
-      const [venueInfo] = await db.execute('SELECT venue_name FROM venue WHERE venue_id = ?', [parseInt(venueId)]);
-      const venueName = venueInfo.length > 0 ? venueInfo[0].venue_name : '';
-      statsQuery += ' AND (ss.student_venue_id = ? OR (ss.student_venue_id IS NULL AND ss.excel_venue_name = ?))';
-      statsParams.push(parseInt(venueId), venueName);
+      statsQuery += ` AND ss.student_id IN (
+        SELECT gs.student_id 
+        FROM group_students gs
+        INNER JOIN \`groups\` g ON gs.group_id = g.group_id
+        WHERE g.venue_id = ? AND gs.status = 'Active' AND g.status = 'Active'
+      )`;
+      statsParams.push(parseInt(venueId));
     } else if (facultyVenueIds.length > 0 && !isAllVenues) {
-      const [venueNames] = await db.execute(
-        `SELECT venue_id, venue_name FROM venue WHERE venue_id IN (${facultyVenueIds.join(',')})`
-      );
-      const venueNameList = venueNames.map(v => `'${v.venue_name.replace(/'/g, "''")}'`).join(',');
-      statsQuery += ` AND (ss.student_venue_id IN (${facultyVenueIds.join(',')}) OR (ss.student_venue_id IS NULL AND ss.excel_venue_name IN (${venueNameList})))`;
+      statsQuery += ` AND ss.student_id IN (
+        SELECT gs.student_id 
+        FROM group_students gs
+        INNER JOIN \`groups\` g ON gs.group_id = g.group_id
+        WHERE g.venue_id IN (${facultyVenueIds.join(',')}) AND gs.status = 'Active' AND g.status = 'Active'
+      )`;
     }
 
     if (status && ['Cleared', 'Not Cleared', 'Ongoing'].includes(status)) {
