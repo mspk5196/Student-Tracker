@@ -6,7 +6,8 @@ import {
   updateFaculty, 
   deleteFaculty,
   getFacultyById,
-  bulkUploadFaculties
+  bulkUploadFaculties,
+  getFacultyClasses
 } from '../controllers/faculty.controller.js';
 import { authenticate } from '../middleware/auth.middleware.js';
 
@@ -32,6 +33,7 @@ const upload = multer({
 
 // All routes are protected
 router.get('/', authenticate, getAllFaculties);
+router.get('/my-classes', authenticate, getFacultyClasses);
 router.get('/:userId', authenticate, getFacultyById);
 router.post('/', authenticate, createFaculty);
 router.post('/bulk-upload', authenticate, upload.single('file'), bulkUploadFaculties);
