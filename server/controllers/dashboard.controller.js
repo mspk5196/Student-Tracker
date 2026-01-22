@@ -9,9 +9,11 @@ export const getDashboardMetrics = async (req, res) => {
     
     // 1. Total Students Count - Count directly from students table
     const [totalStudentsResult] = await db.query(`
-      SELECT COUNT(*) as total_count FROM students WHERE 1=1
+      SELECT COUNT(student_id) as total_count FROM students 
     `);
-    const totalStudents = totalStudentsResult[0]?.total_count || 0;
+
+    console.log('Total Students Result:', totalStudentsResult);
+    const totalStudents = totalStudentsResult[0]?.total_count;
 
     // 2. Active Groups Count - Count from groups table where status is Active
     const [activeGroupsResult] = await db.query(`
@@ -131,7 +133,7 @@ export const getAttendanceByDepartment = async (req, res) => {
       period: period || 'Weekly'
     });
   } catch (error) {
-    console.error('❌ Error fetching attendance by department:', error);
+    console.error(' Error fetching attendance by department:', error);
     res.status(500).json({ 
       success: false, 
       message: 'Failed to fetch attendance data',
@@ -166,7 +168,7 @@ export const getTaskCompletion = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('❌ Error fetching task completion:', error);
+    console.error(' Error fetching task completion:', error);
     res.status(500).json({ 
       success: false, 
       message: 'Failed to fetch task completion data',
