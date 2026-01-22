@@ -361,11 +361,22 @@ const AttendanceManagement = () => {
 
     // ====================== COMPUTED VALUES ======================
     const filteredStudents = useMemo(() => {
-        return students.filter(
-            s =>
-                s.name.toLowerCase().includes(search.toLowerCase()) ||
-                s.id.toLowerCase().includes(search.toLowerCase())
-        );
+        return students
+            .filter(
+                s =>
+                    s.name.toLowerCase().includes(search.toLowerCase()) ||
+                    s.id.toLowerCase().includes(search.toLowerCase())
+            )
+            .sort((a, b) => {
+                // First sort by department alphabetically
+                const deptCompare = (a.department || '').localeCompare(b.department || '');
+                if (deptCompare !== 0) return deptCompare;
+                
+                // Then sort by roll number within same department
+                const rollA = a.id || '';
+                const rollB = b.id || '';
+                return rollA.localeCompare(rollB, undefined, { numeric: true });
+            });
     }, [students, search]);
 
     const stats = useMemo(() => ({
@@ -373,6 +384,7 @@ const AttendanceManagement = () => {
         present: students.filter(s => s.status === 'present').length,
         absent: students.filter(s => s.status === 'absent').length,
         late: students.filter(s => s.status === 'late').length,
+        ps: students.filter(s => s.status === 'ps').length,
         marked: students.filter(s => s.status).length
     }), [students]);
 
@@ -741,6 +753,21 @@ const AttendanceManagement = () => {
             border: 'none', 
             cursor: 'pointer'
         },
+        toggleActivePs: {
+            flex: isMobile ? 1 : 'none',
+            backgroundColor: '#FFF', 
+            boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center',
+            padding: isMobile ? '10px 8px' : '8px 18px', 
+            borderRadius: isMobile ? '6px' : '100px',
+            fontSize: isMobile ? '12px' : '13px', 
+            fontWeight: '700', 
+            color: '#8B5CF6', 
+            border: 'none', 
+            cursor: 'pointer'
+        },
         statusIndicator: {
             fontSize: '11px',
             color: '#6B7280',
@@ -980,6 +1007,10 @@ remarkInputActive: {
                         <span style={{ ...styles.statValue, ...styles.statValueOrange }}>{stats.late}</span>
                     </div>
                     <div style={styles.statItem}>
+                        <span style={styles.statLabel}>PS</span>
+                        <span style={{ ...styles.statValue, color: '#8B5CF6' }}>{stats.ps || 0}</span>
+                    </div>
+                    <div style={styles.statItem}>
                         <span style={styles.statLabel}>Marked</span>
                         <span style={{ ...styles.statValue, ...styles.statValueBlue }}>{stats.marked}</span>
                     </div>
@@ -1078,6 +1109,14 @@ remarkInputActive: {
                                         >
                                             <Clock size={14} style={{ marginRight: isMobile ? '4px' : '6px' }} /> 
                                             {isMobile ? 'L' : 'Late'}
+                                        </button>
+                                        <button
+                                            style={s.status === 'ps' ? styles.toggleActivePs : styles.toggleBtn}
+                                            onClick={() => updateStatus(s.id, 'ps')}
+                                            title="Mark PS (Placement Support)"
+                                        >
+                                            <CheckCircle2 size={14} style={{ marginRight: isMobile ? '4px' : '6px' }} /> 
+                                            {isMobile ? 'PS' : 'PS'}
                                         </button>
                                     </div>
                                     {s.status && (

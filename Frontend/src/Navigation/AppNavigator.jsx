@@ -50,6 +50,7 @@ import MyClassRoom from "../pages/Student/MyClassRoom/MyClassRoom";
 import StudentAttendance from "../pages/Student/StudentAttendance/Attendance";
 import TasksAssignments from "../pages/Student/Tasks&Assignments/Tasks&Assignment";
 import StudentRoadmap from "../pages/Student/RoadMap&Material/RoadMap&Material";
+import StudentDashboard from "../pages/Student/Dashboard/StudentDashboard";
 
 const AppNavigator = () => {
   const user = useAuthStore((s) => s.user);
@@ -104,7 +105,7 @@ const AppNavigator = () => {
         {/* STUDENT (role === "student") */}
         {user?.role === "student" && (
           <Route path="/" element={<SideTab />}>
-            <Route index element={<StudentRoadmap />} />
+            <Route index element={<StudentDashboard />} />
             <Route path="classes" element={<MyClassRoom />} />
             <Route path="attendance" element={<StudentAttendance />} />
             <Route path="roadmap" element={<StudentRoadmap />} />

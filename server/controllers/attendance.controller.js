@@ -295,7 +295,8 @@ export const getSessionAttendance = async (req, res) => {
       SELECT 
         a.student_id,
         a.is_present,
-        a.is_late
+        a.is_late,
+        a.remarks
       FROM attendance a
       WHERE a.session_id = ? AND a.venue_id = ?
     `, [sessionId, venueId]);
@@ -304,13 +305,17 @@ export const getSessionAttendance = async (req, res) => {
     const attendanceMap = {};
     attendanceRecords.forEach(record => {
       let status = 'absent';
-      if (record.is_present === 1) {
+      
+      // Check for PS status first (stored in remarks)
+      if (record.remarks === 'PS') {
+        status = 'ps';
+      } else if (record.is_present === 1) {
         status = record.is_late === 1 ? 'late' : 'present';
       }
       
       attendanceMap[record.student_id] = {
         status,
-        remarks: '' // remarks column doesn't exist in table
+        remarks: record.remarks || ''
       };
     });
 
@@ -392,36 +397,62 @@ export const saveAttendance = async (req, res) => {
     // Process each attendance record
     for (const record of attendance) {
       
-      const isPresent = record.status === 'present' ? 1 : 0;
-      const isLate = record.status === 'late' ? 1 : 0;
+      // Handle different status types: present, late, absent, ps
+      let isPresent, isLate, remarks;
+      
+      switch(record.status) {
+        case 'present':
+          isPresent = 1;
+          isLate = 0;
+          remarks = null;
+          break;
+        case 'late':
+          isPresent = 1;
+          isLate = 1;
+          remarks = null;
+          break;
+        case 'ps':
+          isPresent = 1;
+          isLate = 0;
+          remarks = 'PS';
+          break;
+        case 'absent':
+        default:
+          isPresent = 0;
+          isLate = 0;
+          remarks = null;
+          break;
+      }
 
-      // Check if attendance already exists for this student in this session
+      // Check if attendance already exists using unique_student_session constraint
       const [existingRecord] = await connection.query(`
         SELECT attendance_id FROM attendance 
         WHERE student_id = ? AND session_id = ?
       `, [record.student_id, sessionId]);
 
       if (existingRecord.length > 0) {
-        // Update existing record
+        // Update existing record - allow updating attendance for same date and session
         await connection.query(`
           UPDATE attendance 
           SET 
             is_present = ?, 
             is_late = ?, 
+            remarks = ?,
             faculty_id = ?,
+            venue_id = ?,
             updated_at = NOW()
           WHERE student_id = ? AND session_id = ?
-        `, [isPresent, isLate, actualFacultyId, record.student_id, sessionId]);
+        `, [isPresent, isLate, remarks, actualFacultyId, venueId, record.student_id, sessionId]);
         updatedCount++;
       } else {
         // Insert new record
         await connection.query(`
           INSERT INTO attendance 
-          (student_id, faculty_id, venue_id, session_id, is_present, is_late, created_at) 
-          VALUES (?, ?, ?, ?, ?, ?, NOW())
-        `, [record.student_id, actualFacultyId, venueId, sessionId, isPresent, isLate]);
+          (student_id, faculty_id, venue_id, session_id, is_present, is_late, remarks, created_at) 
+          VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
+        `, [record.student_id, actualFacultyId, venueId, sessionId, isPresent, isLate, remarks]);
         insertedCount++;
-            }
+      }
     }
 
     await connection.commit();
@@ -903,7 +934,10 @@ export const getVenueAttendanceDetails = async (req, res) => {
       let status = 'Not Marked';
       
       if (attendance) {
-        if (attendance.is_present === 1 && attendance.is_late === 0) {
+        // Check for PS status first (stored in remarks)
+        if (attendance.remarks === 'PS') {
+          status = 'PS';
+        } else if (attendance.is_present === 1 && attendance.is_late === 0) {
           status = 'Present';
         } else if (attendance.is_present === 1 && attendance.is_late === 1) {
           status = 'Late';
@@ -929,13 +963,14 @@ export const getVenueAttendanceDetails = async (req, res) => {
     const present = studentsWithAttendance.filter(s => s.status === 'Present').length;
     const absent = studentsWithAttendance.filter(s => s.status === 'Absent').length;
     const late = studentsWithAttendance.filter(s => s.status === 'Late').length;
+    const ps = studentsWithAttendance.filter(s => s.status === 'PS').length;
     const notMarked = studentsWithAttendance.filter(s => s.status === 'Not Marked').length;
 
     res.status(200).json({
       success: true,
       data: {
         students: studentsWithAttendance,
-        summary: { total, present, absent, late, notMarked },
+        summary: { total, present, absent, late, ps, notMarked },
         filters: { date: selectedDate, session: session || 'all', venueId }
       }
     });
@@ -949,6 +984,153 @@ export const getVenueAttendanceDetails = async (req, res) => {
     });
   }
 };
+
+// Get attendance records by date and session for editing
+export const getAttendanceByDateAndSession = async (req, res) => {
+  try {
+    const { venueId, date, sessionId } = req.query;
+
+    if (!venueId || !date || !sessionId) {
+      return res.status(400).json({
+        success: false,
+        message: 'venueId, date, and sessionId are required'
+      });
+    }
+
+    // Get all students in the venue with their attendance status
+    const [students] = await db.query(`
+      SELECT 
+        s.student_id,
+        u.user_id,
+        u.name,
+        u.ID as roll_number,
+        u.email,
+        a.attendance_id,
+        a.is_present,
+        a.is_late,
+        a.is_ps,
+        a.is_half_day,
+        a.remarks,
+        a.attendance_date,
+        sess.session_name
+      FROM students s
+      INNER JOIN users u ON s.user_id = u.user_id
+      INNER JOIN group_students gs ON s.student_id = gs.student_id
+      INNER JOIN \`groups\` g ON gs.group_id = g.group_id
+      LEFT JOIN attendance a ON s.student_id = a.student_id 
+        AND a.attendance_date = ? 
+        AND a.session_id = ?
+      LEFT JOIN attendance_session sess ON a.session_id = sess.session_id
+      WHERE g.venue_id = ?
+        AND gs.status = 'Active'
+        AND g.status = 'Active'
+      GROUP BY s.student_id
+      ORDER BY u.name
+    `, [date, sessionId, venueId]);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        students,
+        date,
+        sessionId,
+        venueId
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Error fetching attendance by date and session:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch attendance records',
+      error: error.message
+    });
+  }
+};
+
+// Update attendance by date and session
+export const updateAttendanceByDateAndSession = async (req, res) => {
+  const connection = await db.getConnection();
+
+  try {
+    const { venueId, date, sessionId, attendance } = req.body;
+    const userId = req.user.user_id;
+
+    if (!venueId || !date || !sessionId || !attendance || attendance.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Missing required fields'
+      });
+    }
+
+    const actualFacultyId = await ensureFacultyId(userId);
+
+    await connection.beginTransaction();
+
+    let updatedCount = 0;
+    let insertedCount = 0;
+
+    for (const record of attendance) {
+      const isPresent = record.status === 'present' ? 1 : 0;
+      const isLate = record.status === 'late' ? 1 : 0;
+      const isPs = record.status === 'ps' ? 1 : 0;
+
+      // Check if record exists
+      const [existing] = await connection.query(`
+        SELECT attendance_id FROM attendance
+        WHERE student_id = ? AND attendance_date = ? AND session_id = ?
+      `, [record.student_id, date, sessionId]);
+
+      if (existing.length > 0) {
+        // Update existing
+        await connection.query(`
+          UPDATE attendance
+          SET is_present = ?, is_late = ?, is_ps = ?, faculty_id = ?, updated_at = NOW()
+          WHERE attendance_id = ?
+        `, [isPresent, isLate, isPs, actualFacultyId, existing[0].attendance_id]);
+        updatedCount++;
+      } else {
+        // Insert new
+        await connection.query(`
+          INSERT INTO attendance
+          (student_id, faculty_id, venue_id, session_id, attendance_date, is_present, is_late, is_ps, created_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())
+        `, [record.student_id, actualFacultyId, venueId, sessionId, date, isPresent, isLate, isPs]);
+        insertedCount++;
+      }
+    }
+
+    // Recalculate half-day status
+    try {
+      await connection.query(`CALL sp_calculate_daily_attendance(?, ?)`, [date, venueId]);
+    } catch (procError) {
+      console.warn('⚠️  Stored procedure not available:', procError.message);
+    }
+
+    await connection.commit();
+
+    res.status(200).json({
+      success: true,
+      message: 'Attendance updated successfully',
+      data: {
+        updated: updatedCount,
+        inserted: insertedCount,
+        total: attendance.length
+      }
+    });
+
+  } catch (error) {
+    await connection.rollback();
+    console.error('❌ Error updating attendance:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update attendance',
+      error: error.message
+    });
+  } finally {
+    connection.release();
+  }
+}; 
 
 // Test endpoint
 export const testAttendance = async (req, res) => {

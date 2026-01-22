@@ -25,7 +25,7 @@ const SideTab = () => {
   const location = useLocation();
   const { user, logout } = useAuthStore();
 
-  const isFullBleedPage = ["group-insights", "tasks"].some((seg) =>
+  const isFullBleedPage = ["group-insights", "tasks", "roadmap"].some((seg) =>
     location.pathname.includes(seg),
   );
 
@@ -96,22 +96,47 @@ const SideTab = () => {
     ],
     faculty: [
       // { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, section: 'main' },
-      { id: 'classes', label: 'My Classes / Groups', icon: Layers, section: 'top' },
-      
+      {
+        id: "classes",
+        label: "My Classes / Groups",
+        icon: Layers,
+        section: "top",
+      },
+
       // Management Section
-      { id: 'students', label: 'Students', icon: Users, section: 'management' },
-      
+      { id: "students", label: "Students", icon: Users, section: "management" },
+
       // Academic Section
-      { id: 'attendance', label: 'Attendance', icon: CalendarCheck, section: 'academic' },
-      { id: 'tasks', label: 'Task & Assignment', icon: ClipboardCheck, section: 'academic' },
+      {
+        id: "attendance",
+        label: "Attendance",
+        icon: CalendarCheck,
+        section: "academic",
+      },
+      {
+        id: "tasks",
+        label: "Task & Assignment",
+        icon: ClipboardCheck,
+        section: "academic",
+      },
       // { id: 'skill-reports', label: 'Course Progress', icon: FileSpreadsheet, section: 'academic' },
-      { id: 'group-insights', label: 'Group Insights', icon: BarChart3, section: 'classes' },
-      { id: 'reports', label: 'Reports', icon: BarChart3, section: 'academic' },
+      {
+        id: "group-insights",
+        label: "Group Insights",
+        icon: BarChart3,
+        section: "classes",
+      },
+      { id: "reports", label: "Reports", icon: BarChart3, section: "academic" },
       // { id: 'settings', label: 'Settings', icon: Settings, section: 'system' },
     ],
     student: [
-      // { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, section: 'main' },
-      { id: "classes", label: "My Class Room", icon: Home, section: "top" },
+      {
+        id: "dashboard",
+        label: "Dashboard",
+        icon: LayoutDashboard,
+        section: "top",
+      },
+      { id: "classes", label: "My Class Room", icon: Home, section: "classes" },
       {
         id: "roadmap",
         label: "Roadmap & Material",

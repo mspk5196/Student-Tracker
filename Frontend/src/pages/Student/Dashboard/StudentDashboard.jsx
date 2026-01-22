@@ -658,39 +658,6 @@ const StudentDashboard = () => {
                 <div className="left-content">
                     <div className="section-label">
                         <div>
-                            <h2>Today's Schedule</h2>
-                            <p>Upcoming classes and sessions</p>
-                        </div>
-                        <button className="btn-primary" onClick={() => window.location.hash = '#/roadmap'}>
-                            <BookOpen size={18} /> View Roadmap
-                        </button>
-                    </div>
-
-                    <div className="schedule-list">
-                        {STATIC_DATA.schedule.map(c => (
-                            <div className="class-card" key={c.id}>
-                                <div>
-                                    <div className="class-info-top">
-                                        <span className="class-name">{c.id} {c.name}</span>
-                                        <span className={`status-badge status-${c.statusType}`}>{c.status}</span>
-                                    </div>
-                                    <div className="meta-row">
-                                        <span><Clock size={14} style={{ verticalAlign: 'middle', marginRight: '4px' }} /> {c.time}</span>
-                                        <span><MapPin size={14} style={{ verticalAlign: 'middle', marginRight: '4px' }} /> {c.loc}</span>
-                                        <span><Users size={14} style={{ verticalAlign: 'middle', marginRight: '4px' }} /> {c.faculty}</span>
-                                    </div>
-                                </div>
-                                <div className="actions">
-                                    <button className="btn-primary" style={{ backgroundColor: 'white', color: '#2563eb', border: '1px solid #e5e7eb' }}>
-                                        View Details
-                                    </button>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-
-                    <div className="section-label" style={{ marginTop: '40px' }}>
-                        <div>
                             <h2>Assignments & Tasks</h2>
                             <p>Recent tasks requiring your attention</p>
                         </div>
@@ -739,24 +706,6 @@ const StudentDashboard = () => {
                             <PieChart size={18} color="#10b981" />
                         </div>
                         <DonutChart data={STATIC_DATA.engagementData.taskCompletion} />
-                    </div>
-
-                    <div className="sidebar-card">
-                        <div className="sb-title">
-                            <h3>Recent Grades</h3>
-                            <span style={{ fontSize: '12px', color: '#2563eb', fontWeight: 700, cursor: 'pointer' }}>View All</span>
-                        </div>
-                        <div className="action-list">
-                            {STATIC_DATA.grades.map(g => (
-                                <div className="action-row" key={g.id}>
-                                    <div>
-                                        <div className="at-text">{g.subject}</div>
-                                        <div className="as-text">{g.code} • {g.score}</div>
-                                    </div>
-                                    <div className={`badge-flat type-${g.type}`} style={{ borderRadius: '4px', padding: '2px 6px' }}>{g.grade}</div>
-                                </div>
-                            ))}
-                        </div>
                     </div>
                 </div>
             </div>

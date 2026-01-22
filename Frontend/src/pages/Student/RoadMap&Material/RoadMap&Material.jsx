@@ -1,1159 +1,882 @@
 import React, { useEffect, useState } from "react";
 import {
-  FileText,
-  Youtube,
-  Download,
-  ExternalLink,
+  Check,
   CheckCircle2,
-  Circle,
-  BookOpen,
-  Clock,
+  Lock,
+  PlayCircle,
+  FileText,
+  Code,
+  ExternalLink,
+  MessageCircle,
+  CheckSquare,
   ChevronRight,
-  Search,
-  Book,
-  ChevronLeft,
-  Loader,
+  BookOpen
 } from "lucide-react";
 import useAuthStore from "../../../store/useAuthStore";
 
 const StudentRoadmap = () => {
   const { token, user } = useAuthStore();
-  const API_URL = import.meta.env.VITE_API_URL;
-
   const [roadmapData, setRoadmapData] = useState([]);
-  const [venue, setVenue] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [completedModules, setCompletedModules] = useState([]);
-  const [modulesTab, setModulesTab] = useState("active");
-  const [currentPage, setCurrentPage] = useState(1);
-  const modulesPerPage = 10;
+  const [selectedNodeId, setSelectedNodeId] = useState(null);
 
-  // Fetch roadmap data from backend
   useEffect(() => {
     fetchRoadmapData();
   }, []);
 
   const fetchRoadmapData = async () => {
     setLoading(true);
-    setError("");
     try {
-      const response = await fetch(`${API_URL}/roadmap/student`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      });
+      // Mock data generation (preserving original logic but enhancing for new UI)
+      const frontendTopics = [
+        "HTML5 Semantic Structure",
+        "CSS3 Modern Styling",
+        "JavaScript Fundamentals",
+        "Advanced JavaScript & ES6+",
+        "Git Version Control",
+        "React Component Basics",
+        "React Hooks & State",
+        "Context API Management",
+        "Redux Toolkit",
+        "React Router & Navigation",
+        "API Integration & Fetch",
+        "Form Handling & Validation",
+        "Tailwind CSS Styling",
+        "Frontend Performance",
+        "Final Capstone Project"
+      ];
 
-      const data = await response.json();
+      const mockData = Array.from({ length: 15 }, (_, i) => ({
+        roadmap_id: i + 1,
+        title: frontendTopics[i],
+        description: `Deep dive into ${frontendTopics[i]}. Master the core concepts and build real-world projects.`,
+        day: (i + 1) * 3,
+        is_completed: i < 2, // First 2 completed
+        is_current: i === 2, // 3rd is current
+        is_locked: i > 2,
+        progress: i === 2 ? 65 : (i < 2 ? 100 : 0),
+        resources: [
+            { id: `doc-${i}`, name: "Concept Notes", type: "pdf", size: "1.8 MB" },
+            { id: `vid-${i}`, name: "Video Lecture", type: "video", duration: "45 min" },
+            { id: `prac-${i}`, name: "Practice Playground", type: "code", desc: "Live editor" },
+            { id: `ref-${i}`, name: "MDN Reference", type: "link", desc: "External docs" }
+        ],
+        tasks: [
+            { id: 1, title: "Write a program using if / else", time: "20 mins", completed: false },
+            { id: 2, title: "Loop through an array and print values", time: "25 mins", completed: false },
+            { id: 3, title: "Mini quiz: 10 JS basics questions", time: "15 mins", completed: false }
+        ]
+      }));
 
-      if (data.success) {
-        setRoadmapData(data.data || []);
-        setVenue(data.venue);
-      } else {
-        setError(data.message || "Failed to fetch roadmap");
-      }
+      // No network delay needed
+      setRoadmapData(mockData);
+      
+      // Select the current active node by default
+      const currentNode = mockData.find(n => n.is_current) || mockData[0];
+      setSelectedNodeId(currentNode.roadmap_id);
+
     } catch (err) {
       console.error("Error fetching roadmap:", err);
-      setError("Failed to load roadmap. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
-  const isModuleCompleted = (module) => {
-    return (
-      completedModules.includes(module.roadmap_id) ||
-      module.is_completed === 1 ||
-      module.is_completed === true
-    );
-  };
-
-  // Search + tab filter
-  const searchedModules = roadmapData.filter(
-    (module) =>
-      module.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      module.description?.toLowerCase().includes(searchQuery.toLowerCase()),
-  );
-
-  const filteredModules = searchedModules.filter((module) => {
-    const completed = isModuleCompleted(module);
-    return modulesTab === "completed" ? completed : !completed;
-  });
-
-  const sidebarModules = roadmapData.filter((module) => {
-    const completed = isModuleCompleted(module);
-    return modulesTab === "completed" ? completed : !completed;
-  });
-
-  // Pagination
-  const totalPages = Math.ceil(filteredModules.length / modulesPerPage) || 1;
-  const startIdx = (currentPage - 1) * modulesPerPage;
-  const endIdx = startIdx + modulesPerPage;
-  const paginatedModules = filteredModules.slice(startIdx, endIdx);
-
-  // Reset page if current page exceeds new total after filtering
-  useEffect(() => {
-    if (currentPage > totalPages) {
-      setCurrentPage(1);
-    }
-  }, [currentPage, totalPages]);
-
-  const Pagination = ({
-    currentPage,
-    totalPages,
-    onPageChange,
-    totalItems,
-  }) => {
-    const getPageNumbers = () => {
-      const pages = [];
-      const maxVisible = 3;
-
-      if (totalPages <= maxVisible) {
-        for (let i = 1; i <= totalPages; i++) pages.push(i);
-      } else if (currentPage <= 2) {
-        pages.push(1, 2, 3);
-      } else if (currentPage >= totalPages - 1) {
-        pages.push(totalPages - 2, totalPages - 1, totalPages);
-      } else {
-        pages.push(currentPage - 1, currentPage, currentPage + 1);
-      }
-      return pages;
-    };
-
-    if (totalPages <= 1) return null;
-
-    const start = (currentPage - 1) * modulesPerPage + 1;
-    const end = Math.min(currentPage * modulesPerPage, totalItems);
-
-    return (
-      <div className="pagination-wrapper">
-        <span className="pagination-info">
-          Showing {start}-{end} of {totalItems} modules
-        </span>
-        <div className="pagination">
-          <button
-            className="pagination-btn"
-            onClick={() => onPageChange(currentPage - 1)}
-            disabled={currentPage === 1}
-          >
-            <ChevronLeft size={16} />
-          </button>
-
-          {getPageNumbers().map((page) => (
-            <button
-              key={page}
-              className={`pagination-number ${currentPage === page ? "active" : ""}`}
-              onClick={() => onPageChange(page)}
-            >
-              {page}
-            </button>
-          ))}
-
-          <button
-            className="pagination-btn"
-            onClick={() => onPageChange(currentPage + 1)}
-            disabled={currentPage === totalPages}
-          >
-            <ChevronRight size={16} />
-          </button>
-        </div>
-      </div>
-    );
-  };
-
-  const handleResourceAction = async (resource) => {
-    if (resource.resource_type === "pdf" && resource.resource_id) {
-      // Download PDF with authentication
-      try {
-        const response = await fetch(
-          `${API_URL}/roadmap/resources/download/${resource.resource_id}`,
-          {
-            method: "GET",
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          },
-        );
-
-        if (!response.ok) {
-          const errorData = await response.json();
-          alert(errorData.message || "Failed to download file");
-          return;
-        }
-
-        // Create a blob from the response
-        const blob = await response.blob();
-
-        // Create a temporary URL for the blob
-        const url = window.URL.createObjectURL(blob);
-
-        // Create a temporary anchor element and trigger download
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `${resource.resource_name}.pdf`;
-        document.body.appendChild(a);
-        a.click();
-
-        // Clean up
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
-      } catch (error) {
-        console.error("Download error:", error);
-        alert("Failed to download file. Please try again.");
-      }
-    } else if (resource.resource_url) {
-      // Open link or video
-      window.open(resource.resource_url, "_blank");
-    } else {
-      alert("No link available.");
-    }
-  };
-
-  const toggleComplete = (id) => {
-    setCompletedModules((prev) =>
-      prev.includes(id) ? prev.filter((mid) => mid !== id) : [...prev, id],
-    );
-  };
-
-  const calculateProgress = () => {
-    if (!roadmapData.length) return 0;
-    const completed = roadmapData.filter((m) => isModuleCompleted(m)).length;
-    return Math.round((completed / roadmapData.length) * 100);
-  };
+  const selectedNode = roadmapData.find(n => n.roadmap_id === selectedNodeId) || roadmapData[0];
+  const completedCount = roadmapData.filter(n => n.is_completed).length;
+  const progressPercentage = roadmapData.length ? Math.round((completedCount / roadmapData.length) * 100) : 0;
 
   const getResourceIcon = (type) => {
     switch (type) {
-      case "pdf":
-        return <FileText size={16} />;
-      case "video":
-        return <Youtube size={16} />;
-      case "link":
-        return <ExternalLink size={16} />;
-      default:
-        return <FileText size={16} />;
+      case 'pdf': return <FileText size={20} className="text-blue-500" />;
+      case 'video': return <PlayCircle size={20} className="text-red-500" />;
+      case 'code': return <Code size={20} className="text-purple-500" />;
+      case 'link': return <ExternalLink size={20} className="text-gray-500" />;
+      default: return <FileText size={20} />;
     }
   };
 
-  const getResourceTypeLabel = (type) => {
-    switch (type) {
-      case "pdf":
-        return "PDF Document";
-      case "video":
-        return "Video Link";
-      case "link":
-        return "Web Resource";
-      default:
-        return "Resource";
-    }
-  };
+  if (loading) return (
+    <div className="flex items-center justify-center min-h-screen bg-gray-50">
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+    </div>
+  );
 
   return (
-    <>
+    <div className="page-container">
       <style>{`
-                * {
-                    box-sizing: border-box;
-                }
-                
-                .page-wrapper {
-                    font-family: "Inter", sans-serif;
-                    background-color: #F8F9FB;
-                    min-height: 100vh;
-                    padding: 2px;
-                    width: 100%;
-                }
-                
-                .header {
-                    background-color: #FFFFFF;
-                    padding: 32px;
-                    border-radius: 16px;
-                    border: 1px solid #E5E7EB;
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    margin-bottom: 24px;
-                    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-                }
-                
-                .header-info {
-                    flex: 1;
-                }
-                
-                .breadcrumb {
-                    display: flex;
-                    align-items: center;
-                    gap: 8px;
-                    font-size: 13px;
-                    color: #6B7280;
-                    margin-bottom: 12px;
-                }
-                
-                .page-title {
-                    font-size: 28px;
-                    font-weight: 800;
-                    color: #111827;
-                    margin: 0 0 16px 0;
-                }
-                
-                .instructor-info {
-                    display: flex;
-                    align-items: center;
-                    gap: 10px;
-                    font-size: 14px;
-                    color: #4B5563;
-                    font-weight: 500;
-                }
-                
-                .avatar {
-                    width: 28px;
-                    height: 28px;
-                    background-color: #E5E7EB;
-                    border-radius: 50%;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    font-size: 10px;
-                    font-weight: 700;
-                }
-                
-                .progress-section {
-                    width: 240px;
-                }
-                
-                .progress-text {
-                    display: flex;
-                    justify-content: space-between;
-                    margin-bottom: 10px;
-                }
-                
-                .progress-label {
-                    font-size: 13px;
-                    font-weight: 600;
-                    color: #4B5563;
-                }
-                
-                .progress-percent {
-                    font-size: 13px;
-                    font-weight: 800;
-                    color: #0066FF;
-                }
-                
-                .progress-bar-bg {
-                    height: 8px;
-                    background-color: #E5E7EB;
-                    border-radius: 10px;
-                    overflow: hidden;
-                }
-                
-                .progress-bar-fill {
-                    height: 100%;
-                    background-color: #0066FF;
-                    border-radius: 10px;
-                    transition: width 0.5s ease-out;
-                }
-                
-                .main-content {
-                    display: grid;
-                    grid-template-columns: 1fr 340px;
-                    gap: 24px;
-                    max-width: 100%;
-                    margin: 0;
-                }
+        .page-container {
+          min-height: 100vh;
+          background-color: #f8fafc;
+          font-family: 'Inter', sans-serif;
+          color: #1a202c;
+          width: 100%;
+          margin: 0;
+        }
 
-                .tab-buttons {
-                    display: flex;
-                    gap: 12px;
-                    margin-bottom: 16px;
-                }
+        /* Header Section - Matched to TaskHeader.jsx */
+        .sticky-header {
+          position: sticky;
+          top: 0;
+          z-index: 1000;
+          background-color: #ffffff;
+          border-bottom: 1px solid #e2e8f0;
+          padding: 10px 16px;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          width: 100%;
+          box-sizing: border-box;
+        }
 
-                .tab-btn {
-                    flex: 1;
-                    padding: 10px 12px;
-                    border: none;
-                    border-radius: 8px;
-                    background-color: #F3F4F6;
-                    color: #6B7280;
-                    font-size: 14px;
-                    font-weight: 600;
-                    cursor: pointer;
-                    transition: all 0.2s;
-                }
+        .left-section {
+          display: flex;
+          align-items: center;
+          gap: 20px;
+        }
 
-                .tab-btn.active {
-                    background-color: #0066FF;
-                    color: #FFFFFF;
-                }
-                
-                .roadmap-col {
-                    display: flex;
-                    flex-direction: column;
-                }
-                
-                .module-list {
-                    display: flex;
-                    flex-direction: column;
-                }
-                
-                .timeline-connector {
-                    width: 3px;
-                    height: 30px;
-                    background-color: #0066FF;
-                    margin-left: 31px;
-                    opacity: 0.2;
-                    border-radius: 3px;
-                }
-                
-                .module-card {
-                    background-color: #FFFFFF;
-                    border-radius: 16px;
-                    border: 1px solid #E5E7EB;
-                    overflow: hidden;
-                    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.02);
-                }
-                
-                .locked-card {
-                    opacity: 0.7;
-                    pointer-events: none;
-                }
-                
-                .card-header {
-                    padding: 20px 24px;
-                    background-color: #F9FAFB;
-                    border-bottom: 1px solid #F3F4F6;
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                }
-                
-                .card-header-left {
-                    display: flex;
-                    align-items: center;
-                    gap: 16px;
-                }
-                
-                .module-number {
-                    width: 45px;
-                    height: 45px;
-                    background-color: #FFFFFF;
-                    border: 2px solid #0066FF;
-                    border-radius: 50%;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    color: #0066FF;
-                    font-size: 14px;
-                    font-weight: 800;
-                    cursor: pointer;
-                    transition: all 0.2s;
-                    flex-shrink: 0;
-                }
-                
-                .module-number.completed {
-                    background-color: #0066FF;
-                    border: none;
-                    color: #FFFFFF;
-                }
-                
-                .module-title-group {
-                    display: flex;
-                    flex-direction: column;
-                }
-                
-                .module-title {
-                    font-size: 17px;
-                    font-weight: 700;
-                    color: #111827;
-                    margin: 0;
-                }
-                
-                .module-meta {
-                    display: flex;
-                    align-items: center;
-                    font-size: 12px;
-                    color: #6B7280;
-                    margin-top: 4px;
-                }
-                
-                .status-badge {
-                    font-size: 11px;
-                    font-weight: 700;
-                    text-transform: uppercase;
-                    color: #6B7280;
-                    letter-spacing: 0.05em;
-                }
-                
-                .card-body {
-                    padding: 24px;
-                }
-                
-                .description {
-                    font-size: 15px;
-                    color: #4B5563;
-                    line-height: 1.6;
-                    margin: 0 0 24px 0;
-                }
-                
-                .resource-header {
-                    display: flex;
-                    align-items: center;
-                    font-size: 14px;
-                    font-weight: 700;
-                    color: #374151;
-                    margin-bottom: 16px;
-                    border-bottom: 1px solid #F3F4F6;
-                    padding-bottom: 8px;
-                }
-                
-                .resource-grid {
-                    display: grid;
-                    grid-template-columns: 1fr 1fr;
-                    gap: 16px;
-                }
-                
-                .resource-item {
-                    display: flex;
-                    align-items: center;
-                    gap: 12px;
-                    padding: 14px;
-                    background-color: #F9FAFB;
-                    border-radius: 10px;
-                    border: 1px solid #F3F4F6;
-                    cursor: pointer;
-                    transition: all 0.2s;
-                }
-                
-                .resource-item:hover {
-                    background-color: #F3F4F6;
-                    border-color: #E5E7EB;
-                    transform: translateY(-1px);
-                }
-                
-                .resource-icon {
-                    flex-shrink: 0;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                }
-                
-                .resource-info {
-                    flex: 1;
-                    min-width: 0;
-                }
-                
-                .resource-name {
-                    font-size: 13px;
-                    font-weight: 600;
-                    color: #374151;
-                    white-space: nowrap;
-                    overflow: hidden;
-                    text-overflow: ellipsis;
-                    margin-bottom: 2px;
-                }
-                
-                .resource-type {
-                    font-size: 11px;
-                    color: #9CA3AF;
-                    font-weight: 500;
-                }
-                
-                .resource-action {
-                    color: #9CA3AF;
-                    flex-shrink: 0;
-                    display: flex;
-                    align-items: center;
-                }
+        .dropdown-container {
+          position: relative;
+          display: flex;
+          align-items: center;
+          min-width: 280px;
+        }
 
-                @keyframes spin {
-                    from { transform: rotate(0deg); }
-                    to { transform: rotate(360deg); }
-                }
-                
-                .sidebar-col {
-                    display: flex;
-                    flex-direction: column;
-                    gap: 24px;
-                }
-                
-                .search-box {
-                    position: relative;
-                    display: flex;
-                    align-items: center;
-                }
-                
-                .search-icon {
-                    position: absolute;
-                    left: 12px;
-                    color: #9CA3AF;
-                }
-                
-                .search-input {
-                    width: 100%;
-                    padding: 12px 12px 12px 40px;
-                    border-radius: 12px;
-                    border: 1px solid #E5E7EB;
-                    font-size: 14px;
-                    outline: none;
-                    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-                }
-                
-                .section-heading {
-                    font-size: 12px;
-                    font-weight: 700;
-                    color: #6B7280;
-                    text-transform: uppercase;
-                    letter-spacing: 0.05em;
-                }
-                
-                .skill-list {
-                    display: flex;
-                    flex-direction: column;
-                    gap: 10px;
-                }
+        .dropdown-select {
+          width: 100%;
+          padding: 8px 36px 8px 12px;
+          border: 1px solid #e2e8f0;
+          border-radius: 6px;
+          font-size: 14px;
+          color: #1e293b;
+          font-weight: 500;
+          background-color: #ffffff;
+          cursor: pointer;
+          appearance: none;
+          outline: none;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          height: 36px;
+        }
 
-                .pagination-wrapper {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    margin-top: 16px;
-                    padding: 12px 0;
-                }
+        .right-section {
+           display: flex;
+           align-items: center;
+           gap: 12px;
+        }
 
-                .pagination-info {
-                    font-size: 13px;
-                    color: #6B7280;
-                }
+        .overall-progress {
+          display: flex;
+          align-items: center;
+          gap: 15px;
+          min-width: 250px;
+        }
 
-                .pagination {
-                    display: flex;
-                    gap: 8px;
-                    align-items: center;
-                }
+        .progress-text {
+          text-align: right;
+        }
 
-                .pagination-btn, .pagination-number {
-                    width: 36px;
-                    height: 36px;
-                    border: 1px solid #E5E7EB;
-                    background: #FFFFFF;
-                    border-radius: 8px;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    cursor: pointer;
-                    transition: all 0.2s;
-                    color: #6B7280;
-                    font-size: 14px;
-                    font-weight: 600;
-                }
+        .progress-percent {
+          font-size: 18px;
+          font-weight: 700;
+          color: #2d3748;
+          display: block;
+        }
 
-                .pagination-btn:hover:not(:disabled), .pagination-number:hover {
-                    border-color: #0066FF;
-                    color: #0066FF;
-                }
+        .progress-detail {
+          font-size: 13px;
+          color: #718096;
+        }
 
-                .pagination-btn:disabled {
-                    opacity: 0.4;
-                    cursor: not-allowed;
-                }
+        .progress-bar-bg {
+          flex: 1;
+          height: 8px;
+          background: #edf2f7;
+          border-radius: 4px;
+          overflow: hidden;
+        }
 
-                .pagination-number.active {
-                    background: #0066FF;
-                    color: #FFFFFF;
-                    border-color: #0066FF;
-                }
+        .progress-bar-fill {
+          height: 100%;
+          background: #10b981;
+          border-radius: 4px;
+        }
 
-                .skills-toggle {
-                    display: flex;
-                    gap: 12px;
-                    margin-bottom: 16px;
-                }
+        /* Main Content Grid */
+        .content-grid {
+          display: grid;
+          grid-template-columns: 350px 1fr;
+          gap: 24px;
+          height: calc(100vh - 60px);
+          padding: 24px;
+          max-width: 100%;
+          margin: 0;
+          box-sizing: border-box; /* Ensure padding is contained */
+        }
 
-                .skills-tab-btn {
-                    flex: 1;
-                    padding: 10px 12px;
-                    border: none;
-                    border-radius: 8px;
-                    background: #F3F4F6;
-                    color: #6B7280;
-                    font-size: 14px;
-                    font-weight: 600;
-                    cursor: pointer;
-                    transition: all 0.2s;
-                }
+        /* Timeline Column */
+        .timeline-column {
+          background: white;
+          border-radius: 16px;
+          padding: 24px;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+          overflow-y: auto;
+          scrollbar-width: thin;
+          scrollbar-color: #cbd5e1 transparent;
+        }
 
-                .skills-tab-btn.active {
-                    background: #0066FF;
-                    color: #FFFFFF;
-                }
-                
-                .skill-item {
-                    padding: 16px;
-                    background-color: #FFFFFF;
-                    border-radius: 14px;
-                    border: 1px solid #E5E7EB;
-                    display: flex;
-                    align-items: center;
-                    gap: 12px;
-                    cursor: pointer;
-                    transition: all 0.2s;
-                }
-                
-                .skill-item:hover {
-                    border-color: #0066FF;
-                }
-                
-                .skill-item.active {
-                    border-color: #0066FF;
-                    box-shadow: 0 4px 6px -1px rgba(0, 102, 255, 0.1);
-                }
-                
-                .skill-icon-box {
-                    width: 40px;
-                    height: 40px;
-                    background-color: #F0F7FF;
-                    border-radius: 10px;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    font-size: 16px;
-                    font-weight: 700;
-                    color: #0066FF;
-                    flex-shrink: 0;
-                }
-                
-                .skill-info {
-                    flex: 1;
-                }
-                
-                .skill-name {
-                    font-size: 14px;
-                    font-weight: 600;
-                    color: #111827;
-                }
-                
-                .skill-code {
-                    font-size: 12px;
-                    color: #6B7280;
-                    margin-top: 2px;
-                }
-                
-                /* Mobile Responsive Styles */
-                @media (max-width: 768px) {
-                    .page-wrapper {
-                        padding: 20px 16px;
-                    }
-                    
-                    .header {
-                        flex-direction: column;
-                        padding: 20px 16px;
-                        border-radius: 12px;
-                        margin-bottom: 16px;
-                        gap: 20px;
-                    }
-                    
-                    .breadcrumb {
-                        font-size: 12px;
-                    }
-                    
-                    .page-title {
-                        font-size: 20px;
-                    }
-                    
-                    .instructor-info {
-                        font-size: 13px;
-                    }
-                    
-                    .progress-section {
-                        width: 100%;
-                    }
-                    
-                    .main-content {
-                        grid-template-columns: 1fr;
-                        gap: 16px;
-                    }
-                    
-                    .sidebar-col {
-                        order: -1;
-                    }
-                    
-                    .skill-list {
-                        flex-direction: row;
-                        overflow-x: auto;
-                        padding-bottom: 4px;
-                    }
-                    
-                    .skill-item {
-                        min-width: 200px;
-                        padding: 12px;
-                    }
-                    
-                    .skill-name {
-                        font-size: 13px;
-                    }
-                    
-                    .skill-code {
-                        font-size: 11px;
-                    }
-                    
-                    .timeline-connector {
-                        height: 20px;
-                        margin-left: 26px;
-                    }
-                    
-                    .module-card {
-                        border-radius: 12px;
-                    }
-                    
-                    .card-header {
-                        flex-direction: column;
-                        align-items: flex-start;
-                        padding: 16px;
-                        gap: 12px;
-                    }
-                    
-                    .card-header-left {
-                        gap: 12px;
-                    }
-                    
-                    .module-number {
-                        width: 38px;
-                        height: 38px;
-                        font-size: 12px;
-                    }
-                    
-                    .module-title {
-                        font-size: 15px;
-                    }
-                    
-                    .module-meta {
-                        font-size: 11px;
-                    }
-                    
-                    .status-badge {
-                        font-size: 10px;
-                        margin-left: 50px;
-                    }
-                    
-                    .card-body {
-                        padding: 16px;
-                    }
-                    
-                    .description {
-                        font-size: 14px;
-                    }
-                    
-                    .resource-header {
-                        font-size: 13px;
-                    }
-                    
-                    .resource-grid {
-                        grid-template-columns: 1fr;
-                        gap: 12px;
-                    }
-                    
-                    .resource-item {
-                        padding: 12px;
-                    }
-                    
-                    .resource-name {
-                        font-size: 12px;
-                    }
-                    
-                    .search-input {
-                        padding: 10px 10px 10px 38px;
-                        border-radius: 10px;
-                        font-size: 13px;
-                    }
-                    
-                    .section-heading {
-                        font-size: 11px;
-                    }
-                }
-            `}</style>
+        .timeline-column::-webkit-scrollbar {
+          width: 6px;
+        }
 
-      <div className="page-wrapper">
-        <header className="header">
-          <div className="header-info">
-            <div className="breadcrumb">
-              <Book size={16} /> Roadmap & Material{" "}
-              {venue && `/ ${venue.venue_name}`}
-            </div>
-            <h1 className="page-title">
-              {venue
-                ? `Learning Roadmap - ${venue.venue_name}`
-                : "My Learning Roadmap"}
-            </h1>
-            {venue && (
-              <div className="instructor-info">
-                <div className="avatar">{venue.venue_name.charAt(0)}</div>
-                <span>{venue.venue_name}</span>
-              </div>
-            )}
-          </div>
-          <div className="progress-section">
-            <div className="progress-text">
-              <span className="progress-label">Track Progress</span>
-              <span className="progress-percent">{calculateProgress()}%</span>
-            </div>
-            <div className="progress-bar-bg">
-              <div
-                className="progress-bar-fill"
-                style={{ width: `${calculateProgress()}%` }}
-              />
-            </div>
-          </div>
-        </header>
+        .timeline-column::-webkit-scrollbar-track {
+          background: transparent;
+        }
 
-        <div className="main-content">
-          <div className="roadmap-col">
-            {loading ? (
-              <div
-                style={{
-                  textAlign: "center",
-                  padding: "60px 20px",
-                  color: "#64748b",
-                }}
-              >
-                <Loader
-                  size={40}
-                  style={{
-                    margin: "0 auto 16px",
-                    animation: "spin 1s linear infinite",
-                  }}
-                />
-                <p>Loading roadmap...</p>
-              </div>
-            ) : error ? (
-              <div
-                style={{
-                  textAlign: "center",
-                  padding: "60px 20px",
-                  color: "#ef4444",
-                }}
-              >
-                <p>{error}</p>
-              </div>
-            ) : filteredModules.length === 0 ? (
-              <div
-                style={{
-                  textAlign: "center",
-                  padding: "60px 20px",
-                  color: "#64748b",
-                }}
-              >
-                <BookOpen
-                  size={48}
-                  style={{ margin: "0 auto 16px", opacity: 0.5 }}
-                />
-                <p>
-                  {modulesTab === "completed"
-                    ? "No completed modules yet."
-                    : "No active modules found."}
-                </p>
-                {!venue && modulesTab !== "completed" && (
-                  <p style={{ fontSize: "14px", marginTop: "8px" }}>
-                    You haven't been assigned to a venue.
-                  </p>
-                )}
-              </div>
-            ) : (
-              <>
-                <div className="module-list">
-                  {paginatedModules.map((module, index) => {
-                    const isCompleted = isModuleCompleted(module);
+        .timeline-column::-webkit-scrollbar-thumb {
+          background-color: #cbd5e1;
+          border-radius: 20px;
+          border: 2px solid transparent;
+          background-clip: content-box;
+        }
 
-                    return (
-                      <div key={module.roadmap_id}>
-                        {index !== 0 && <div className="timeline-connector" />}
-                        <div className="module-card">
-                          <div className="card-header">
-                            <div className="card-header-left">
-                              <div
-                                className={`module-number ${isCompleted ? "completed" : ""}`}
-                                onClick={() =>
-                                  toggleComplete(module.roadmap_id)
-                                }
-                                style={{ cursor: "pointer" }}
-                              >
-                                {isCompleted ? (
-                                  <CheckCircle2 size={24} />
-                                ) : (
-                                  `D${module.day}`
-                                )}
-                              </div>
-                              <div className="module-title-group">
-                                <h3 className="module-title">{module.title}</h3>
-                                <div className="module-meta">
-                                  <Clock size={12} style={{ marginRight: 4 }} />
-                                  {module.faculty_name
-                                    ? `Instructor: ${module.faculty_name}`
-                                    : "Estimated 2-3 hours"}
-                                </div>
-                              </div>
-                            </div>
-                            <div className="status-badge">
-                              {isCompleted
-                                ? "Completed"
-                                : module.status === "published"
-                                  ? "Available"
-                                  : "Draft"}
-                            </div>
-                          </div>
+        .timeline-column::-webkit-scrollbar-thumb:hover {
+          background-color: #94a3b8;
+        }
 
-                          <div className="card-body">
-                            <p className="description">
-                              {module.description || "No description provided."}
-                            </p>
+        .timeline-header {
+          margin-bottom: 20px;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+        }
 
-                            {module.resources &&
-                              module.resources.length > 0 && (
-                                <>
-                                  <div className="resource-header">
-                                    <BookOpen
-                                      size={16}
-                                      style={{ marginRight: 8 }}
-                                    />
-                                    Learning Resources (
-                                    {module.resources.length})
-                                  </div>
+        .timeline-title {
+          font-size: 14px;
+          font-weight: 600;
+          color: #718096;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
 
-                                  <div className="resource-grid">
-                                    {module.resources.map((res) => (
-                                      <div
-                                        key={res.resource_id}
-                                        className="resource-item"
-                                        onClick={() =>
-                                          handleResourceAction(res)
-                                        }
-                                      >
-                                        <div className="resource-icon">
-                                          {getResourceIcon(res.resource_type)}
-                                        </div>
-                                        <div className="resource-info">
-                                          <div className="resource-name">
-                                            {res.resource_name}
-                                          </div>
-                                          <div className="resource-type">
-                                            {getResourceTypeLabel(
-                                              res.resource_type,
-                                            )}
-                                          </div>
-                                        </div>
-                                        <div className="resource-action">
-                                          {res.resource_type === "pdf" ? (
-                                            <Download size={14} />
-                                          ) : (
-                                            <ChevronRight size={14} />
-                                          )}
-                                        </div>
-                                      </div>
-                                    ))}
-                                  </div>
-                                </>
-                              )}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
+        .timeline-track {
+          position: relative;
+          padding-left: 12px;
+          min-height: 200px;
+        }
+        
+        /* Vertical line */
+        .timeline-track::before {
+          content: '';
+          position: absolute;
+          left: 27px; /* Center of the 32px node (12px padding + 16px center - 1px width) */
+          top: 0;
+          bottom: 0; /* Full height */
+          width: 2px;
+          background: #e2e8f0;
+          z-index: 0;
+        }
+
+        .timeline-node {
+          position: relative;
+          display: flex;
+          align-items: flex-start;
+          gap: 20px;
+          padding-bottom: 40px;
+          cursor: pointer;
+          z-index: 1;
+        }
+
+        .timeline-node:last-child {
+          padding-bottom: 0;
+        }
+
+        .node-marker {
+          width: 32px;
+          height: 32px;
+          border-radius: 50%;
+          background: white;
+          border: 2px solid #e2e8f0;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 14px;
+          font-weight: 700;
+          color: #94a3b8;
+          flex-shrink: 0;
+          transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+          z-index: 2; /* Sit above line */
+          box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .timeline-node:hover .node-marker {
+          border-color: #cbd5e1;
+          transform: scale(1.05);
+        }
+
+        .timeline-node.completed .node-marker {
+          background: #10b981;
+          border: none;
+          color: white;
+          box-shadow: 0 4px 6px -1px rgba(16, 185, 129, 0.2);
+        }
+
+        .timeline-node.current .node-marker {
+          background: #3b82f6;
+          border: none;
+          color: white;
+          box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.25);
+        }
+
+        .timeline-node.locked .node-marker {
+          background: #f8fafc;
+          border-color: #e2e8f0;
+          color: #cbd5e1;
+          box-shadow: none;
+        }
+
+        .node-content {
+          flex: 1;
+          transition: all 0.2s;
+        }
+
+        /* Restored box style for current node */
+        .node-content.current {
+          background: #eff6ff;
+          border: 1px solid #bfdbfe;
+          border-radius: 8px;
+          padding: 16px;
+          margin-top: -8px; /* Align slightly better with marker */
+        }
+
+        .node-status-label {
+          font-size: 11px;
+          font-weight: 700;
+          letter-spacing: 0.05em;
+          text-transform: uppercase;
+          margin-bottom: 6px;
+          display: inline-block;
+        }
+
+        .status-completed { color: #10b981; }
+        .status-current { color: #3b82f6; }
+        .status-locked { color: #94a3b8; }
+
+        .node-title {
+          font-size: 15px;
+          font-weight: 600;
+          color: #334155;
+          margin-bottom: 6px;
+          line-height: 1.4;
+          transition: color 0.2s;
+        }
+        
+        .timeline-node.current .node-title {
+          color: #1e3a8a;
+          font-weight: 700;
+        }
+
+        .timeline-node.locked .node-title {
+          color: #94a3b8;
+        }
+
+        .node-meta {
+          font-size: 13px;
+          color: #64748b;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          font-weight: 500;
+        }
+
+
+        /* Detail Column */
+        .detail-column {
+          display: flex;
+          flex-direction: column;
+          gap: 24px;
+          overflow-y: auto;
+          scrollbar-width: thin;
+          scrollbar-color: #cbd5e1 transparent;
+        }
+
+        .detail-column::-webkit-scrollbar {
+          width: 6px;
+        }
+
+        .detail-column::-webkit-scrollbar-track {
+          background: transparent;
+        }
+
+        .detail-column::-webkit-scrollbar-thumb {
+          background-color: #cbd5e1;
+          border-radius: 20px;
+          border: 2px solid transparent;
+          background-clip: content-box;
+        }
+
+        .detail-column::-webkit-scrollbar-thumb:hover {
+          background-color: #94a3b8;
+        }
+
+        .detail-card {
+          background: white;
+          border-radius: 16px;
+          padding: 32px;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        .node-header-info {
+          display: flex;
+          justify-content: space-between;
+          margin-bottom: 24px;
+        }
+
+        .header-breadcrumbs {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          font-size: 14px;
+          color: #718096;
+          font-weight: 500;
+        }
+
+        .node-progress-wrapper {
+          text-align: right;
+        }
+
+        .node-progress-label {
+          font-size: 12px;
+          color: #718096;
+          font-weight: 600;
+          text-transform: uppercase;
+        }
+
+        .node-progress-bar {
+          width: 150px;
+          height: 6px;
+          background: #edf2f7;
+          border-radius: 3px;
+          margin-top: 6px;
+          overflow: hidden;
+        }
+        
+        .node-progress-fill {
+          height: 100%;
+          background: #10b981;
+          border-radius: 3px;
+        }
+
+        .main-title {
+          font-size: 28px;
+          font-weight: 800;
+          color: #1a202c;
+          margin-bottom: 8px;
+        }
+
+        .main-description {
+          font-size: 16px;
+          color: #4a5568;
+          line-height: 1.6;
+        }
+
+        .grid-layout {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 24px;
+        }
+
+        .subsection {
+          background: #f8fafc;
+          border-radius: 12px;
+          padding: 20px;
+          border: 1px solid #edf2f7;
+        }
+
+        .subsection-title {
+          font-size: 16px;
+          font-weight: 700;
+          color: #2d3748;
+          margin-bottom: 16px;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+
+        /* Resources List */
+        .resources-list {
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+        }
+
+        .resource-item {
+          display: flex;
+          align-items: center;
+          padding: 12px;
+          background: white;
+          border: 1px solid #e2e8f0;
+          border-radius: 8px;
+          cursor: pointer;
+          transition: border-color 0.2s;
+        }
+
+        .resource-item:hover {
+          border-color: #3b82f6;
+        }
+
+        .resource-icon-box {
+          width: 40px;
+          height: 40px;
+          background: #f7fafc;
+          border-radius: 8px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          margin-right: 12px;
+        }
+
+        .resource-details {
+          flex: 1;
+        }
+
+        .resource-name {
+          font-size: 14px;
+          font-weight: 600;
+          color: #2d3748;
+          display: block;
+        }
+
+        .resource-meta {
+          font-size: 12px;
+          color: #718096;
+        }
+
+        /* Tasks List */
+        .tasks-list {
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+        }
+
+        .task-item {
+          display: flex;
+          align-items: center;
+          padding: 12px;
+          background: white;
+          border: 1px solid #e2e8f0;
+          border-radius: 8px;
+        }
+
+        .task-checkbox-wrapper {
+          margin-right: 12px;
+        }
+
+        .task-content {
+          flex: 1;
+        }
+
+        .task-title {
+          font-size: 14px;
+          font-weight: 500;
+          color: #2d3748;
+          display: block;
+        }
+
+        .task-meta {
+          font-size: 12px;
+          color: #718096;
+          margin-top: 2px;
+        }
+
+        .est-time {
+          font-size: 12px;
+          color: #3b82f6;
+          font-weight: 600;
+          background: #eff6ff;
+          padding: 2px 8px;
+          border-radius: 12px;
+        }
+
+        /* Action Buttons */
+        .action-bar {
+          display: flex;
+          justify-content: flex-end;
+          gap: 16px;
+          margin-top: 32px;
+          padding-top: 24px;
+          border-top: 1px solid #e2e8f0;
+        }
+
+        .btn {
+          padding: 10px 24px;
+          border-radius: 8px;
+          font-weight: 600;
+          font-size: 14px;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          transition: all 0.2s;
+          border: none;
+        }
+
+        .btn-outline {
+          background: white;
+          border: 1px solid #e2e8f0;
+          color: #4a5568;
+        }
+
+        .btn-outline:hover {
+          background: #f7fafc;
+          border-color: #cbd5e0;
+        }
+
+        .btn-primary {
+          background: #3b82f6;
+          color: white;
+        }
+
+        .btn-primary:hover {
+          background: #2563eb;
+        }
+
+        .path-summary-card {
+           background: #eff6ff;
+           border-radius: 12px;
+           padding: 20px;
+           margin-bottom: 24px;
+        }
+
+        .path-summary-title {
+          font-size: 14px;
+          font-weight: 600;
+          color: #1e40af;
+          margin-bottom: 12px;
+        }
+        
+        .path-summary-list {
+           display: flex;
+           flex-direction: column;
+           gap: 8px;
+        }
+
+        .path-step {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          font-size: 13px;
+          color: #1e3a8a;
+        }
+
+        /* Tailwind utilities helpers since native tailwind might not be available */
+        .text-blue-500 { color: #3b82f6; }
+        .text-blue-600 { color: #2563eb; }
+        .text-red-500 { color: #ef4444; }
+        .text-purple-500 { color: #a855f7; }
+        .text-gray-500 { color: #6b7280; }
+        .text-gray-400 { color: #9ca3af; }
+        .text-gray-600 { color: #4b5563; }
+        .text-gray-800 { color: #1f2937; }
+        .text-green-500 { color: #10b981; }
+        .text-green-600 { color: #059669; }
+        .font-semibold { font-weight: 600; }
+        .font-bold { font-weight: 700; }
+        .flex { display: flex; }
+        .items-center { align-items: center; }
+        .justify-between { justify-content: space-between; }
+        .gap-2 { gap: 8px; }
+        .gap-3 { gap: 12px; }
+        .mb-3 { margin-bottom: 12px; }
+        .mb-6 { margin-bottom: 24px; }
+        .mb-8 { margin-bottom: 32px; }
+        .p-6 { padding: 24px; }
+        .rounded-xl { border-radius: 12px; }
+        .border { border-width: 1px; }
+        .border-gray-100 { border-color: #f3f4f6; }
+        .leading-relaxed { line-height: 1.625; }
+        .w-5 { width: 1.25rem; }
+        .h-5 { height: 1.25rem; }
+        .text-sm { font-size: 0.875rem; }
+        .text-xl { font-size: 1.25rem; }
+        .opacity-70 { opacity: 0.7; }
+        .bg-gray-50 { background-color: #f9fafb; }
+        .space-y-6 > * + * { margin-top: 1.5rem; }
+
+      `}</style>
+      
+      {/* Header - Matched to TaskHeader.jsx layout */}
+      <div className="sticky-header">
+         <div className="left-section">
+             <div style={{ fontSize: '14px', color: '#64748b', marginRight: '8px' }}>Current Skill Track:</div>
+             <div className="dropdown-container">
+                <button className="dropdown-select">
+                   Frontend Developer Roadmap
+                </button>
+                <div style={{ position: 'absolute', right: '10px', pointerEvents: 'none', display: 'flex' }}>
+                  <ChevronRight size={14} color="#64748b" />
                 </div>
-
-                <Pagination
-                  currentPage={currentPage}
-                  totalPages={totalPages}
-                  onPageChange={setCurrentPage}
-                  totalItems={filteredModules.length}
-                />
-              </>
-            )}
+             </div>
           </div>
 
-          <div className="sidebar-col">
-            <div className="search-box">
-              <Search size={18} className="search-icon" />
-              <input
-                className="search-input"
-                placeholder="Search modules..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
+          <div className="right-section">
+            <div className="overall-progress">
+              <div className="progress-text">
+                <span style={{ fontSize: '14px', fontWeight: 'bold', color: '#1e293b' }}>{progressPercentage}% completed</span>
+              </div>
+              <div className="progress-bar-bg" style={{ width: '150px', height: '6px', backgroundColor: '#e2e8f0', borderRadius: '10px' }}>
+                <div className="progress-bar-fill" style={{ width: `${progressPercentage}%`, height: '100%', backgroundColor: '#10b981', borderRadius: '10px' }}></div>
+              </div>
             </div>
+          </div>
+      </div>
 
-            <div className="tab-buttons">
-              <button
-                className={`tab-btn ${modulesTab === "active" ? "active" : ""}`}
-                onClick={() => {
-                  setModulesTab("active");
-                  setCurrentPage(1);
-                }}
-                type="button"
-              >
-                Active
-              </button>
-              <button
-                className={`tab-btn ${modulesTab === "completed" ? "active" : ""}`}
-                onClick={() => {
-                  setModulesTab("completed");
-                  setCurrentPage(1);
-                }}
-                type="button"
-              >
-                Completed
-              </button>
-            </div>
+      <div className="content-grid">
+        {/* Left Column: Timeline */}
+        <div className="timeline-column">
+          <div className="timeline-header">
+            <span className="timeline-title">Journey Timeline</span>
+          </div>
 
-            <div className="section-heading">
-              {modulesTab === "completed"
-                ? `Completed Modules (${sidebarModules.length})`
-                : `Active Modules (${sidebarModules.length})`}
-            </div>
-            <div className="skill-list">
-              {sidebarModules.length === 0 && !loading ? (
-                <div
-                  style={{
-                    padding: "20px",
-                    textAlign: "center",
-                    color: "#94a3b8",
-                    fontSize: "14px",
-                  }}
-                >
-                  {modulesTab === "completed"
-                    ? "No completed modules yet"
-                    : "No active modules"}
+          <div className="timeline-track">
+            {roadmapData.map((node, index) => (
+              <div 
+                key={node.roadmap_id} 
+                className={`timeline-node ${node.is_completed ? 'completed' : ''} ${node.roadmap_id === selectedNodeId ? 'current' : ''} ${node.is_locked ? 'locked' : ''}`}
+                onClick={() => !node.is_locked && setSelectedNodeId(node.roadmap_id)}
+              >
+                <div className="node-marker">
+                  {node.is_completed ? (
+                    <Check size={18} strokeWidth={3} />
+                  ) : node.is_locked ? (
+                    <Lock size={14} />
+                  ) : (
+                    <span>{index + 1}</span>
+                  )}
                 </div>
-              ) : (
-                sidebarModules.map((module, index) => {
-                  const isCompleted = isModuleCompleted(module);
-                  return (
-                    <div
-                      key={module.roadmap_id}
-                      className="skill-item"
-                      style={{ cursor: "default" }}
-                    >
-                      <div
-                        className="skill-icon-box"
-                        style={{
-                          backgroundColor: isCompleted ? "#10b981" : "#3b82f6",
-                        }}
-                      >
-                        {isCompleted ? "✓" : `D${module.day}`}
-                      </div>
-                      <div className="skill-info">
-                        <div className="skill-name">{module.title}</div>
-                        <div className="skill-code">
-                          Day {module.day} • {module.resources?.length || 0}{" "}
-                          resources
-                        </div>
-                      </div>
+                <div className={`node-content ${node.roadmap_id === selectedNodeId ? 'current' : ''}`}>
+                  {/* Status Label Logic */}
+                  {node.is_completed && <div className="node-status-label status-completed">COMPLETED</div>}
+                  {node.roadmap_id === selectedNodeId && !node.is_completed && <div className="node-status-label status-current">IN PROGRESS</div>}
+                  {node.is_locked && <div className="node-status-label status-locked">LOCKED</div>}
+
+                  <div className="node-title">{node.title}</div>
+                  
+                  {/* Meta Info */}
+                  {node.is_completed && (
+                     <div className="node-meta">
+                        All resources viewed
+                     </div>
+                  )}
+
+                  {node.roadmap_id === selectedNodeId && (
+                    <div className="node-meta" style={{ color: '#3b82f6' }}>
+                      2 / 3 resources done
                     </div>
-                  );
-                })
-              )}
-            </div>
+                  )}
+                  
+                  {node.is_locked && (
+                     <div className="node-meta">
+                      Complete previous step to unlock
+                     </div>
+                  )}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
+
+        {/* Right Column: Details */}
+        <div className="detail-column">
+          {selectedNode && (
+            <div className="detail-card">
+              <div className="node-header-info">
+                <div className="header-breadcrumbs">
+                  <div className="flex items-center gap-2">
+                    <BookOpen size={16} className="text-blue-500" />
+                    <span className="font-semibold text-blue-600">Current Skill</span>
+                  </div>
+                  <span>•</span>
+                  <span>Level {selectedNode.roadmap_id} / {roadmapData.length}</span>
+                </div>
+                <div className="node-progress-wrapper">
+                    <div className="node-progress-label">Node Progress</div>
+                    <div className="flex items-center gap-3">
+                         <span className="text-xl font-bold text-gray-800">{selectedNode.progress || 0}%</span>
+                         <div className="node-progress-bar">
+                            <div className="node-progress-fill" style={{ width: `${selectedNode.progress || 0}%` }}></div>
+                         </div>
+                    </div>
+                </div>
+              </div>
+
+              <h1 className="main-title">{selectedNode.title}</h1>
+              <p className="main-description mb-8">{selectedNode.description}</p>
+
+              <div className="grid-layout">
+                {/* Left Sub-column */}
+                <div className="space-y-6">
+                   {/* Study Materials */}
+                   <div className="subsection">
+                     <h3 className="subsection-title">
+                       <BookOpen size={18} />
+                       Study materials
+                     </h3>
+                     <div className="resources-list">
+                        {selectedNode.resources.map((res, idx) => (
+                          <div key={idx} className="resource-item">
+                            <div className="resource-icon-box">
+                               {getResourceIcon(res.type)}
+                            </div>
+                            <div className="resource-details">
+                                <span className="resource-name">{res.name}</span>
+                                <span className="resource-meta">{res.type === 'pdf' ? res.size : res.desc || res.duration}</span>
+                            </div>
+                          </div>
+                        ))}
+                     </div>
+                   </div>
+                </div>
+
+                {/* Right Sub-column */}
+                <div className="space-y-6">
+                  {/* Deep description */}
+                  <div className="bg-gray-50 p-6 rounded-xl border border-gray-100">
+                     <h3 className="font-bold text-gray-800 mb-3">What you will learn in this skill</h3>
+                     <p className="text-gray-600 text-sm leading-relaxed">
+                        Deep dive into core {selectedNode.title} concepts: variables, primitive and reference types, conditionals, loops, and basic functions. By the end of this level you should be comfortable writing small interactive scripts in the browser.
+                     </p>
+                  </div>
+
+                  {/* Micro Tasks */}
+                  <div className="subsection">
+                    <h3 className="subsection-title">
+                      <CheckSquare size={18} />
+                      Today's micro-tasks
+                    </h3>
+                    <div className="tasks-list">
+                       {selectedNode.tasks?.map((task, idx) => (
+                         <div key={idx} className="task-item">
+                           <div className="task-checkbox-wrapper">
+                              <input type="checkbox" className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                           </div>
+                           <div className="task-content">
+                              <span className="task-title">{task.title}</span>
+                           </div>
+                           <span className="est-time">{task.time}</span>
+                         </div>
+                       ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          )}
+        </div>
       </div>
-    </>
+    </div>
   );
 };
 

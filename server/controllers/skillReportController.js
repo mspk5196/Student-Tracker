@@ -645,13 +645,15 @@ export const getSkillReportsForFaculty = async (req, res) => {
     const total = countResult[0].total;
 
     // Get statistics (only for latest records per student/course)
+    // Always show total students count from students table (not enrolled count)
     let statsQuery = `
       SELECT 
         COUNT(*) as total,
         SUM(CASE WHEN ss.status = 'Cleared' THEN 1 ELSE 0 END) as cleared,
         SUM(CASE WHEN ss.status = 'Not Cleared' THEN 1 ELSE 0 END) as not_cleared,
         SUM(CASE WHEN ss.status = 'Ongoing' THEN 1 ELSE 0 END) as ongoing,
-        ROUND(AVG(ss.best_score), 2) as avg_best_score
+        ROUND(AVG(ss.best_score), 2) as avg_best_score,
+        (SELECT COUNT(*) FROM students) as total_students
       FROM student_skills ss
       INNER JOIN (
         SELECT student_id, course_name, MAX(last_slot_date) as max_date

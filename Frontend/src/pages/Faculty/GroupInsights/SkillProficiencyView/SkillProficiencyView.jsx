@@ -336,9 +336,16 @@ const SkillProficiencyView = ({ selectedVenue, selectedVenueName, initialSkill =
               <TrendingUp size={24} color="#8b5cf6" />
             </div>
             <div>
-              <div style={{...styles.statLabel, color: '#8b5cf6'}}>Avg. Best Score</div>
-              <div style={{...styles.statValue, color: '#8b5cf6'}}>{skillStats.avgBestScore}</div>
-              <div style={styles.statSub}>Overall performance</div>
+              <div style={{...styles.statLabel, color: '#8b5cf6'}}>% Cleared</div>
+              <div style={{...styles.statValue, color: '#8b5cf6', cursor: 'pointer'}}
+                onClick={() => setStatusFilter('Cleared')}
+                title="Click to filter by Cleared"
+              >
+                {skillStats.totalStudents > 0 
+                  ? ((skillStats.cleared / skillStats.totalStudents) * 100).toFixed(1)
+                  : '0.0'}%
+              </div>
+              <div style={styles.statSub}>Click to filter</div>
             </div>
           </div>
         </div>

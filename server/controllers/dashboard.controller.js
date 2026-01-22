@@ -7,18 +7,15 @@ export const getDashboardMetrics = async (req, res) => {
     // Get user info from request (added by auth middleware)
     const userId = req.user?.userId || req.user?.user_id || req.user?.id;
     
-    // 1. Total Students Count
+    // 1. Total Students Count - Count directly from students table
     const [totalStudentsResult] = await db.query(`
-      SELECT COUNT(*) as total_count FROM students s
-      INNER JOIN users u ON s.user_id = u.user_id
-      WHERE u.is_active = 1
+      SELECT COUNT(*) as total_count FROM students WHERE 1=1
     `);
     const totalStudents = totalStudentsResult[0]?.total_count || 0;
 
-    // 2. Active Groups Count
+    // 2. Active Groups Count - Count from groups table where status is Active
     const [activeGroupsResult] = await db.query(`
-      SELECT COUNT(DISTINCT group_id) as total_count FROM \`groups\`
-      WHERE status = 'Active'
+      SELECT COUNT(*) as total_count FROM \`groups\` WHERE status = 'Active'
     `);
     const activeGroups = activeGroupsResult[0]?.total_count || 0;
 
@@ -181,14 +178,14 @@ export const getTaskCompletion = async (req, res) => {
 // Get alerts with pagination - FIXED VERSION
 export const getAlerts = async (req, res) => {
   try {
-    const { page = 1, limit = 3 } = req.query;
+    const { page = 1, limit = 3, search = '', issueType = 'all', sortBy = 'date', sortOrder = 'desc' } = req.query;
     const pageNum = parseInt(page);
     const limitNum = parseInt(limit);
     const offset = (pageNum - 1) * limitNum;
 
     // Get all alerts without pagination first (simpler approach)
     const [lowAttendanceAlerts] = await db.query(`
-      SELECT s.student_id as id, u.name, 
+      SELECT s.student_id as id, u.name, u.ID as roll_number,
       CONCAT(v.venue_name, ' - ', g.group_name) as group_name,
       'Low Attendance (< 60%)' as issue, 
       'danger' as type, 
@@ -204,7 +201,7 @@ export const getAlerts = async (req, res) => {
       INNER JOIN attendance a ON s.student_id = a.student_id
       WHERE gs.status = 'Active'
         AND a.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
-      GROUP BY s.student_id, u.name, v.venue_name, g.group_name
+      GROUP BY s.student_id, u.name, u.ID, v.venue_name, g.group_name
       HAVING attendance_percentage < 60
       ORDER BY attendance_percentage ASC
     `);
@@ -213,6 +210,7 @@ export const getAlerts = async (req, res) => {
       SELECT DISTINCT
         s.student_id as id,
         u.name,
+        u.ID as roll_number,
         t.title as group_name,
         CONCAT('Task Overdue: ', t.title) as issue,
         'warning' as type,
@@ -231,6 +229,7 @@ export const getAlerts = async (req, res) => {
       SELECT DISTINCT
         s.student_id as id,
         u.name,
+        u.ID as roll_number,
         v.venue_name as group_name,
         '3+ Consecutive Absences' as issue,
         'danger' as type,
@@ -241,42 +240,86 @@ export const getAlerts = async (req, res) => {
       INNER JOIN venue v ON a.venue_id = v.venue_id
       WHERE a.is_present = 0
         AND a.created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
-      GROUP BY s.student_id, u.name, v.venue_name
+      GROUP BY s.student_id, u.name, u.ID, v.venue_name
       HAVING COUNT(*) >= 3
       ORDER BY last_date DESC
     `);
 
     // Combine all alerts
-    const allAlerts = [
+    let allAlerts = [
       ...lowAttendanceAlerts.map(a => ({
-        id: a.id,
+        id: a.roll_number || a.id,
         name: a.name,
         group: a.group_name,
         issue: `${a.issue} (${a.attendance_percentage}%)`,
         type: a.type,
         date: formatDate(a.last_date),
+        dateRaw: a.last_date,
         attendance_percentage: a.attendance_percentage
       })),
       ...overdueTasksAlerts.map(a => ({
-        id: a.id,
+        id: a.roll_number || a.id,
         name: a.name,
         group: a.group_name,
         issue: a.issue,
         type: a.type,
-        date: formatDate(a.last_date)
+        date: formatDate(a.last_date),
+        dateRaw: a.last_date
       })),
       ...consecutiveAbsenceAlerts.map(a => ({
-        id: a.id,
+        id: a.roll_number || a.id,
         name: a.name,
         group: a.group_name,
         issue: a.issue,
         type: a.type,
-        date: formatDate(a.last_date)
+        date: formatDate(a.last_date),
+        dateRaw: a.last_date
       }))
     ];
 
-    // Sort by date (most recent first)
-    allAlerts.sort((a, b) => new Date(b.date) - new Date(a.date));
+    // Apply search filter
+    if (search && search.trim().length > 0) {
+      const searchLower = search.toLowerCase().trim();
+      allAlerts = allAlerts.filter(alert => 
+        alert.name.toLowerCase().includes(searchLower) ||
+        alert.id.toString().toLowerCase().includes(searchLower) ||
+        alert.group.toLowerCase().includes(searchLower) ||
+        alert.issue.toLowerCase().includes(searchLower)
+      );
+    }
+
+    // Apply issue type filter
+    if (issueType && issueType !== 'all') {
+      if (issueType === 'danger' || issueType === 'warning') {
+        allAlerts = allAlerts.filter(alert => alert.type === issueType);
+      } else if (issueType === 'attendance') {
+        allAlerts = allAlerts.filter(alert => alert.issue.includes('Attendance') || alert.issue.includes('Absence'));
+      } else if (issueType === 'task') {
+        allAlerts = allAlerts.filter(alert => alert.issue.includes('Task'));
+      } else if (issueType === 'absence') {
+        allAlerts = allAlerts.filter(alert => alert.issue.includes('Absence'));
+      }
+    }
+
+    // Apply sorting
+    allAlerts.sort((a, b) => {
+      let comparison = 0;
+      
+      switch (sortBy) {
+        case 'name':
+          comparison = a.name.localeCompare(b.name);
+          break;
+        case 'issue':
+          comparison = a.issue.localeCompare(b.issue);
+          break;
+        case 'date':
+        default:
+          comparison = new Date(b.dateRaw || 0) - new Date(a.dateRaw || 0);
+          break;
+      }
+      
+      return sortOrder === 'asc' ? comparison : -comparison;
+    });
 
     // Apply pagination
     const totalAlerts = allAlerts.length;

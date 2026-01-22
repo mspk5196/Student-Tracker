@@ -10,7 +10,9 @@ import {
   getStudentAttendanceDashboard,
   testAttendance,
   getSessionAttendance,
-  getVenueAttendanceDetails
+  getVenueAttendanceDetails,
+  getAttendanceByDateAndSession,
+  updateAttendanceByDateAndSession
 } from '../controllers/attendance.controller.js';
 import { authenticate } from '../middleware/auth.middleware.js';
 
@@ -32,5 +34,9 @@ router.post('/save', saveAttendance);
 router.get('/late-students', getLateStudents);  // Uses JWT to get faculty
 router.get('/history', getStudentAttendanceHistory);  // Uses JWT to get student
 router.get('/dashboard', getStudentAttendanceDashboard);  // Uses JWT to get student
+
+// New routes for attendance editing by date and session
+router.get('/by-date-session', getAttendanceByDateAndSession);  // GET with query params: venueId, date, sessionId
+router.put('/update-by-date-session', updateAttendanceByDateAndSession);  // PUT to update attendance for specific date/session
 
 export default router;
