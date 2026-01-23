@@ -35,6 +35,7 @@ const AssignmentDashboard = ({ selectedVenueId, venueName, venues }) => {
   const [materialType, setMaterialType] = useState('link');
   const [externalUrl, setExternalUrl] = useState('');
   const [files, setFiles] = useState([]);
+  const [skillFilter, setSkillFilter] = useState('');
   const [openMenuId, setOpenMenuId] = useState(null);
 
   // Fetch assignments for selected venue
@@ -101,6 +102,7 @@ const AssignmentDashboard = ({ selectedVenueId, venueName, venues }) => {
     setMaterialType('link');
     setExternalUrl('');
     setFiles([]);
+    setSkillFilter('');
   };
 
   const publishAssignment = async () => {
@@ -129,6 +131,7 @@ const AssignmentDashboard = ({ selectedVenueId, venueName, venues }) => {
     formData.append('due_date', dueDate);
     formData.append('max_score', score);
     formData.append('material_type', materialType);
+    formData.append('skill_filter', skillFilter.trim());
 
     if (materialType === 'link') {
       formData.append('external_url', externalUrl);
@@ -322,6 +325,20 @@ const AssignmentDashboard = ({ selectedVenueId, venueName, venues }) => {
                 placeholder="Describe the assignment requirements..."
                 disabled={loading}
               />
+            </div>
+
+            <div style={styles.fieldGroup}>
+              <label style={styles.fieldLabel}>Skill Filter (Optional)</label>
+              <input
+                style={styles.textInput}
+                value={skillFilter}
+                onChange={e => setSkillFilter(e.target.value)}
+                placeholder="e.g., HTML/CSS, JavaScript, React (leave empty to show to all students)"
+                disabled={loading}
+              />
+              <div style={{ fontSize: '12px', color: '#64748b', marginTop: '6px' }}>
+                💡 If specified, this assignment will only show to students who have NOT cleared this skill
+              </div>
             </div>
 
             {/* STUDY MATERIAL */}

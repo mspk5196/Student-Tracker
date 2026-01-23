@@ -10,15 +10,20 @@ import {
   MessageCircle,
   CheckSquare,
   ChevronRight,
-  BookOpen
+  BookOpen,
+  Video,
+  Download
 } from "lucide-react";
 import useAuthStore from "../../../store/useAuthStore";
 
 const StudentRoadmap = () => {
+  const API_URL = import.meta.env.VITE_API_URL;
   const { token, user } = useAuthStore();
   const [roadmapData, setRoadmapData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedNodeId, setSelectedNodeId] = useState(null);
+  const [selectedCourse, setSelectedCourse] = useState('frontend');
+  const [venueName, setVenueName] = useState('');
 
   useEffect(() => {
     fetchRoadmapData();
@@ -27,72 +32,94 @@ const StudentRoadmap = () => {
   const fetchRoadmapData = async () => {
     setLoading(true);
     try {
-      // Mock data generation (preserving original logic but enhancing for new UI)
-      const frontendTopics = [
-        "HTML5 Semantic Structure",
-        "CSS3 Modern Styling",
-        "JavaScript Fundamentals",
-        "Advanced JavaScript & ES6+",
-        "Git Version Control",
-        "React Component Basics",
-        "React Hooks & State",
-        "Context API Management",
-        "Redux Toolkit",
-        "React Router & Navigation",
-        "API Integration & Fetch",
-        "Form Handling & Validation",
-        "Tailwind CSS Styling",
-        "Frontend Performance",
-        "Final Capstone Project"
-      ];
+      const response = await fetch(`${API_URL}/roadmap/student`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
 
-      const mockData = Array.from({ length: 15 }, (_, i) => ({
-        roadmap_id: i + 1,
-        title: frontendTopics[i],
-        description: `Deep dive into ${frontendTopics[i]}. Master the core concepts and build real-world projects.`,
-        day: (i + 1) * 3,
-        is_completed: i < 2, // First 2 completed
-        is_current: i === 2, // 3rd is current
-        is_locked: i > 2,
-        progress: i === 2 ? 65 : (i < 2 ? 100 : 0),
-        resources: [
-            { id: `doc-${i}`, name: "Concept Notes", type: "pdf", size: "1.8 MB" },
-            { id: `vid-${i}`, name: "Video Lecture", type: "video", duration: "45 min" },
-            { id: `prac-${i}`, name: "Practice Playground", type: "code", desc: "Live editor" },
-            { id: `ref-${i}`, name: "MDN Reference", type: "link", desc: "External docs" }
-        ],
-        tasks: [
-            { id: 1, title: "Write a program using if / else", time: "20 mins", completed: false },
-            { id: 2, title: "Loop through an array and print values", time: "25 mins", completed: false },
-            { id: 3, title: "Mini quiz: 10 JS basics questions", time: "15 mins", completed: false }
-        ]
-      }));
+      if (!response.ok) {
+        throw new Error('Failed to fetch roadmap data');
+      }
 
-      // No network delay needed
-      setRoadmapData(mockData);
+      const result = await response.json();
       
-      // Select the current active node by default
-      const currentNode = mockData.find(n => n.is_current) || mockData[0];
-      setSelectedNodeId(currentNode.roadmap_id);
+      if (result.success && result.data) {
+        // Transform backend data to match UI expectations
+        const transformedData = result.data.map((module, index) => ({
+          roadmap_id: module.roadmap_id,
+          title: module.title,
+          description: module.description || 'No description available',
+          learning_objectives: module.learning_objectives,
+          day: module.day,
+          course_type: module.course_type || 'frontend',
+          status: module.status,
+          is_completed: false, // TODO: Track student progress
+          is_current: index === 0,
+          is_locked: false,
+          progress: 0,
+          resources: module.resources || [],
+          tasks: [] // TODO: Integrate tasks if available
+        }));
 
+        setRoadmapData(transformedData);
+        setVenueName(result.venue?.venue_name || 'Your Venue');
+        
+        // Select the first module by default
+        if (transformedData.length > 0) {
+          setSelectedNodeId(transformedData[0].roadmap_id);
+        }
+      } else {
+        setRoadmapData([]);
+        setVenueName('No Venue Assigned');
+      }
     } catch (err) {
       console.error("Error fetching roadmap:", err);
+      setRoadmapData([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const selectedNode = roadmapData.find(n => n.roadmap_id === selectedNodeId) || roadmapData[0];
-  const completedCount = roadmapData.filter(n => n.is_completed).length;
-  const progressPercentage = roadmapData.length ? Math.round((completedCount / roadmapData.length) * 100) : 0;
+  // Filter roadmap data by selected course type
+  const filteredRoadmapData = roadmapData.filter(n => n.course_type === selectedCourse);
+  const selectedNode = filteredRoadmapData.find(n => n.roadmap_id === selectedNodeId) || filteredRoadmapData[0];
+  const completedCount = filteredRoadmapData.filter(n => n.is_completed).length;
+  const progressPercentage = filteredRoadmapData.length ? Math.round((completedCount / filteredRoadmapData.length) * 100) : 0;
 
   const getResourceIcon = (type) => {
     switch (type) {
       case 'pdf': return <FileText size={20} className="text-blue-500" />;
-      case 'video': return <PlayCircle size={20} className="text-red-500" />;
-      case 'code': return <Code size={20} className="text-purple-500" />;
-      case 'link': return <ExternalLink size={20} className="text-gray-500" />;
+      case 'video': return <Video size={20} className="text-red-500" />;
+      case 'url': return <ExternalLink size={20} className="text-green-500" />;
       default: return <FileText size={20} />;
+    }
+  };
+
+  const downloadResource = async (resource) => {
+    try {
+      const response = await fetch(`${API_URL}/roadmap/resources/${resource.resource_id}/download`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) throw new Error('Download failed');
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = resource.resource_name.toLowerCase().endsWith('.pdf') 
+        ? resource.resource_name 
+        : `${resource.resource_name}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error('Error downloading resource:', error);
+      alert('Failed to download resource');
     }
   };
 
@@ -709,13 +736,34 @@ const StudentRoadmap = () => {
       {/* Header - Matched to TaskHeader.jsx layout */}
       <div className="sticky-header">
          <div className="left-section">
-             <div style={{ fontSize: '14px', color: '#64748b', marginRight: '8px' }}>Current Skill Track:</div>
-             <div className="dropdown-container">
-                <button className="dropdown-select">
-                   Frontend Developer Roadmap
-                </button>
+             <div style={{ fontSize: '14px', color: '#64748b', marginRight: '8px' }}>Venue:</div>
+             <div className="dropdown-container" style={{ minWidth: '200px', marginRight: '20px' }}>
+                <div style={{ padding: '8px 12px', fontSize: '14px', fontWeight: '600', color: '#1e293b' }}>
+                   {venueName}
+                </div>
+             </div>
+             
+             <div style={{ fontSize: '14px', color: '#64748b', marginRight: '8px' }}>Course Type:</div>
+             <div className="dropdown-container" style={{ minWidth: '200px' }}>
+                <select 
+                  className="dropdown-select"
+                  value={selectedCourse}
+                  onChange={(e) => {
+                    setSelectedCourse(e.target.value);
+                    // Reset to first module of new course type
+                    const firstModule = roadmapData.find(m => m.course_type === e.target.value);
+                    if (firstModule) setSelectedNodeId(firstModule.roadmap_id);
+                  }}
+                  style={{ paddingRight: '36px' }}
+                >
+                   <option value="frontend">Frontend</option>
+                   <option value="backend">Backend</option>
+                   <option value="devops">DevOps</option>
+                   <option value="fullstack">Full Stack</option>
+                   <option value="react-native">React Native</option>
+                </select>
                 <div style={{ position: 'absolute', right: '10px', pointerEvents: 'none', display: 'flex' }}>
-                  <ChevronRight size={14} color="#64748b" />
+                  <ChevronRight size={14} color="#64748b" style={{ transform: 'rotate(90deg)' }} />
                 </div>
              </div>
           </div>
@@ -740,7 +788,14 @@ const StudentRoadmap = () => {
           </div>
 
           <div className="timeline-track">
-            {roadmapData.map((node, index) => (
+            {filteredRoadmapData.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '40px 20px', color: '#64748b' }}>
+                <BookOpen size={48} style={{ margin: '0 auto 16px', opacity: 0.3 }} />
+                <p style={{ fontSize: '14px', fontWeight: '500' }}>No {selectedCourse} modules available yet</p>
+                <p style={{ fontSize: '12px', marginTop: '8px', opacity: 0.7 }}>Check back later or contact your instructor</p>
+              </div>
+            ) : (
+              filteredRoadmapData.map((node, index) => (
               <div 
                 key={node.roadmap_id} 
                 className={`timeline-node ${node.is_completed ? 'completed' : ''} ${node.roadmap_id === selectedNodeId ? 'current' : ''} ${node.is_locked ? 'locked' : ''}`}
@@ -783,7 +838,8 @@ const StudentRoadmap = () => {
                   )}
                 </div>
               </div>
-            ))}
+            ))
+            )}
           </div>
         </div>
 
@@ -824,39 +880,97 @@ const StudentRoadmap = () => {
                        Study materials
                      </h3>
                      <div className="resources-list">
-                        {selectedNode.resources.map((res, idx) => (
-                          <div key={idx} className="resource-item">
+                        {selectedNode.resources && selectedNode.resources.length > 0 ? (
+                          selectedNode.resources.map((res) => (
+                          <div key={res.resource_id} className="resource-item">
                             <div className="resource-icon-box">
-                               {getResourceIcon(res.type)}
+                               {getResourceIcon(res.resource_type)}
                             </div>
-                            <div className="resource-details">
-                                <span className="resource-name">{res.name}</span>
-                                <span className="resource-meta">{res.type === 'pdf' ? res.size : res.desc || res.duration}</span>
+                            <div className="resource-details" style={{ flex: 1 }}>
+                                <span className="resource-name">{res.resource_name}</span>
+                                <span className="resource-meta">
+                                  {res.resource_type === 'pdf' && res.file_size ? 
+                                    `${(res.file_size / (1024 * 1024)).toFixed(2)} MB` : 
+                                    res.resource_type}
+                                </span>
                             </div>
+                            {res.resource_type === 'pdf' && res.file_path ? (
+                              <button
+                                onClick={() => downloadResource(res)}
+                                style={{
+                                  padding: '6px 12px',
+                                  background: '#3b82f6',
+                                  color: 'white',
+                                  border: 'none',
+                                  borderRadius: '6px',
+                                  cursor: 'pointer',
+                                  fontSize: '12px',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '4px',
+                                  fontWeight: '500'
+                                }}
+                              >
+                                <Download size={14} />
+                                Download
+                              </button>
+                            ) : res.resource_url ? (
+                              <a
+                                href={res.resource_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style={{
+                                  padding: '6px 12px',
+                                  background: '#10b981',
+                                  color: 'white',
+                                  border: 'none',
+                                  borderRadius: '6px',
+                                  cursor: 'pointer',
+                                  fontSize: '12px',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '4px',
+                                  textDecoration: 'none',
+                                  fontWeight: '500'
+                                }}
+                              >
+                                <ExternalLink size={14} />
+                                Open
+                              </a>
+                            ) : null}
                           </div>
-                        ))}
+                        ))
+                        ) : (
+                          <div style={{ textAlign: 'center', padding: '24px', color: '#9ca3af', fontSize: '13px' }}>
+                            <FileText size={32} style={{ margin: '0 auto 12px', opacity: 0.3 }} />
+                            <p>No resources available yet</p>
+                          </div>
+                        )}
                      </div>
                    </div>
                 </div>
 
                 {/* Right Sub-column */}
                 <div className="space-y-6">
-                  {/* Deep description */}
-                  <div className="bg-gray-50 p-6 rounded-xl border border-gray-100">
-                     <h3 className="font-bold text-gray-800 mb-3">What you will learn in this skill</h3>
-                     <p className="text-gray-600 text-sm leading-relaxed">
-                        Deep dive into core {selectedNode.title} concepts: variables, primitive and reference types, conditionals, loops, and basic functions. By the end of this level you should be comfortable writing small interactive scripts in the browser.
-                     </p>
-                  </div>
+                  {/* Learning Objectives */}
+                  {selectedNode.learning_objectives && (
+                    <div className="bg-gray-50 p-6 rounded-xl border border-gray-100">
+                      <h3 className="font-bold text-gray-800 mb-3">What you will learn in this skill</h3>
+                      <p className="text-gray-600 leading-relaxed" style={{ whiteSpace: 'pre-line', fontSize: '14px' }}>
+                        {selectedNode.learning_objectives}
+                      </p>
+                    </div>
+                  )}
 
                   {/* Micro Tasks */}
+                  {selectedNode.tasks && selectedNode.tasks.length > 0 && (
                   <div className="subsection">
                     <h3 className="subsection-title">
                       <CheckSquare size={18} />
                       Today's micro-tasks
                     </h3>
                     <div className="tasks-list">
-                       {selectedNode.tasks?.map((task, idx) => (
+                       {selectedNode.tasks.map((task, idx) => (
                          <div key={idx} className="task-item">
                            <div className="task-checkbox-wrapper">
                               <input type="checkbox" className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
@@ -869,6 +983,7 @@ const StudentRoadmap = () => {
                        ))}
                     </div>
                   </div>
+                  )}
                 </div>
               </div>
 

@@ -122,7 +122,7 @@ export const createTask = async (req, res) => {
   const connection = await db.getConnection();
   
   try {
-    const { title, description, venue_id, day, due_date, max_score, material_type, external_url } = req.body;
+    const { title, description, venue_id, day, due_date, max_score, material_type, external_url, skill_filter, course_type, apply_to_all_venues } = req.body;
 
     if (!title || !venue_id || !day || !max_score) {
       return res.status(400).json({
@@ -183,48 +183,116 @@ export const createTask = async (req, res) => {
 
     await connection.beginTransaction();
 
-    // Insert task
-    const [taskResult] = await connection.query(`
-      INSERT INTO tasks (title, description, venue_id, faculty_id, day, due_date, max_score, material_type, external_url, status, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'Active', NOW())
-    `, [title, description || '', venue_id, faculty_id, day, due_date || null, max_score, material_type, external_url || null]);
-
-    const taskId = taskResult.insertId;
-
-    // If files were uploaded, save them
-    if (req.files && req.files.length > 0) {
-      for (const file of req.files) {
-        await connection.query(`
-          INSERT INTO task_files (task_id, file_name, file_path, file_type, file_size, uploaded_at)
-          VALUES (?, ?, ?, ?, ?, NOW())
-        `, [taskId, file.originalname, file.path, file. mimetype, file.size]);
-      }
+    // Determine venues to create tasks for
+    let targetVenues = [];
+    let group_id = null;
+    
+    if (apply_to_all_venues === 'true' || apply_to_all_venues === true) {
+      // Get all active venues
+      const [allVenues] = await connection.query(`
+        SELECT venue_id FROM venue WHERE status = 'Active'
+      `);
+      targetVenues = allVenues.map(v => v.venue_id);
+      
+      // Generate unique group_id for this batch
+      group_id = `task_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    } else {
+      // Single venue
+      targetVenues = [parseInt(venue_id)];
     }
 
-    // Get all students in this venue and create submission records
-    const [students] = await connection.query(`
-      SELECT DISTINCT s.student_id
-      FROM group_students gs
-      INNER JOIN \`groups\` g ON gs.group_id = g.group_id
-      INNER JOIN students s ON gs.student_id = s.student_id
-      WHERE g.venue_id = ? AND gs.status = 'Active'
-    `, [venue_id]);
+    const createdTasks = [];
+    let totalStudents = 0;
 
-    // Create submission records for all students (initially Pending Review)
-    if (students.length > 0) {
-      const submissionValues = students.map(s => `(${taskId}, ${s.student_id}, 'Pending Review', NOW())`).join(',');
-      await connection.query(`
-        INSERT INTO task_submissions (task_id, student_id, status, submitted_at)
-        VALUES ${submissionValues}
-      `);
+    // Create task for each target venue
+    for (const target_venue_id of targetVenues) {
+      // Get venue's faculty or use the provided one
+      let venue_faculty_id = faculty_id;
+      
+      if (apply_to_all_venues) {
+        // For multi-venue, try to use each venue's assigned faculty
+        const [venueData] = await connection.query(
+          'SELECT assigned_faculty_id FROM venue WHERE venue_id = ?', 
+          [target_venue_id]
+        );
+        if (venueData.length > 0 && venueData[0].assigned_faculty_id) {
+          venue_faculty_id = venueData[0].assigned_faculty_id;
+        }
+      }
+
+      // Insert task
+      const [taskResult] = await connection.query(`
+        INSERT INTO tasks (group_id, title, description, venue_id, faculty_id, day, due_date, max_score, material_type, external_url, skill_filter, course_type, status, is_template, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Active', ?, NOW())
+      `, [group_id, title, description || '', target_venue_id, venue_faculty_id, day, due_date || null, max_score, material_type, external_url || null, skill_filter || null, course_type || null, group_id ? 1 : 0]);
+
+      const taskId = taskResult.insertId;
+      createdTasks.push({ task_id: taskId, venue_id: target_venue_id });
+
+      // If files were uploaded, save them for each task
+      if (req.files && req.files.length > 0) {
+        for (const file of req.files) {
+          await connection.query(`
+            INSERT INTO task_files (task_id, file_name, file_path, file_type, file_size, uploaded_at)
+            VALUES (?, ?, ?, ?, ?, NOW())
+          `, [taskId, file.originalname, file.path, file.mimetype, file.size]);
+        }
+      }
+
+      // Get all students in this venue
+      const [students] = await connection.query(`
+        SELECT DISTINCT s.student_id
+        FROM group_students gs
+        INNER JOIN \`groups\` g ON gs.group_id = g.group_id
+        INNER JOIN students s ON gs.student_id = s.student_id
+        WHERE g.venue_id = ? AND gs.status = 'Active'
+      `, [target_venue_id]);
+
+      // Filter students based on skill_filter if provided
+      let eligibleStudents = students;
+      
+      if (skill_filter && skill_filter.trim()) {
+        console.log(`Filtering students for skill: ${skill_filter}`);
+        
+        // Get students who have CLEARED this skill
+        const [clearedStudents] = await connection.query(`
+          SELECT DISTINCT student_id
+          FROM student_skills
+          WHERE course_name = ? AND status = 'Cleared'
+        `, [skill_filter.trim()]);
+        
+        const clearedStudentIds = new Set(clearedStudents.map(s => s.student_id));
+        
+        // Only include students who have NOT cleared the skill
+        eligibleStudents = students.filter(s => !clearedStudentIds.has(s.student_id));
+        
+        console.log(`Total students in venue: ${students.length}, Eligible students: ${eligibleStudents.length}`);
+      }
+
+      // Create submission records for eligible students only
+      if (eligibleStudents.length > 0) {
+        const submissionValues = eligibleStudents.map(s => `(${taskId}, ${s.student_id}, 'Pending Review', NOW())`).join(',');
+        await connection.query(`
+          INSERT INTO task_submissions (task_id, student_id, status, submitted_at)
+          VALUES ${submissionValues}
+        `);
+        totalStudents += eligibleStudents.length;
+      }
     }
 
     await connection.commit();
 
     res.status(201).json({
       success: true,
-      message: 'Assignment published successfully! ',
-      data: { task_id: taskId, students_count: students.length }
+      message: apply_to_all_venues 
+        ? `Assignment published to ${targetVenues.length} venues successfully!` 
+        : 'Assignment published successfully!',
+      data: { 
+        tasks: createdTasks,
+        group_id: group_id,
+        venues_count: targetVenues.length,
+        students_count: totalStudents 
+      }
     });
 
   } catch (error) {
@@ -255,6 +323,8 @@ export const getTasksByVenue = async (req, res) => {
         t.max_score,
         t.material_type,
         t.external_url,
+        t.skill_filter,
+        t.course_type,
         t.status,
         t.created_at,
         v.venue_name,
@@ -287,6 +357,61 @@ export const getTasksByVenue = async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching tasks:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch tasks'
+    });
+  }
+};
+
+// Get tasks from ALL venues
+export const getTasksAllVenues = async (req, res) => {
+  try {
+    const { status } = req.query;
+
+    let query = `
+      SELECT 
+        t.task_id,
+        t.title,
+        t.description,
+        t.day,
+        t.due_date,
+        t.max_score,
+        t.material_type,
+        t.external_url,
+        t.skill_filter,
+        t.course_type,
+        t.status,
+        t.created_at,
+        v.venue_name,
+        u.name as faculty_name,
+        COUNT(DISTINCT ts.submission_id) as total_submissions,
+        COUNT(DISTINCT CASE WHEN ts.status = 'Pending Review' THEN ts.submission_id END) as pending_submissions,
+        COUNT(DISTINCT CASE WHEN ts.status = 'Graded' THEN ts. submission_id END) as graded_submissions
+      FROM tasks t
+      INNER JOIN venue v ON t.venue_id = v.venue_id
+      INNER JOIN faculties f ON t.faculty_id = f.faculty_id
+      INNER JOIN users u ON f.user_id = u.user_id
+      LEFT JOIN task_submissions ts ON t.task_id = ts.task_id
+    `;
+
+    const params = [];
+
+    if (status && status !== 'All') {
+      query += ` WHERE t.status = ? `;
+      params.push(status);
+    }
+
+    query += ` GROUP BY t.task_id ORDER BY v.venue_name, t.created_at DESC`;
+
+    const [tasks] = await db.query(query, params);
+
+    res.status(200).json({
+      success: true,
+      data: tasks
+    });
+  } catch (error) {
+    console.error('Error fetching all tasks:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to fetch tasks'
@@ -479,9 +604,9 @@ export const gradeSubmission = async (req, res) => {
     // Determine status based on grade
     let submissionStatus;
     if (gradeNum >= 50) {
-      submissionStatus = 'Graded';
+      submissionStatus = 'Graded'; // Successfully completed
     } else {
-      submissionStatus = 'Needs Revision';
+      submissionStatus = 'Needs Revision'; // Failed - student must resubmit
     }
 
     await db.query(`
@@ -495,10 +620,20 @@ export const gradeSubmission = async (req, res) => {
       WHERE submission_id = ?
     `, [gradeNum, feedback || null, submissionStatus, faculty_id, submission_id]);
 
+    // If grade < 50%, log that student needs to resubmit
+    if (gradeNum < 50) {
+      console.log(`Student scored ${gradeNum}% (below 50%) - Task will be shown again for resubmission`);
+    }
+
     res.status(200).json({
       success: true,
-      message: 'Submission graded successfully!',
-      data: { status: submissionStatus }
+      message: gradeNum >= 50 
+        ? 'Submission graded successfully!' 
+        : 'Submission graded. Student needs to resubmit (score below 50%).',
+      data: { 
+        status: submissionStatus,
+        needsResubmission: gradeNum < 50
+      }
     });
   } catch (error) {
     console.error('Error grading submission:', error);
@@ -701,6 +836,22 @@ export const getStudentTasks = async (req, res) => {
       });
     }
 
+    // Get student's cleared skills to filter tasks
+    const [studentSkills] = await db.query(`
+      SELECT DISTINCT course_name, status
+      FROM student_skills
+      WHERE student_id = ?
+    `, [student_id]);
+
+    // Create a set of cleared skills for quick lookup
+    const clearedSkills = new Set(
+      studentSkills
+        .filter(skill => skill.status === 'Cleared')
+        .map(skill => skill.course_name)
+    );
+
+    console.log('Student cleared skills:', Array.from(clearedSkills));
+
     // Get all tasks for the student's venue
     const [tasks] = await db.query(`
       SELECT 
@@ -712,6 +863,8 @@ export const getStudentTasks = async (req, res) => {
         t.max_score,
         t.material_type,
         t.external_url,
+        t.skill_filter,
+        t.course_type,
         t.status as task_status,
         t.created_at,
         u.name as faculty_name,
@@ -731,7 +884,38 @@ export const getStudentTasks = async (req, res) => {
       ORDER BY t.day ASC, t.created_at ASC
     `, [student_id, venue_id]);
 
-    console.log(`Found ${tasks.length} tasks for venue_id ${venue_id}`);
+    console.log(`Found ${tasks.length} tasks for venue_id ${venue_id} before skill filtering`);
+
+    // Filter tasks based on skill_filter and revision status
+    const filteredTasks = tasks.filter(task => {
+      // ALWAYS show tasks that need revision (grade < 50%)
+      if (task.submission_status === 'Needs Revision') {
+        console.log(`Task "${task.title}" needs revision - showing to student`);
+        return true;
+      }
+      
+      // If no skill_filter is set, show to everyone (unless already graded successfully)
+      if (!task.skill_filter) {
+        // Hide tasks that are already graded successfully (grade >= 50%)
+        if (task.submission_status === 'Graded' && task.grade >= 50) {
+          return false;
+        }
+        return true;
+      }
+      
+      // If skill_filter is set, only show if student has NOT cleared that skill
+      const hasCleared = clearedSkills.has(task.skill_filter);
+      console.log(`Task "${task.title}" - Skill Filter: ${task.skill_filter}, Student Cleared: ${hasCleared}, Show: ${!hasCleared}`);
+      
+      // Hide if student has cleared the skill AND task is already graded successfully
+      if (hasCleared && task.submission_status === 'Graded' && task.grade >= 50) {
+        return false;
+      }
+      
+      return !hasCleared;
+    });
+
+    console.log(`Showing ${filteredTasks.length} tasks after skill filtering and revision check`);
 
     // Debug: Check all tasks in the venue regardless of status
     const [allVenueTasks] = await db.query(`
@@ -740,7 +924,7 @@ export const getStudentTasks = async (req, res) => {
     console.log(`Total tasks in venue ${venue_id}:`, allVenueTasks);
 
     // Get materials for each task
-    const tasksWithResources = await Promise.all(tasks.map(async (task) => {
+    const tasksWithResources = await Promise.all(filteredTasks.map(async (task) => {
       // Parse materials from task if they exist
       let materials = [];
       if (task.material_type && task.external_url) {
@@ -754,10 +938,12 @@ export const getStudentTasks = async (req, res) => {
 
       // Determine overall status
       let overallStatus = 'pending';
-      if (task.submission_status === 'Graded') {
+      if (task.submission_status === 'Needs Revision') {
+        overallStatus = 'revision'; // Student needs to resubmit
+      } else if (task.submission_status === 'Graded' && task.grade >= 50) {
         overallStatus = 'completed';
       } else if (task.submission_id) {
-        overallStatus = 'pending'; // Submitted but not graded
+        overallStatus = 'pending'; // Submitted but not graded yet
       } else if (task.due_date && new Date(task.due_date) < new Date()) {
         overallStatus = 'overdue';
       }
@@ -771,6 +957,8 @@ export const getStudentTasks = async (req, res) => {
         status: overallStatus,
         score: task.max_score,
         materialType: task.material_type,
+        skillFilter: task.skill_filter || '',
+        courseType: task.course_type || '',
         moduleTitle: `Day ${task.day}`,
         instructor: task.faculty_name || 'Faculty',
         submittedDate: task.submitted_at,
@@ -779,6 +967,7 @@ export const getStudentTasks = async (req, res) => {
         isLate: task.is_late,
         fileName: task.file_name,
         filePath: task.file_path,
+        submissionStatus: task.submission_status,
         materials: materials
       };
     }));
@@ -978,5 +1167,101 @@ export const downloadSubmission = async (req, res) => {
       success: false,
       message: 'Failed to download file'
     });
+  }
+};
+
+// Sync task submissions for students added after task creation
+export const syncTaskSubmissions = async (req, res) => {
+  const connection = await db.getConnection();
+  
+  try {
+    await connection.beginTransaction();
+    
+    const { venue_id } = req.params;
+    
+    // Get all tasks for this venue
+    const [tasks] = await connection.query(`
+      SELECT task_id, skill_filter 
+      FROM tasks 
+      WHERE venue_id = ? AND status = 'active'
+    `, [venue_id]);
+    
+    let totalSubmissionsCreated = 0;
+    
+    for (const task of tasks) {
+      // Get all students in this venue
+      const [students] = await connection.query(`
+        SELECT DISTINCT s.student_id 
+        FROM students s
+        INNER JOIN student_venue sv ON s.student_id = sv.student_id
+        WHERE sv.venue_id = ? AND s.status = 'active'
+      `, [venue_id]);
+      
+      // Filter students based on skill_filter
+      let eligibleStudents = students;
+      
+      if (task.skill_filter && task.skill_filter.trim()) {
+        const [clearedStudents] = await connection.query(`
+          SELECT DISTINCT student_id 
+          FROM student_skills
+          WHERE course_name = ? AND status = 'Cleared'
+        `, [task.skill_filter.trim()]);
+        
+        const clearedStudentIds = new Set(clearedStudents.map(s => s.student_id));
+        eligibleStudents = students.filter(s => !clearedStudentIds.has(s.student_id));
+      }
+      
+      // Check which students don't have submissions yet
+      if (eligibleStudents.length > 0) {
+        const studentIds = eligibleStudents.map(s => s.student_id);
+        
+        const [existingSubmissions] = await connection.query(`
+          SELECT student_id 
+          FROM task_submissions 
+          WHERE task_id = ? AND student_id IN (?)
+        `, [task.task_id, studentIds]);
+        
+        const existingStudentIds = new Set(existingSubmissions.map(s => s.student_id));
+        const newStudents = eligibleStudents.filter(s => !existingStudentIds.has(s.student_id));
+        
+        // Create submissions for new students
+        if (newStudents.length > 0) {
+          const submissionValues = newStudents.map(student => 
+            `(${task.task_id}, ${student.student_id}, 'Pending Review', NULL, NULL, NULL, NULL, NULL, NOW())`
+          ).join(',');
+          
+          await connection.query(`
+            INSERT INTO task_submissions 
+            (task_id, student_id, status, file_path, submission_type, submitted_at, grade, feedback, created_at)
+            VALUES ${submissionValues}
+          `);
+          
+          totalSubmissionsCreated += newStudents.length;
+          console.log(`Created ${newStudents.length} submissions for task ${task.task_id}`);
+        }
+      }
+    }
+    
+    await connection.commit();
+    
+    res.json({
+      success: true,
+      message: `Successfully synced task submissions. Created ${totalSubmissionsCreated} new submissions.`,
+      data: {
+        tasksProcessed: tasks.length,
+        submissionsCreated: totalSubmissionsCreated
+      }
+    });
+    
+  } catch (error) {
+    await connection.rollback();
+    console.error('Error syncing task submissions:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to sync task submissions',
+      error: error.message
+    });
+  } finally {
+    connection.release();
   }
 };

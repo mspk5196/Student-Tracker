@@ -144,6 +144,7 @@ useEffect(() => {
                     onChange={handleVenueChange}
                     style={styles.dropdownSelect}
                   >
+                    <option value="all" style={{ fontWeight: 'bold', color: '#3b82f6' }}> All Venues</option>
                     {venues.map(venue => (
                       <option key={venue. venue_id} value={venue. venue_id}>
                         {venue.venue_name} ({venue.student_count} students)
@@ -166,23 +167,21 @@ useEffect(() => {
               )}
             </div>
 
-            {activeTab === 'roadmap' && (
-              <div style={styles.dropdownContainer}>
-                <select
-                  value={selectedCourse}
-                  onChange={(e) => setSelectedCourse(e.target.value)}
-                  style={styles.dropdownSelect}
-                >
-                  <option value="frontend">Frontend</option>
-                  <option value="backend">Backend</option>
-                  <option value="react-native">React Native</option>
-                  <option value="devops">DevOps</option>
-                </select>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ position: 'absolute', right: '12px', pointerEvents: 'none' }}>
-                  <polyline points="6 9 12 15 18 9"></polyline>
-                </svg>
-              </div>
-            )}
+            <div style={styles.dropdownContainer}>
+              <select
+                value={selectedCourse}
+                onChange={(e) => setSelectedCourse(e.target.value)}
+                style={styles.dropdownSelect}
+              >
+                <option value="frontend">Frontend</option>
+                <option value="backend">Backend</option>
+                <option value="react-native">React Native</option>
+                <option value="devops">DevOps</option>
+              </select>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ position: 'absolute', right: '12px', pointerEvents: 'none' }}>
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
+            </div>
           </div>
 
           <div style={styles.rightSection}>
@@ -202,6 +201,7 @@ useEffect(() => {
                 selectedVenueId={selectedVenueId}
                 venueName={getCurrentVenueName()}
                 venues={venues}
+                selectedCourseType={selectedCourse}
               />
             ) : (
               <StudyRoadmap 
@@ -210,8 +210,7 @@ useEffect(() => {
                 venues={venues}
                 isActiveTab={activeTab === 'roadmap'}
                 addDayTrigger={addDayTrigger}
-                selectedCourse={selectedCourse}
-                setSelectedCourse={setSelectedCourse}
+                selectedCourseType={selectedCourse}
                 key={`${selectedVenueId}-${addDayTrigger}`}
               />
             )

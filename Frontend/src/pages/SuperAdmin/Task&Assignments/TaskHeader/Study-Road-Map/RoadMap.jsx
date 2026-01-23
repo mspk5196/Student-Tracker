@@ -10,6 +10,7 @@ import {
   X,
   Link as LinkIcon,
   Upload,
+  Video,
 } from "lucide-react";
 import useAuthStore from "../../../../../store/useAuthStore";
 
@@ -19,19 +20,24 @@ const StudyRoadmap = ({
   venues,
   isActiveTab,
   addDayTrigger,
+  selectedCourseType = 'frontend',
 }) => {
   const API_URL = import.meta.env.VITE_API_URL;
   const { token, user } = useAuthStore();
 
   const [roadmap, setRoadmap] = useState([]);
   const [editingId, setEditingId] = useState(null);
-  const [editData, setEditData] = useState({ title: "", description: "" });
+  const [editingGroupId, setEditingGroupId] = useState(null);
+  const [editData, setEditData] = useState({ title: "", description: "", learning_objectives: "" });
   const [lastAddDayTrigger, setLastAddDayTrigger] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [allVenuesModules, setAllVenuesModules] = useState([]);
+  const [messageModal, setMessageModal] = useState({ show: false, title: '', message: '', type: 'success' });
 
   // Resource Modal State
   const [showResourceModal, setShowResourceModal] = useState(false);
   const [currentModuleId, setCurrentModuleId] = useState(null);
+  const [currentGroupId, setCurrentGroupId] = useState(null);
   const [newResource, setNewResource] = useState({
     name: "",
     kind: "pdf",
@@ -44,7 +50,42 @@ const StudyRoadmap = ({
   // Fetch roadmap data for selected venue
   useEffect(() => {
     const fetchRoadmapData = async () => {
-      if (!selectedVenueId) return;
+      if (!selectedVenueId) {
+        setRoadmap([]);
+        setAllVenuesModules([]);
+        return;
+      }
+
+      if (selectedVenueId === 'all') {
+        // Fetch modules for all venues grouped
+        setLoading(true);
+        try {
+          const response = await fetch(
+            `${API_URL}/roadmap/all-venues`,
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+                "Content-Type": "application/json",
+              },
+            },
+          );
+
+          const data = await response.json();
+
+          if (data.success) {
+            setAllVenuesModules(data.data || []);
+          } else {
+            console.error("Failed to fetch all venues roadmap:", data.message);
+            setAllVenuesModules([]);
+          }
+        } catch (error) {
+          console.error("Error fetching all venues roadmap:", error);
+          setAllVenuesModules([]);
+        } finally {
+          setLoading(false);
+        }
+        return;
+      }
 
       setLoading(true);
       try {
@@ -92,24 +133,63 @@ const StudyRoadmap = ({
   const addDay = async () => {
     if (!selectedVenueId) {
       console.error("No venue selected!");
-      alert("Please select a venue first");
+      setMessageModal({ 
+        show: true, 
+        title: 'No Venue Selected', 
+        message: 'Please select a venue first',
+        type: 'error'
+      });
       return;
     }
 
-    try {
-      // Calculate next day number
-      let nextDay = 1;
-      if (roadmap.length > 0) {
-        const maxDay = Math.max(...roadmap.map((item) => item.day));
-        nextDay = maxDay + 1;
+    const isAllVenues = selectedVenueId === 'all';
+    
+    // Calculate next day number based on course type
+    let nextDay = 1;
+    if (selectedVenueId === 'all') {
+      const modulesForCourse = allVenuesModules.filter(m => m.course_type === selectedCourseType);
+      if (modulesForCourse.length > 0) {
+        nextDay = Math.max(...modulesForCourse.map(m => m.day)) + 1;
       }
+    } else {
+      const modulesForCourse = roadmap.filter(m => m.course_type === selectedCourseType);
+      if (modulesForCourse.length > 0) {
+        nextDay = Math.max(...modulesForCourse.map(m => m.day)) + 1;
+      }
+    }
 
+    if (isAllVenues) {
+      const confirmed = await new Promise((resolve) => {
+        setMessageModal({
+          show: true,
+          title: 'Confirm Creation',
+          message: `This will create a new ${selectedCourseType} module (Day ${nextDay}) for ALL active venues.\n\nAre you sure you want to continue?`,
+          type: 'confirm',
+          onConfirm: () => {
+            setMessageModal({ show: false, title: '', message: '', type: 'success' });
+            resolve(true);
+          },
+          onCancel: () => {
+            setMessageModal({ show: false, title: '', message: '', type: 'success' });
+            resolve(false);
+          }
+        });
+      });
+      
+      if (!confirmed) {
+        return;
+      }
+    }
+
+    try {
       const newDay = {
-        venue_id: selectedVenueId,
+        venue_id: isAllVenues ? venues[0]?.venue_id : selectedVenueId,
         day: nextDay,
-        title: `${venueName} - Day ${nextDay}`,
+        title: isAllVenues ? `All Venues - ${selectedCourseType} Day ${nextDay}` : `${venueName} - ${selectedCourseType} Day ${nextDay}`,
         description: "Enter module description here...",
         status: "draft",
+        course_type: selectedCourseType,
+        apply_to_all_venues: isAllVenues
       };
 
       // Send to backend
@@ -125,23 +205,66 @@ const StudyRoadmap = ({
       const data = await response.json();
 
       if (data.success) {
-        // Create local object with the returned ID
-        const newModule = {
-          ...newDay,
-          roadmap_id: data.data.roadmap_id,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          resources: [],
-        };
+        if (data.data.venues_count > 1 || isAllVenues) {
+          // Multi-venue creation
+          let message = `Roadmap module created for ${data.data.venues_count} venue(s) successfully!`;
+          if (data.data.skipped_count > 0) {
+            message += `\n\nSkipped ${data.data.skipped_count} venue(s) - module already exists.`;
+          }
+          setMessageModal({ 
+            show: true, 
+            title: 'Success', 
+            message: message,
+            type: 'success'
+          });
+          // Refresh all venues modules
+          if (isAllVenues) {
+            const response = await fetch(`${API_URL}/roadmap/all-venues`, {
+              headers: {
+                Authorization: `Bearer ${token}`,
+                "Content-Type": "application/json",
+              },
+            });
+            const refreshData = await response.json();
+            if (refreshData.success) {
+              setAllVenuesModules(refreshData.data);
+            }
+          }
+        } else {
+          // Single venue creation
+          const newModule = {
+            ...newDay,
+            roadmap_id: data.data.roadmap_id || data.data.roadmaps[0].roadmap_id,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            resources: [],
+          };
 
-        const updatedRoadmap = [...roadmap, newModule];
-        setRoadmap(updatedRoadmap);
+          const updatedRoadmap = [...roadmap, newModule];
+          setRoadmap(updatedRoadmap);
+          setMessageModal({ 
+            show: true, 
+            title: 'Success', 
+            message: 'Roadmap module created successfully!',
+            type: 'success'
+          });
+        }
       } else {
-        alert("Failed to add day: " + data.message);
+        setMessageModal({ 
+          show: true, 
+          title: 'Error', 
+          message: data.message || 'Failed to add module',
+          type: 'error'
+        });
       }
     } catch (error) {
       console.error("Error adding day:", error);
-      alert("Failed to add day: " + error.message);
+      setMessageModal({ 
+        show: true, 
+        title: 'Error', 
+        message: error.message || 'Failed to add module',
+        type: 'error'
+      });
     }
   };
 
@@ -152,7 +275,12 @@ const StudyRoadmap = ({
   const setupDraft = (id) => {
     const draftModule = roadmap.find((r) => r.roadmap_id === id);
     if (!draftModule) {
-      alert("Module not found");
+      setMessageModal({ 
+        show: true, 
+        title: 'Error', 
+        message: 'Module not found',
+        type: 'error'
+      });
       return;
     }
 
@@ -161,6 +289,8 @@ const StudyRoadmap = ({
       title: draftModule.title,
       description:
         draftModule.description || "Enter module description here...",
+      learning_objectives:
+        draftModule.learning_objectives || "",
     });
 
     // Update status locally to 'editing'
@@ -170,9 +300,50 @@ const StudyRoadmap = ({
     setRoadmap(updatedRoadmap);
   };
 
+  const setupDraftGroup = (group_id) => {
+    const draftModule = allVenuesModules.find((r) => r.group_id === group_id);
+    if (!draftModule) {
+      setMessageModal({ 
+        show: true, 
+        title: 'Error', 
+        message: 'Module not found',
+        type: 'error'
+      });
+      return;
+    }
+
+    setEditingGroupId(group_id);
+    setEditData({
+      title: draftModule.title,
+      description:
+        draftModule.description || "Enter module description here...",
+      learning_objectives:
+        draftModule.learning_objectives || "",
+    });
+
+    // Update status locally to 'editing'
+    const updatedModules = allVenuesModules.map((item) =>
+      item.group_id === group_id ? { ...item, status: "editing" } : item,
+    );
+    setAllVenuesModules(updatedModules);
+  };
+
   const startEdit = (item) => {
     setEditingId(item.roadmap_id);
-    setEditData({ title: item.title, description: item.description });
+    setEditData({ 
+      title: item.title, 
+      description: item.description,
+      learning_objectives: item.learning_objectives || ""
+    });
+  };
+
+  const startEditGroup = (item) => {
+    setEditingGroupId(item.group_id);
+    setEditData({ 
+      title: item.title, 
+      description: item.description,
+      learning_objectives: item.learning_objectives || ""
+    });
   };
 
   const saveEdit = async (id) => {
@@ -186,6 +357,7 @@ const StudyRoadmap = ({
         body: JSON.stringify({
           title: editData.title,
           description: editData.description,
+          learning_objectives: editData.learning_objectives,
           status: "published",
         }),
       });
@@ -199,6 +371,7 @@ const StudyRoadmap = ({
                 ...item,
                 title: editData.title,
                 description: editData.description,
+                learning_objectives: editData.learning_objectives,
                 status: "published",
               }
             : item,
@@ -206,13 +379,101 @@ const StudyRoadmap = ({
 
         setRoadmap(updatedRoadmap);
         setEditingId(null);
-        alert("Module saved successfully!");
+        setMessageModal({ 
+          show: true, 
+          title: 'Success', 
+          message: 'Module saved successfully!',
+          type: 'success'
+        });
       } else {
-        alert("Failed to save: " + data.message);
+        setMessageModal({ 
+          show: true, 
+          title: 'Error', 
+          message: data.message || 'Failed to save',
+          type: 'error'
+        });
       }
     } catch (error) {
       console.error("Error saving edit:", error);
-      alert("Failed to save: " + error.message);
+      setMessageModal({ 
+        show: true, 
+        title: 'Error', 
+        message: error.message || 'Failed to save',
+        type: 'error'
+      });
+    }
+  };
+
+  const saveEditGroup = async (group_id) => {
+    try {
+      const response = await fetch(`${API_URL}/roadmap/group/${group_id}`, {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          title: editData.title,
+          description: editData.description,
+          learning_objectives: editData.learning_objectives,
+          status: "published",
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        const updatedModules = allVenuesModules.map((item) =>
+          item.group_id === group_id
+            ? {
+                ...item,
+                title: editData.title,
+                description: editData.description,
+                learning_objectives: editData.learning_objectives,
+                status: "published",
+              }
+            : item,
+        );
+
+        setAllVenuesModules(updatedModules);
+        
+        // Also update the single venue roadmap state if it contains modules from this group
+        const updatedRoadmap = roadmap.map((item) =>
+          item.group_id === group_id
+            ? {
+                ...item,
+                title: editData.title,
+                description: editData.description,
+                learning_objectives: editData.learning_objectives,
+                status: "published",
+              }
+            : item,
+        );
+        setRoadmap(updatedRoadmap);
+        
+        setEditingGroupId(null);
+        setMessageModal({ 
+          show: true, 
+          title: 'Success', 
+          message: `Module updated for ${data.data.updated_count} venue(s) successfully!`,
+          type: 'success'
+        });
+      } else {
+        setMessageModal({ 
+          show: true, 
+          title: 'Error', 
+          message: data.message || 'Failed to save',
+          type: 'error'
+        });
+      }
+    } catch (error) {
+      console.error("Error saving edit:", error);
+      setMessageModal({ 
+        show: true, 
+        title: 'Error', 
+        message: error.message || 'Failed to save',
+        type: 'error'
+      });
     }
   };
 
@@ -224,13 +485,90 @@ const StudyRoadmap = ({
     setEditingId(null);
   };
 
+  const cancelEditGroup = (group_id) => {
+    const updatedModules = allVenuesModules.map((item) =>
+      item.group_id === group_id ? { ...item, status: "draft" } : item,
+    );
+    setAllVenuesModules(updatedModules);
+    setEditingGroupId(null);
+  };
+
+  const deleteModuleGroup = async (group_id, course_type) => {
+    const confirmed = await new Promise((resolve) => {
+      setMessageModal({
+        show: true,
+        title: 'Confirm Deletion',
+        message: `Are you sure you want to delete this ${course_type} module from ALL venues? This will also delete all associated resources.`,
+        type: 'confirm',
+        onConfirm: () => {
+          setMessageModal({ show: false, title: '', message: '', type: 'success' });
+          resolve(true);
+        },
+        onCancel: () => {
+          setMessageModal({ show: false, title: '', message: '', type: 'success' });
+          resolve(false);
+        }
+      });
+    });
+    
+    if (!confirmed) return;
+
+    try {
+      const response = await fetch(`${API_URL}/roadmap/group/${group_id}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setAllVenuesModules(allVenuesModules.filter(item => item.group_id !== group_id));
+        setMessageModal({ 
+          show: true, 
+          title: 'Success', 
+          message: `Module deleted from ${data.data.deleted_count} venue(s) successfully!`,
+          type: 'success'
+        });
+      } else {
+        setMessageModal({ 
+          show: true, 
+          title: 'Error', 
+          message: data.message || 'Failed to delete',
+          type: 'error'
+        });
+      }
+    } catch (error) {
+      console.error("Error deleting module group:", error);
+      setMessageModal({ 
+        show: true, 
+        title: 'Error', 
+        message: error.message || 'Failed to delete',
+        type: 'error'
+      });
+    }
+  };
+
   const deleteDay = async (id) => {
-    if (
-      !window.confirm(
-        "Are you sure you want to delete this module? This will also delete all associated resources.",
-      )
-    )
-      return;
+    const confirmed = await new Promise((resolve) => {
+      setMessageModal({
+        show: true,
+        title: 'Confirm Deletion',
+        message: 'Are you sure you want to delete this module? This will also delete all associated resources.',
+        type: 'confirm',
+        onConfirm: () => {
+          setMessageModal({ show: false, title: '', message: '', type: 'success' });
+          resolve(true);
+        },
+        onCancel: () => {
+          setMessageModal({ show: false, title: '', message: '', type: 'success' });
+          resolve(false);
+        }
+      });
+    });
+    
+    if (!confirmed) return;
 
     try {
       const response = await fetch(`${API_URL}/roadmap/${id}`, {
@@ -245,13 +583,28 @@ const StudyRoadmap = ({
       if (data.success) {
         const updatedRoadmap = roadmap.filter((item) => item.roadmap_id !== id);
         setRoadmap(updatedRoadmap);
-        alert("Module deleted successfully!");
+        setMessageModal({ 
+          show: true, 
+          title: 'Success', 
+          message: 'Module deleted successfully!',
+          type: 'success'
+        });
       } else {
-        alert("Failed to delete: " + data.message);
+        setMessageModal({ 
+          show: true, 
+          title: 'Error', 
+          message: data.message || 'Failed to delete',
+          type: 'error'
+        });
       }
     } catch (error) {
       console.error("Error deleting day:", error);
-      alert("Failed to delete: " + error.message);
+      setMessageModal({ 
+        show: true, 
+          title: 'Error', 
+        message: error.message || 'Failed to delete',
+        type: 'error'
+      });
     }
   };
 
@@ -271,7 +624,12 @@ const StudyRoadmap = ({
           name: prev.name || fileNameWithoutExt,
         }));
       } else {
-        alert("Please select a PDF file");
+        setMessageModal({ 
+          show: true, 
+          title: 'Invalid File', 
+          message: 'Please select a PDF file',
+          type: 'error'
+        });
       }
     }
   };
@@ -304,7 +662,12 @@ const StudyRoadmap = ({
           name: prev.name || fileNameWithoutExt,
         }));
       } else {
-        alert("Please drop a PDF file");
+        setMessageModal({ 
+          show: true, 
+          title: 'Invalid File', 
+          message: 'Please drop a PDF file',
+          type: 'error'
+        });
       }
     }
   };
@@ -317,8 +680,9 @@ const StudyRoadmap = ({
   };
 
   /* ---------- RESOURCE HANDLERS ---------- */
-  const handleOpenResourceModal = (moduleId) => {
+  const handleOpenResourceModal = (moduleId, groupId = null) => {
     setCurrentModuleId(moduleId);
+    setCurrentGroupId(groupId);
     setShowResourceModal(true);
     setSelectedFile(null);
     setNewResource({ name: "", kind: "pdf", url: "" });
@@ -326,21 +690,143 @@ const StudyRoadmap = ({
 
   const handleAddResource = async () => {
     if (!newResource.name.trim()) {
-      alert("Please enter a resource name");
+      setMessageModal({ 
+        show: true, 
+        title: 'Validation Error', 
+        message: 'Please enter a resource name',
+        type: 'error'
+      });
       return;
     }
 
     if (newResource.kind === "pdf" && !selectedFile) {
-      alert("Please select a PDF file");
+      setMessageModal({ 
+        show: true, 
+        title: 'Validation Error', 
+        message: 'Please select a PDF file',
+        type: 'error'
+      });
       return;
     }
 
     if (newResource.kind !== "pdf" && !newResource.url.trim()) {
-      alert("Please enter a URL");
+      setMessageModal({ 
+        show: true, 
+        title: 'Validation Error', 
+        message: 'Please enter a URL',
+        type: 'error'
+      });
       return;
     }
 
     try {
+      // Check if adding to all venues (group) or single venue
+      if (currentGroupId) {
+        // Get all roadmap_ids for this group_id
+        const groupModule = allVenuesModules.find(m => m.group_id === currentGroupId);
+        if (!groupModule || !groupModule.venues) {
+          setMessageModal({ 
+            show: true, 
+            title: 'Error', 
+            message: 'Unable to find venues for this module group',
+            type: 'error'
+          });
+          return;
+        }
+
+        // For PDF files, we need to upload once and reuse the file path
+        // For URLs, we can add to all venues directly
+        let sharedFilePath = null;
+        let successCount = 0;
+        let failCount = 0;
+
+        // First, upload the file if it's a PDF (upload once)
+        if (newResource.kind === "pdf" && selectedFile) {
+          const firstFormData = new FormData();
+          firstFormData.append("roadmap_id", groupModule.venues[0].roadmap_id);
+          firstFormData.append("resource_name", newResource.name.trim());
+          firstFormData.append("resource_type", newResource.kind);
+          firstFormData.append("file", selectedFile);
+
+          const firstResponse = await fetch(`${API_URL}/roadmap/resources`, {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+            body: firstFormData,
+          });
+
+          const firstData = await firstResponse.json();
+          if (firstData.success) {
+            sharedFilePath = firstData.data.file_path;
+            successCount++;
+          } else {
+            setMessageModal({ 
+              show: true, 
+              title: 'Error', 
+              message: 'Failed to upload file: ' + firstData.message,
+              type: 'error'
+            });
+            return;
+          }
+        }
+
+        // Add resource to remaining venues
+        const startIndex = newResource.kind === "pdf" ? 1 : 0;
+        for (let i = startIndex; i < groupModule.venues.length; i++) {
+          const venue = groupModule.venues[i];
+          let formData = new FormData();
+          formData.append("roadmap_id", venue.roadmap_id);
+          formData.append("resource_name", newResource.name.trim());
+          formData.append("resource_type", newResource.kind);
+
+          if (newResource.kind === "pdf") {
+            // Reuse the uploaded file path
+            formData.append("existing_file_path", sharedFilePath);
+          } else {
+            formData.append("resource_url", newResource.url.trim());
+          }
+
+          try {
+            const response = await fetch(`${API_URL}/roadmap/resources`, {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
+              body: formData,
+            });
+
+            const data = await response.json();
+            if (data.success) {
+              successCount++;
+            } else {
+              failCount++;
+            }
+          } catch (err) {
+            failCount++;
+          }
+        }
+
+        setShowResourceModal(false);
+        setNewResource({ name: "", kind: "pdf", url: "" });
+        setSelectedFile(null);
+        setCurrentGroupId(null);
+
+        let message = `Resource added to ${successCount} venue(s) successfully!`;
+        if (failCount > 0) {
+          message += `\n\nFailed for ${failCount} venue(s).`;
+        }
+
+        setMessageModal({ 
+          show: true, 
+          title: 'Success', 
+          message: message,
+          type: successCount > 0 ? 'success' : 'error'
+        });
+        return;
+      }
+
+      // Single venue resource addition
       let formData = new FormData();
       formData.append("roadmap_id", currentModuleId);
       formData.append("resource_name", newResource.name.trim());
@@ -392,13 +878,28 @@ const StudyRoadmap = ({
         setNewResource({ name: "", kind: "pdf", url: "" });
         setSelectedFile(null);
 
-        alert("Resource added successfully!");
+        setMessageModal({ 
+          show: true, 
+          title: 'Success', 
+          message: 'Resource added successfully!',
+          type: 'success'
+        });
       } else {
-        alert("Failed to add resource: " + data.message);
+        setMessageModal({ 
+          show: true, 
+          title: 'Error', 
+          message: 'Failed to add resource: ' + data.message,
+          type: 'error'
+        });
       }
     } catch (error) {
       console.error("Error adding resource:", error);
-      alert("Failed to add resource: " + error.message);
+      setMessageModal({ 
+        show: true, 
+        title: 'Error', 
+        message: 'Failed to add resource: ' + error.message,
+        type: 'error'
+      });
     }
   };
 
@@ -442,27 +943,56 @@ const StudyRoadmap = ({
           window.URL.revokeObjectURL(url);
         } else {
           const errorData = await response.json();
-          alert(
-            "Failed to download file: " +
-              (errorData.message || "Unknown error"),
-          );
+          setMessageModal({ 
+            show: true, 
+            title: 'Download Failed', 
+            message: 'Failed to download file: ' + (errorData.message || 'Unknown error'),
+            type: 'error'
+          });
         }
       } catch (error) {
         console.error("Error downloading file:", error);
-        alert("Failed to download file: " + error.message);
+        setMessageModal({ 
+          show: true, 
+          title: 'Download Failed', 
+          message: 'Failed to download file: ' + error.message,
+          type: 'error'
+        });
       }
     } else if (res.resource_url) {
       // Open external URL
       window.open(res.resource_url, "_blank", "noopener noreferrer");
     } else {
-      alert("No URL available for this resource.");
+      setMessageModal({ 
+        show: true, 
+        title: 'Error', 
+        message: 'No URL available for this resource.',
+        type: 'error'
+      });
     }
   };
 
   const deleteResource = async (resourceId, roadmapId, e) => {
     e.stopPropagation();
-    if (!window.confirm("Are you sure you want to delete this resource?"))
-      return;
+    
+    const confirmed = await new Promise((resolve) => {
+      setMessageModal({
+        show: true,
+        title: 'Confirm Deletion',
+        message: 'Are you sure you want to delete this resource?',
+        type: 'confirm',
+        onConfirm: () => {
+          setMessageModal({ show: false, title: '', message: '', type: 'success' });
+          resolve(true);
+        },
+        onCancel: () => {
+          setMessageModal({ show: false, title: '', message: '', type: 'success' });
+          resolve(false);
+        }
+      });
+    });
+    
+    if (!confirmed) return;
 
     try {
       const response = await fetch(
@@ -491,13 +1021,28 @@ const StudyRoadmap = ({
         });
 
         setRoadmap(updatedRoadmap);
-        alert("Resource deleted successfully!");
+        setMessageModal({ 
+          show: true, 
+          title: 'Success', 
+          message: 'Resource deleted successfully!',
+          type: 'success'
+        });
       } else {
-        alert("Failed to delete resource: " + data.message);
+        setMessageModal({ 
+          show: true, 
+          title: 'Error', 
+          message: 'Failed to delete resource: ' + data.message,
+          type: 'error'
+        });
       }
     } catch (error) {
       console.error("Error deleting resource:", error);
-      alert("Failed to delete resource: " + error.message);
+      setMessageModal({ 
+        show: true, 
+        title: 'Error', 
+        message: 'Failed to delete resource: ' + error.message,
+        type: 'error'
+      });
     }
   };
 
@@ -542,27 +1087,294 @@ const StudyRoadmap = ({
         {/* Venue Header */}
         <div style={styles.skillHeader}>
           <h2 style={styles.skillTitle}>
-            {venueName || `Venue ${selectedVenueId}`}
+            {selectedVenueId === 'all' ? 'All Venues' : (venueName || `Venue ${selectedVenueId}`)}
           </h2>
           <div style={styles.skillInfo}>
-            <span style={styles.skillCode}>
-              Venue ID:
-              {selectedVenueId}
-            </span>
-            <span style={styles.moduleCount}>
-              {roadmap.length} Module{roadmap.length !== 1 ? "s" : ""}
-            </span>
-            <span style={styles.draftCount}>
-              {roadmap.filter((m) => m.status === "draft").length} Draft
-              {roadmap.filter((m) => m.status === "draft").length !== 1
-                ? "s"
-                : ""}
-            </span>
+            {selectedVenueId === 'all' ? (
+              <>
+                <span style={styles.moduleCount}>
+                  {allVenuesModules.length} Module{allVenuesModules.length !== 1 ? "s" : ""}
+                </span>
+                <span style={styles.skillCode}>
+                  {venues.length} Venues
+                </span>
+              </>
+            ) : (
+              <>
+                <span style={styles.skillCode}>
+                  Venue ID:
+                  {selectedVenueId}
+                </span>
+                <span style={styles.moduleCount}>
+                  {roadmap.length} Module{roadmap.length !== 1 ? "s" : ""}
+                </span>
+                <span style={styles.draftCount}>
+                  {roadmap.filter((m) => m.status === "draft").length} Draft
+                  {roadmap.filter((m) => m.status === "draft").length !== 1
+                    ? "s"
+                    : ""}
+                </span>
+              </>
+            )}
           </div>
         </div>
 
         <div style={styles.contentList}>
-          {roadmap.length === 0 ? (
+          {selectedVenueId === 'all' ? (
+            // All Venues View
+            allVenuesModules.filter(m => m.course_type === selectedCourseType).length === 0 ? (
+              <div style={styles.emptyState}>
+                <h3 style={{ color: "#6B7280", marginBottom: "12px" }}>
+                  No {selectedCourseType} modules yet
+                </h3>
+                <p style={{ color: "#9CA3AF", marginBottom: "20px" }}>
+                  Create your first {selectedCourseType} module for all venues
+                </p>
+                <button style={styles.addDayBtn} onClick={handleAddDay}>
+                  <PlusCircle size={18} />
+                  <span>Create First {selectedCourseType.charAt(0).toUpperCase() + selectedCourseType.slice(1)} Module</span>
+                </button>
+              </div>
+            ) : (
+              allVenuesModules
+                .filter(m => m.course_type === selectedCourseType)
+                .map((module, index) => (
+                  <React.Fragment key={module.group_id}>
+                    {index !== 0 && <div style={styles.connector} />}
+                    <div style={styles.card}>
+                      {module.status === "draft" ? (
+                        <div style={styles.draftCard}>
+                          <div style={styles.headerInfo}>
+                            <div style={styles.draftBadge}>DAY {module.day}</div>
+                            <h3 style={styles.draftTitle}>{module.title}</h3>
+                          </div>
+                          <button
+                            style={styles.setupBtn}
+                            onClick={() => setupDraftGroup(module.group_id)}
+                          >
+                            Setup Content
+                          </button>
+                        </div>
+                      ) : module.status === "editing" ||
+                        module.status === "published" ? (
+                        <>
+                          <div style={styles.cardHeader}>
+                            <div style={styles.headerInfo}>
+                              <div style={styles.dayBadge}>DAY {module.day}</div>
+                              {editingGroupId === module.group_id ? (
+                                <input
+                                  style={styles.titleInput}
+                                  value={editData.title}
+                                  onChange={(e) =>
+                                    setEditData({
+                                      ...editData,
+                                      title: e.target.value,
+                                    })
+                                  }
+                                  placeholder="Enter module title..."
+                                />
+                              ) : (
+                                <h3 style={styles.cardTitle}>{module.title}</h3>
+                              )}
+                            </div>
+                            <div style={styles.headerActions}>
+                              <span style={{fontSize: "12px", color: "#6b7280", marginRight: "12px"}}>
+                                {module.venues_count} venue{module.venues_count > 1 ? 's' : ''}
+                              </span>
+                              {editingGroupId === module.group_id ? (
+                                <>
+                                  <button
+                                    onClick={() => saveEditGroup(module.group_id)}
+                                    style={styles.saveBtn}
+                                  >
+                                    Save
+                                  </button>
+                                  <button
+                                    onClick={() => cancelEditGroup(module.group_id)}
+                                    style={styles.cancelBtn}
+                                  >
+                                    Cancel
+                                  </button>
+                                </>
+                              ) : (
+                                <button
+                                  onClick={() => startEditGroup(module)}
+                                  style={styles.iconBtn}
+                                >
+                                  <Pencil size={18} />
+                                </button>
+                              )}
+                              <button
+                                onClick={() => deleteModuleGroup(module.group_id, module.course_type)}
+                                style={styles.iconBtnRed}
+                                title="Delete from all venues"
+                              >
+                                <Trash2 size={18} />
+                              </button>
+                            </div>
+                          </div>
+
+                          <div style={styles.cardBody}>
+                            {editingGroupId === module.group_id ? (
+                              <>
+                                <label style={{...styles.label, marginBottom: "6px", display: "block"}}>Description</label>
+                                <textarea
+                                  style={styles.textArea}
+                                  value={editData.description}
+                                  onChange={(e) =>
+                                    setEditData({
+                                      ...editData,
+                                      description: e.target.value,
+                                    })
+                                  }
+                                  placeholder="Enter module description..."
+                                />
+                                <label style={{...styles.label, marginBottom: "6px", marginTop: "12px", display: "block"}}>What you will learn in this skill</label>
+                                <textarea
+                                  style={{...styles.textArea, minHeight: "80px"}}
+                                  value={editData.learning_objectives}
+                                  onChange={(e) =>
+                                    setEditData({
+                                      ...editData,
+                                      learning_objectives: e.target.value,
+                                    })
+                                  }
+                                  placeholder="List the key learning objectives for this module..."
+                                />
+                                <button
+                                  style={{...styles.addResourceBtn, marginTop: "16px"}}
+                                  onClick={() => handleOpenResourceModal(null, module.group_id)}
+                                >
+                                  <PlusCircle size={18} />
+                                  <span>Add Resource or File to All Venues</span>
+                                </button>
+                              </>
+                            ) : (
+                              <>
+                                <p style={styles.description}>{module.description}</p>
+                                {module.learning_objectives && (
+                                  <div style={{marginTop: "12px", padding: "12px", background: "#f0f9ff", borderLeft: "3px solid #0066FF", borderRadius: "6px"}}>
+                                    <strong style={{color: "#0066FF", fontSize: "13px", display: "block", marginBottom: "6px"}}>What you will learn:</strong>
+                                    <p style={{...styles.description, margin: 0, whiteSpace: "pre-line"}}>{module.learning_objectives}</p>
+                                  </div>
+                                )}
+                                <div style={{marginTop: "12px", padding: "8px 12px", background: "#f9fafb", borderRadius: "6px", fontSize: "12px", color: "#6b7280"}}>
+                                  <strong style={{color: "#374151"}}>Venues:</strong> {module.venues.map(v => v.venue_name).join(', ')}
+                                </div>
+                                <button
+                                  style={{...styles.addResourceBtn, marginTop: "16px"}}
+                                  onClick={() => handleOpenResourceModal(null, module.group_id)}
+                                >
+                                  <PlusCircle size={18} />
+                                  <span>Add Resource or File to All Venues</span>
+                                </button>
+                                
+                                {/* Resources Section for All Venues */}
+                                {module.resources && module.resources.length > 0 && (
+                                  <div style={{marginTop: "16px"}}>
+                                    <h4 style={{fontSize: "14px", fontWeight: "600", color: "#374151", marginBottom: "12px"}}>
+                                      Resources:
+                                    </h4>
+                                    <div style={{display: "flex", flexDirection: "column", gap: "8px"}}>
+                                      {module.resources.map((res) => (
+                                        <div
+                                          key={res.resource_id}
+                                          style={{
+                                            display: "flex",
+                                            alignItems: "center",
+                                            justifyContent: "space-between",
+                                            padding: "10px",
+                                            background: "#f9fafb",
+                                            borderRadius: "6px",
+                                            border: "1px solid #e5e7eb"
+                                          }}
+                                        >
+                                          <div style={{display: "flex", alignItems: "center", gap: "8px", flex: 1}}>
+                                            {res.resource_type === "pdf" ? (
+                                              <FileText size={18} color="#0066FF" />
+                                            ) : res.resource_type === "video" ? (
+                                              <Video size={18} color="#0066FF" />
+                                            ) : (
+                                              <LinkIcon size={18} color="#0066FF" />
+                                            )}
+                                            <span style={{fontSize: "13px", color: "#374151", fontWeight: "500"}}>
+                                              {res.resource_name}
+                                            </span>
+                                          </div>
+                                          <div style={{display: "flex", gap: "6px"}}>
+                                            {res.resource_type === "pdf" && res.file_path ? (
+                                              <button
+                                                onClick={() => downloadResource(res)}
+                                                style={{
+                                                  padding: "6px 10px",
+                                                  background: "#0066FF",
+                                                  color: "white",
+                                                  border: "none",
+                                                  borderRadius: "4px",
+                                                  cursor: "pointer",
+                                                  fontSize: "12px",
+                                                  display: "flex",
+                                                  alignItems: "center",
+                                                  gap: "4px"
+                                                }}
+                                              >
+                                                <Download size={14} />
+                                                Download
+                                              </button>
+                                            ) : (
+                                              <a
+                                                href={res.resource_url}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                style={{
+                                                  padding: "6px 10px",
+                                                  background: "#0066FF",
+                                                  color: "white",
+                                                  border: "none",
+                                                  borderRadius: "4px",
+                                                  cursor: "pointer",
+                                                  fontSize: "12px",
+                                                  textDecoration: "none",
+                                                  display: "flex",
+                                                  alignItems: "center",
+                                                  gap: "4px"
+                                                }}
+                                              >
+                                                <ExternalLink size={14} />
+                                                Open
+                                              </a>
+                                            )}
+                                            <button
+                                              onClick={() => deleteResource(res.resource_id)}
+                                              style={{
+                                                padding: "6px 10px",
+                                                background: "#ef4444",
+                                                color: "white",
+                                                border: "none",
+                                                borderRadius: "4px",
+                                                cursor: "pointer",
+                                                fontSize: "12px"
+                                              }}
+                                              title="Delete resource"
+                                            >
+                                              <Trash2 size={14} />
+                                            </button>
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+                              </>
+                            )}
+                          </div>
+                        </>
+                      ) : null}
+                    </div>
+                  </React.Fragment>
+                ))
+            )
+          ) : roadmap.length === 0 ? (
             <div style={styles.emptyState}>
               <h3
                 style={{
@@ -661,19 +1473,42 @@ const StudyRoadmap = ({
 
                       <div style={styles.cardBody}>
                         {editingId === module.roadmap_id ? (
-                          <textarea
-                            style={styles.textArea}
-                            value={editData.description}
-                            onChange={(e) =>
-                              setEditData({
-                                ...editData,
-                                description: e.target.value,
-                              })
-                            }
-                            placeholder="Enter module description..."
-                          />
+                          <>
+                            <label style={{...styles.label, marginBottom: "6px", display: "block"}}>Description</label>
+                            <textarea
+                              style={styles.textArea}
+                              value={editData.description}
+                              onChange={(e) =>
+                                setEditData({
+                                  ...editData,
+                                  description: e.target.value,
+                                })
+                              }
+                              placeholder="Enter module description..."
+                            />
+                            <label style={{...styles.label, marginBottom: "6px", marginTop: "12px", display: "block"}}>What you will learn in this skill</label>
+                            <textarea
+                              style={{...styles.textArea, minHeight: "80px"}}
+                              value={editData.learning_objectives}
+                              onChange={(e) =>
+                                setEditData({
+                                  ...editData,
+                                  learning_objectives: e.target.value,
+                                })
+                              }
+                              placeholder="List the key learning objectives for this module..."
+                            />
+                          </>
                         ) : (
-                          <p style={styles.description}>{module.description}</p>
+                          <>
+                            <p style={styles.description}>{module.description}</p>
+                            {module.learning_objectives && (
+                              <div style={{marginTop: "12px", padding: "12px", background: "#f0f9ff", borderLeft: "3px solid #0066FF", borderRadius: "6px"}}>
+                                <strong style={{color: "#0066FF", fontSize: "13px", display: "block", marginBottom: "6px"}}>What you will learn:</strong>
+                                <p style={{...styles.description, margin: 0, whiteSpace: "pre-line"}}>{module.learning_objectives}</p>
+                              </div>
+                            )}
+                          </>
                         )}
 
                         {module.resources && module.resources.length > 0 && (
@@ -763,13 +1598,24 @@ const StudyRoadmap = ({
           )}
 
           {/* Add another day button */}
-          {roadmap.length > 0 && (
-            <div style={styles.addAnotherContainer}>
-              <button style={styles.addAnotherBtn} onClick={handleAddDay}>
-                <PlusCircle size={18} />
-                <span>Add Another Day</span>
-              </button>
-            </div>
+          {selectedVenueId === 'all' ? (
+            allVenuesModules.filter(m => m.course_type === selectedCourseType).length > 0 && (
+              <div style={styles.addAnotherContainer}>
+                <button style={styles.addAnotherBtn} onClick={handleAddDay}>
+                  <PlusCircle size={18} />
+                  <span>Add Another Day</span>
+                </button>
+              </div>
+            )
+          ) : (
+            roadmap.length > 0 && (
+              <div style={styles.addAnotherContainer}>
+                <button style={styles.addAnotherBtn} onClick={handleAddDay}>
+                  <PlusCircle size={18} />
+                  <span>Add Another Day</span>
+                </button>
+              </div>
+            )
           )}
         </div>
       </div>
@@ -989,6 +1835,161 @@ Tutorial Video"
               <button style={styles.confirmBtn} onClick={handleAddResource}>
                 Add Resource
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Enhanced Message Modal */}
+      {messageModal.show && (
+        <div style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: "rgba(0, 0, 0, 0.6)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          zIndex: 1000,
+          backdropFilter: "blur(4px)",
+          animation: "fadeIn 0.2s ease-out"
+        }}>
+          <div style={{
+            background: "linear-gradient(135deg, #ffffff 0%, #f9fafb 100%)",
+            borderRadius: "20px",
+            padding: "32px",
+            width: "90%",
+            maxWidth: "440px",
+            boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)",
+            position: "relative"
+          }}>
+            {/* Icon Circle */}
+            <div style={{
+              width: "64px",
+              height: "64px",
+              borderRadius: "50%",
+              background: messageModal.type === 'success' 
+                ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)'
+                : messageModal.type === 'confirm'
+                ? 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)'
+                : 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              margin: "0 auto 20px auto",
+              boxShadow: messageModal.type === 'success'
+                ? '0 8px 16px rgba(16, 185, 129, 0.3)'
+                : messageModal.type === 'confirm'
+                ? '0 8px 16px rgba(245, 158, 11, 0.3)'
+                : '0 8px 16px rgba(239, 68, 68, 0.3)'
+            }}>
+              <span style={{
+                fontSize: "32px",
+                color: "white",
+                fontWeight: "bold"
+              }}>
+                {messageModal.type === 'success' ? '✓' : messageModal.type === 'confirm' ? '?' : '✕'}
+              </span>
+            </div>
+
+            {/* Title */}
+            <h3 style={{
+              margin: "0 0 12px 0",
+              fontSize: "22px",
+              fontWeight: "700",
+              color: "#111827",
+              textAlign: "center"
+            }}>
+              {messageModal.title}
+            </h3>
+
+            {/* Message */}
+            <p style={{
+              margin: "0 0 24px 0",
+              color: "#6b7280",
+              lineHeight: "1.6",
+              whiteSpace: "pre-line",
+              textAlign: "center",
+              fontSize: "15px"
+            }}>
+              {messageModal.message}
+            </p>
+
+            {/* Button */}
+            <div style={{display: "flex", justifyContent: "center", gap: "12px"}}>
+              {messageModal.type === 'confirm' ? (
+                <>
+                  <button
+                    onClick={() => messageModal.onCancel && messageModal.onCancel()}
+                    style={{
+                      padding: "12px 32px",
+                      borderRadius: "10px",
+                      border: "2px solid #e5e7eb",
+                      background: "white",
+                      color: "#6b7280",
+                      cursor: "pointer",
+                      fontWeight: "600",
+                      fontSize: "15px",
+                      transition: "all 0.2s ease"
+                    }}
+                    onMouseOver={(e) => {
+                      e.target.style.borderColor = "#9ca3af";
+                      e.target.style.color = "#374151";
+                    }}
+                    onMouseOut={(e) => {
+                      e.target.style.borderColor = "#e5e7eb";
+                      e.target.style.color = "#6b7280";
+                    }}
+                  >
+                    No
+                  </button>
+                  <button
+                    onClick={() => messageModal.onConfirm && messageModal.onConfirm()}
+                    style={{
+                      padding: "12px 32px",
+                      borderRadius: "10px",
+                      border: "none",
+                      background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+                      color: "white",
+                      cursor: "pointer",
+                      fontWeight: "600",
+                      fontSize: "15px",
+                      boxShadow: '0 4px 12px rgba(245, 158, 11, 0.4)',
+                      transition: "all 0.2s ease"
+                    }}
+                    onMouseOver={(e) => e.target.style.transform = "translateY(-2px)"}
+                    onMouseOut={(e) => e.target.style.transform = "translateY(0)"}
+                  >
+                    Yes
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={() => setMessageModal({ show: false, title: '', message: '', type: 'success' })}
+                  style={{
+                    padding: "12px 48px",
+                    borderRadius: "10px",
+                    border: "none",
+                    background: messageModal.type === 'success' 
+                      ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)'
+                      : 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+                    color: "white",
+                    cursor: "pointer",
+                    fontWeight: "600",
+                    fontSize: "15px",
+                    boxShadow: messageModal.type === 'success'
+                      ? '0 4px 12px rgba(16, 185, 129, 0.4)'
+                      : '0 4px 12px rgba(239, 68, 68, 0.4)',
+                    transition: "all 0.2s ease"
+                  }}
+                  onMouseOver={(e) => e.target.style.transform = "translateY(-2px)"}
+                  onMouseOut={(e) => e.target.style.transform = "translateY(0)"}
+                >
+                  Got it!
+                </button>
+              )}
             </div>
           </div>
         </div>
