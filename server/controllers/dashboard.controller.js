@@ -12,7 +12,6 @@ export const getDashboardMetrics = async (req, res) => {
       SELECT COUNT(student_id) as total_count FROM students 
     `);
 
-    console.log('Total Students Result:', totalStudentsResult);
     const totalStudents = totalStudentsResult[0]?.total_count;
 
     // 2. Active Groups Count - Count from groups table where status is Active

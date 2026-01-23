@@ -459,7 +459,7 @@ export const bulkUploadFaculties = async (req, res) => {
 export const getFacultyClasses = async (req, res) => {
   try {
     const userId = req.user.user_id;
-    console.log('getFacultyClasses called for user_id:', userId);
+    // console.log('getFacultyClasses called for user_id:', userId);
 
     // Get faculty_id for the logged-in user
     const [faculty] = await db.query(
@@ -467,7 +467,7 @@ export const getFacultyClasses = async (req, res) => {
       [userId]
     );
 
-    console.log('Faculty lookup result:', faculty);
+    // console.log('Faculty lookup result:', faculty);
 
     if (faculty.length === 0) {
       return res.status(404).json({
@@ -477,7 +477,7 @@ export const getFacultyClasses = async (req, res) => {
     }
 
     const facultyId = faculty[0].faculty_id;
-    console.log('Faculty ID:', facultyId);
+    // console.log('Faculty ID:', facultyId);
 
     // Get all venues assigned to this faculty with their groups and student counts
     const [venues] = await db.query(`
@@ -519,8 +519,8 @@ export const getFacultyClasses = async (req, res) => {
       ORDER BY v.venue_name, g.group_name
     `, [facultyId, facultyId]);
 
-    console.log('Venues found:', venues.length);
-    console.log('Venues data:', JSON.stringify(venues, null, 2));
+    // console.log('Venues found:', venues.length);
+    // console.log('Venues data:', JSON.stringify(venues, null, 2));
 
     // Transform into a structured format
     const classesMap = new Map();

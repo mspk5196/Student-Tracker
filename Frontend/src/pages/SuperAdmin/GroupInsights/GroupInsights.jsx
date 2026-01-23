@@ -82,6 +82,13 @@ const GroupInsights = () => {
       ? venues.find(v => v.venue_id.toString() === selectedVenue)?.venue_name || 'Unknown Venue'
       : '';
 
+  // Get faculty name for the selected venue
+  const selectedFacultyName = selectedVenue === 'all'
+    ? null
+    : selectedVenue
+      ? venues.find(v => v.venue_id.toString() === selectedVenue)?.faculty_name || null
+      : null;
+
   return (
     <div style={styles.container}>
       {/* Top Header Bar */}
@@ -164,6 +171,7 @@ const GroupInsights = () => {
           <SkillProficiencyView 
             selectedVenue={selectedVenue}
             selectedVenueName={selectedVenueName}
+            facultyName={selectedFacultyName}
             initialSkill={selectedSkill}
             userRole={user?.role}
           />

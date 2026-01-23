@@ -401,8 +401,11 @@ export const getFacultyVenues = async (req, res) => {
     // Admin can see all venues
     if (req.user.role === 'admin') {
       const [venues] = await db.execute(
-        `SELECT DISTINCT v.venue_id, v.venue_name, v.location, v.capacity
+        `SELECT DISTINCT v.venue_id, v.venue_name, v.location, v.capacity,
+                u.name as faculty_name
          FROM venue v
+         LEFT JOIN faculties f ON v.assigned_faculty_id = f.faculty_id
+         LEFT JOIN users u ON f.user_id = u.user_id
          ORDER BY v.venue_name`
       );
       return res.status(200).json({ venues });
@@ -421,8 +424,11 @@ export const getFacultyVenues = async (req, res) => {
     const facultyId = faculty[0].faculty_id;
 
     const [venues] = await db.execute(
-      `SELECT DISTINCT v.venue_id, v.venue_name, v.location, v.capacity
+      `SELECT DISTINCT v.venue_id, v.venue_name, v.location, v.capacity,
+              uf.name as faculty_name
        FROM venue v
+       LEFT JOIN faculties f ON v.assigned_faculty_id = f.faculty_id
+       LEFT JOIN users uf ON f.user_id = uf.user_id
        LEFT JOIN venue_allocation va ON v.venue_id = va.venue_id
        WHERE v.assigned_faculty_id = ? OR va.faculty_id = ? 
        ORDER BY v.venue_name`,
@@ -727,7 +733,7 @@ export const getSkillReportsForFaculty = async (req, res) => {
       `, [parseInt(venueId)]);
       venueStudents = students;
     } else if (isAllVenues) {
-      // For "all" venues (admin), get ALL students from ALL active groups
+      // For "all" venues (admin), get ALL students including those not in any venue/group
       const [students] = await db.execute(`
         SELECT DISTINCT
           s.student_id,
@@ -735,14 +741,9 @@ export const getSkillReportsForFaculty = async (req, res) => {
           u.name as student_name,
           u.email,
           u.department,
-          st.year
-        FROM group_students gs
-        INNER JOIN students st ON gs.student_id = st.student_id
-        INNER JOIN users u ON st.user_id = u.user_id
-        INNER JOIN \`groups\` g ON gs.group_id = g.group_id
-        INNER JOIN students s ON gs.student_id = s.student_id
-        WHERE gs.status = 'Active'
-          AND g.status = 'Active'
+          s.year
+        FROM students s
+        INNER JOIN users u ON s.user_id = u.user_id
         ORDER BY u.name
       `);
       venueStudents = students;
