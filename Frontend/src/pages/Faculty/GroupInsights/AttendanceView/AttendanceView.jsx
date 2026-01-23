@@ -20,6 +20,7 @@ const AttendanceView = ({ selectedVenue, selectedVenueName, selectedDate, setSel
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
+  const [studentSearch, setStudentSearch] = useState('');
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -80,16 +81,27 @@ const AttendanceView = ({ selectedVenue, selectedVenueName, selectedDate, setSel
     ? students 
     : students.filter(s => s.status === statusFilter);
 
+  // Apply student search filter (by roll number or name)
+  let searchFilteredStudents = filteredStudents;
+  const studentSearchTrimmed = studentSearch.trim().toLowerCase();
+  if (studentSearchTrimmed) {
+    searchFilteredStudents = filteredStudents.filter((student) => {
+      const roll = (student.roll_number ?? '').toString().toLowerCase();
+      const name = (student.student_name ?? '').toString().toLowerCase();
+      return roll.includes(studentSearchTrimmed) || name.includes(studentSearchTrimmed);
+    });
+  }
+
   // Pagination calculations
-  const totalPages = Math.ceil(filteredStudents.length / itemsPerPage);
+  const totalPages = Math.ceil(searchFilteredStudents.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
-  const paginatedStudents = filteredStudents.slice(startIndex, endIndex);
+  const paginatedStudents = searchFilteredStudents.slice(startIndex, endIndex);
 
   // Reset to page 1 when filter changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [statusFilter, selectedVenue, selectedDate, selectedSession]);
+  }, [statusFilter, studentSearch, selectedVenue, selectedDate, selectedSession]);
 
   const handlePageChange = (page) => {
     setCurrentPage(page);
@@ -146,6 +158,15 @@ const AttendanceView = ({ selectedVenue, selectedVenueName, selectedDate, setSel
               </option>
             ))}
           </select>
+        </div>
+        <div style={styles.filterGroup}>
+          <label style={styles.label}>Search Student</label>
+          <input
+            style={styles.input}
+            value={studentSearch}
+            onChange={(e) => setStudentSearch(e.target.value)}
+            placeholder="Search by name or roll number"
+          />
         </div>
       </div>
 
@@ -393,6 +414,16 @@ const styles = {
     backgroundColor: '#fff',
     cursor: 'pointer',
     minWidth: '180px',
+  },
+  input: {
+    padding: '8px 12px',
+    border: '1px solid #e5e7eb',
+    borderRadius: '6px',
+    fontSize: '14px',
+    color: '#1f2937',
+    outline: 'none',
+    backgroundColor: '#fff',
+    width: '260px',
   },
   mainContent: {
   },
