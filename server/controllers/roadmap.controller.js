@@ -85,6 +85,9 @@ export const getRoadmapByVenue = async (req, res) => {
           r.day,
           r.title,
           r.description,
+          r.course_type,
+          r.learning_objectives,
+          r.module_order,
           r.status,
           r.created_at,
           r.updated_at,
@@ -95,7 +98,7 @@ export const getRoadmapByVenue = async (req, res) => {
         LEFT JOIN faculties f ON r.faculty_id = f.faculty_id
         LEFT JOIN users u ON f.user_id = u.user_id
         WHERE r.venue_id = ? 
-        ORDER BY r.day ASC
+        ORDER BY r.course_type, r.module_order ASC
       `;
       params = [venue_id];
     } else if (userRole === 2 && faculty_id) { // Faculty
@@ -105,6 +108,9 @@ export const getRoadmapByVenue = async (req, res) => {
           r.day,
           r.title,
           r.description,
+          r.course_type,
+          r.learning_objectives,
+          r.module_order,
           r.status,
           r.created_at,
           r.updated_at,
@@ -112,7 +118,7 @@ export const getRoadmapByVenue = async (req, res) => {
         FROM roadmap r
         WHERE r.venue_id = ? 
           AND r.faculty_id = ?
-        ORDER BY r.day ASC
+        ORDER BY r.course_type, r.module_order ASC
       `;
       params = [venue_id, faculty_id];
     } else {
@@ -160,10 +166,10 @@ export const getRoadmapByVenue = async (req, res) => {
 // Create new roadmap module
 export const createRoadmapModule = async (req, res) => {
   try {
-    const { venue_id, day, title, description, status } = req.body;
+    const { venue_id, day, title, description, status, course_type, learning_objectives } = req.body;
     const user_id = req.user.user_id; // Get user_id from JWT
 
-    console.log('Creating module:', { venue_id, day, title, user_id });
+    console.log('Creating module:', { venue_id, day, title, course_type, user_id });
 
     if (!venue_id || !day || !title) {
       return res.status(400).json({
@@ -234,23 +240,23 @@ export const createRoadmapModule = async (req, res) => {
       });
     }
 
-    // Check if day already exists for this venue and faculty
+    // Check if day already exists for this venue, faculty, and course_type
     const [existing] = await db.query(`
       SELECT roadmap_id FROM roadmap
-      WHERE venue_id = ? AND faculty_id = ? AND day = ?
-    `, [venue_id, actual_faculty_id, day]);
+      WHERE venue_id = ? AND faculty_id = ? AND day = ? AND course_type = ?
+    `, [venue_id, actual_faculty_id, day, course_type || 'frontend']);
 
     if (existing.length > 0) {
       return res.status(400).json({
         success: false,
-        message: `Day ${day} already exists for this venue`
+        message: `Module ${day} already exists for this course in this venue`
       });
     }
 
     const [result] = await db.query(`
-      INSERT INTO roadmap (venue_id, faculty_id, day, title, description, status, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, NOW())
-    `, [venue_id, actual_faculty_id, day, title, description || '', status || 'draft']);
+      INSERT INTO roadmap (venue_id, faculty_id, day, title, description, course_type, learning_objectives, module_order, status, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+    `, [venue_id, actual_faculty_id, day, title, description || '', course_type || 'frontend', learning_objectives || '', day, status || 'draft']);
 
     res.status(201).json({
       success: true,
@@ -271,10 +277,10 @@ export const createRoadmapModule = async (req, res) => {
 export const updateRoadmapModule = async (req, res) => {
   try {
     const { roadmap_id } = req.params;
-    const { title, description, status } = req.body;
+    const { title, description, status, course_type, learning_objectives } = req.body;
     const user_id = req.user.user_id;
 
-    console.log('Updating module:', roadmap_id, { title, status });
+    console.log('Updating module:', roadmap_id, { title, status, course_type });
 
     if (!title) {
       return res.status(400).json({
@@ -318,10 +324,10 @@ export const updateRoadmapModule = async (req, res) => {
 
     if (userRole === 1) { // Admin can update any module
       whereClause = 'roadmap_id = ?';
-      params = [title, description || '', status || 'published', roadmap_id];
+      params = [title, description || '', course_type || 'frontend', learning_objectives || '', status || 'published', roadmap_id];
     } else if (userRole === 2 && faculty_id) { // Faculty can only update their own
       whereClause = 'roadmap_id = ? AND faculty_id = ?';
-      params = [title, description || '', status || 'published', roadmap_id, faculty_id];
+      params = [title, description || '', course_type || 'frontend', learning_objectives || '', status || 'published', roadmap_id, faculty_id];
     } else {
       return res.status(403).json({
         success: false,
@@ -331,7 +337,7 @@ export const updateRoadmapModule = async (req, res) => {
 
     const [result] = await db.query(`
       UPDATE roadmap
-      SET title = ?, description = ?, status = ?, updated_at = NOW()
+      SET title = ?, description = ?, course_type = ?, learning_objectives = ?, status = ?, updated_at = NOW()
       WHERE ${whereClause}
     `, params);
 

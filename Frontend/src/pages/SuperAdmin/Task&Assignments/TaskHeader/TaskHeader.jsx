@@ -11,6 +11,7 @@ const TaskHeader = () => {
 
   const [activeTab, setActiveTab] = useState('assignments');
   const [selectedVenueId, setSelectedVenueId] = useState('');
+  const [selectedCourse, setSelectedCourse] = useState('frontend');
   const [venues, setVenues] = useState([]);
   const [addDayTrigger, setAddDayTrigger] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -164,6 +165,24 @@ useEffect(() => {
                 </>
               )}
             </div>
+
+            {activeTab === 'roadmap' && (
+              <div style={styles.dropdownContainer}>
+                <select
+                  value={selectedCourse}
+                  onChange={(e) => setSelectedCourse(e.target.value)}
+                  style={styles.dropdownSelect}
+                >
+                  <option value="frontend">Frontend</option>
+                  <option value="backend">Backend</option>
+                  <option value="react-native">React Native</option>
+                  <option value="devops">DevOps</option>
+                </select>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ position: 'absolute', right: '12px', pointerEvents: 'none' }}>
+                  <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+              </div>
+            )}
           </div>
 
           <div style={styles.rightSection}>
@@ -191,6 +210,8 @@ useEffect(() => {
                 venues={venues}
                 isActiveTab={activeTab === 'roadmap'}
                 addDayTrigger={addDayTrigger}
+                selectedCourse={selectedCourse}
+                setSelectedCourse={setSelectedCourse}
                 key={`${selectedVenueId}-${addDayTrigger}`}
               />
             )
