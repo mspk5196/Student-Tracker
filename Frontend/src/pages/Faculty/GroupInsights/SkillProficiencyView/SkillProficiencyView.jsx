@@ -4,7 +4,7 @@ import axios from 'axios';
 
 const API_URL = import.meta.env.VITE_API_URL;
 
-const SkillProficiencyView = ({ selectedVenue, selectedVenueName, initialSkill = '' }) => {
+const SkillProficiencyView = ({ selectedVenue, selectedVenueName, facultyName, initialSkill = '' }) => {
   
   // Selected skill (single dropdown selection)
   const [selectedSkill, setSelectedSkill] = useState(initialSkill);
@@ -287,7 +287,14 @@ const SkillProficiencyView = ({ selectedVenue, selectedVenueName, initialSkill =
 
         {!loading && !error && selectedSkill && (
           <>
-        <p style={styles.sectionTitle}>Skill completion status for: {selectedVenueName}</p>
+        <p style={styles.sectionTitle}>
+          Skill completion status for: {selectedVenueName}
+          {facultyName && (
+            <span style={styles.facultyBadge}>
+              <span style={styles.facultyLabel}>Faculty:</span> {facultyName}
+            </span>
+          )}
+        </p>
 
         {/* Statistics Row */}
         <div style={styles.statsRow}>
@@ -501,6 +508,26 @@ const styles = {
     fontSize: '14px',
     color: '#6b7280',
     marginBottom: '16px',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '16px',
+    flexWrap: 'wrap',
+  },
+  facultyBadge: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '6px',
+    backgroundColor: '#eff6ff',
+    border: '1px solid #3b82f6',
+    borderRadius: '20px',
+    padding: '4px 12px',
+    fontSize: '13px',
+    color: '#1e40af',
+    fontWeight: '500',
+  },
+  facultyLabel: {
+    color: '#6b7280',
+    fontWeight: '400',
   },
   statsRow: {
     display: 'grid',
