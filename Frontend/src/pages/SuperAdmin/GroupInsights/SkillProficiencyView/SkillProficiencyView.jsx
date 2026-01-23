@@ -9,6 +9,7 @@ const SkillProficiencyView = ({ selectedVenue, selectedVenueName, facultyName, i
   // Selected skill (single dropdown selection)
   const [selectedSkill, setSelectedSkill] = useState(initialSkill);
   const [statusFilter, setStatusFilter] = useState('All Status');
+  const [studentSearch, setStudentSearch] = useState('');
   
   // Backend data states
   const [skillReports, setSkillReports] = useState([]);
@@ -153,6 +154,16 @@ const SkillProficiencyView = ({ selectedVenue, selectedVenueName, facultyName, i
     });
   }
 
+  // Apply student search filter (by roll number or name)
+  const studentSearchTrimmed = studentSearch.trim().toLowerCase();
+  if (studentSearchTrimmed) {
+    filteredStudentData = filteredStudentData.filter((student) => {
+      const roll = (student.rollNumber ?? '').toString().toLowerCase();
+      const name = (student.name ?? '').toString().toLowerCase();
+      return roll.includes(studentSearchTrimmed) || name.includes(studentSearchTrimmed);
+    });
+  }
+
   // Calculate skill stats from complete student list (before status filter)
   const skillStats = {
     totalStudents: allStudentsForSkill.length,
@@ -247,6 +258,17 @@ const SkillProficiencyView = ({ selectedVenue, selectedVenueName, facultyName, i
               </option>
             ))}
           </select>
+        </div>
+
+        <div style={styles.filterGroup}>
+          <label style={styles.label}>Search Student</label>
+          <input
+            style={styles.input}
+            value={studentSearch}
+            onChange={(e) => setStudentSearch(e.target.value)}
+            placeholder="Search by name or roll number"
+            disabled={!selectedSkill}
+          />
         </div>
       </div>
 
@@ -513,6 +535,16 @@ const styles = {
     outline: 'none',
     backgroundColor: '#fff',
   },
+  input: {
+    padding: '8px 12px',
+    border: '1px solid #e5e7eb',
+    borderRadius: '6px',
+    fontSize: '14px',
+    color: '#1f2937',
+    outline: 'none',
+    backgroundColor: '#fff',
+    width: '260px',
+  },
   mainContent: {
   },
   sectionTitle: {
@@ -542,16 +574,16 @@ const styles = {
   },
   statsRow: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-    gap: '16px',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
+    gap: '12px',
     marginBottom: '24px',
   },
   statBox: {
     display: 'flex',
     alignItems: 'center',
-    gap: '16px',
+    gap: '12px',
     backgroundColor: '#fff',
-    padding: '20px',
+    padding: '16px',
     borderRadius: '8px',
     border: '1px solid #e5e7eb',
     boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
@@ -566,7 +598,7 @@ const styles = {
     fontWeight: '500',
   },
   statValue: {
-    fontSize: '24px',
+    fontSize: '20px',
     fontWeight: '700',
     color: '#111827',
     marginBottom: '4px',
