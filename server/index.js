@@ -13,6 +13,7 @@ import roadmapRoutes from "./routes/roadmap.routes.js";
 import dashboardRoutes from "./routes/dashboard.routes.js";
 import skillReportRoutes from "./routes/skillReportRoutes.js";
 import skillCompletionRoutes from "./routes/skillCompletionRoutes.js";
+import scheduleRoutes from "./routes/schedule.routes.js";
 // import facultyDashboardRoutes from './routes/facultyDashboardRoutes.js';
 dotenv.config();
 
@@ -39,6 +40,7 @@ app.use(`${API_PREFIX}/api/tasks`, tasksRoutes);
 app.use(`${API_PREFIX}/api/dashboard`, dashboardRoutes);
 app.use(`${API_PREFIX}/api/skill-reports`, skillReportRoutes);
 app.use(`${API_PREFIX}/api/skill-completion`, skillCompletionRoutes);
+app.use(`${API_PREFIX}/api/schedule`, scheduleRoutes);
 // app.use('/api/faculty/dashboard', facultyDashboardRoutes); 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server running on ${PORT}`));
