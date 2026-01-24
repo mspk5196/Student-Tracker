@@ -311,7 +311,7 @@
         backgroundColor: "#F9FAFB",
         minHeight: "100vh",
         fontFamily: '"Inter", sans-serif',
-        paddingBottom: "40px",
+        paddingBottom: "0px",
     },
     header: {
         display: "flex",
@@ -404,7 +404,7 @@
     },
 
     // Layout
-    mainLayout: { maxWidth: "1000px", margin: "0 auto", padding: "0 0px" },
+    mainLayout: { maxWidth: "1600px", margin: "0 auto", padding: "0 20px" },
     sectionHeader: { marginBottom: "24px" },
     sectionTitle: { fontSize: "18px", fontWeight: "700", color: "#111827" },
 
@@ -419,8 +419,8 @@
     timeline: { display: "flex", flexDirection: "column" },
     timelineItem: {
         display: "flex",
-        gap: "24px",
-        marginBottom: "4px",
+        gap: "32px",
+        marginBottom: "24px",
         minHeight: "130px",
     },
 
@@ -456,7 +456,7 @@
         flex: 1,
         backgroundColor: "white",
         borderRadius: "16px",
-        padding: "20px",
+        padding: "24px 28px",
         display: "flex",
         justifyContent: "space-between",
         alignItems: "center",
@@ -499,8 +499,8 @@
     infoRow: {
         display: "flex",
         alignItems: "center",
-        gap: "8px",
-        marginBottom: "6px",
+        gap: "10px",
+        marginBottom: "12px",
     },
     venueText: { fontSize: "13px", fontWeight: "500", color: "#374151" },
     instructorText: { fontSize: "13px", color: "#6B7280" },
