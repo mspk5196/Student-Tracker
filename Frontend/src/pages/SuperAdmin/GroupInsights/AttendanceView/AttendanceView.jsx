@@ -1,15 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { ClipboardList } from 'lucide-react';
+import { ClipboardList, Clock } from 'lucide-react';
 
 const API_URL = import.meta.env.VITE_API_URL;
 
-// Sessions - 4 per day
+// Sessions - 4 per day with actual time boundaries
 const SESSIONS = [
-  { id: 1, name: 'Session 1', time: '9:00 AM - 10:30 AM' },
-  { id: 2, name: 'Session 2', time: '10:45 AM - 12:15 PM' },
-  { id: 3, name: 'Session 3', time: '1:30 PM - 3:00 PM' },
-  { id: 4, name: 'Session 4', time: '3:15 PM - 4:45 PM' },
+  { id: 1, name: 'Session 1', startTime: '09:00', endTime: '10:30', displayTime: '9:00 AM - 10:30 AM' },
+  { id: 2, name: 'Session 2', startTime: '10:45', endTime: '12:15', displayTime: '10:45 AM - 12:15 PM' },
+  { id: 3, name: 'Session 3', startTime: '13:30', endTime: '15:00', displayTime: '1:30 PM - 3:00 PM' },
+  { id: 4, name: 'Session 4', startTime: '15:15', endTime: '16:45', displayTime: '3:15 PM - 4:45 PM' },
 ];
 
 const AttendanceView = ({ selectedVenue, selectedVenueName, selectedDate, setSelectedDate, selectedSession, setSelectedSession }) => {
@@ -26,12 +26,93 @@ const AttendanceView = ({ selectedVenue, selectedVenueName, selectedDate, setSel
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
 
+  // Function to check if session has started
+  const hasSessionStarted = (sessionId) => {
+    const today = new Date().toISOString().split('T')[0];
+    const isToday = selectedDate === today;
+    
+    if (!isToday) {
+      // If it's not today, we can't determine if session has started
+      return true; // Allow viewing for past/future dates
+    }
+    
+    const currentTime = new Date();
+    const currentHours = currentTime.getHours();
+    const currentMinutes = currentTime.getMinutes();
+    const currentTimeInMinutes = currentHours * 60 + currentMinutes;
+    
+    const session = SESSIONS.find(s => s.id === parseInt(sessionId));
+    if (!session) return true; // If session not found, allow viewing
+    
+    const [startHour, startMinute] = session.startTime.split(':').map(Number);
+    const sessionStartInMinutes = startHour * 60 + startMinute;
+    
+    return currentTimeInMinutes >= sessionStartInMinutes;
+  };
+
+  // Function to check if session is ongoing
+  const isSessionOngoing = (sessionId) => {
+    const today = new Date().toISOString().split('T')[0];
+    const isToday = selectedDate === today;
+    
+    if (!isToday) return false;
+    
+    const currentTime = new Date();
+    const currentHours = currentTime.getHours();
+    const currentMinutes = currentTime.getMinutes();
+    const currentTimeInMinutes = currentHours * 60 + currentMinutes;
+    
+    const session = SESSIONS.find(s => s.id === parseInt(sessionId));
+    if (!session) return false;
+    
+    const [startHour, startMinute] = session.startTime.split(':').map(Number);
+    const [endHour, endMinute] = session.endTime.split(':').map(Number);
+    const sessionStartInMinutes = startHour * 60 + startMinute;
+    const sessionEndInMinutes = endHour * 60 + endMinute;
+    
+    return currentTimeInMinutes >= sessionStartInMinutes && currentTimeInMinutes <= sessionEndInMinutes;
+  };
+
+  // Function to get session status message
+  const getSessionStatusMessage = (sessionId) => {
+    const today = new Date().toISOString().split('T')[0];
+    const isToday = selectedDate === today;
+    
+    if (!isToday) return null;
+    
+    if (!hasSessionStarted(sessionId)) {
+      const session = SESSIONS.find(s => s.id === parseInt(sessionId));
+      return `Session ${sessionId} starts at ${session.startTime}`;
+    }
+    
+    if (isSessionOngoing(sessionId)) {
+      return `Session ${sessionId} is currently ongoing`;
+    }
+    
+    return null;
+  };
+
   // Fetch attendance data when venue, date, or session changes
   useEffect(() => {
     const fetchAttendanceData = async () => {
       if (!selectedVenue || !selectedSession) {
         setStudents([]);
         setAttendanceData(null);
+        return;
+      }
+
+      // Check if session has started (only for today)
+      const today = new Date().toISOString().split('T')[0];
+      const isToday = selectedDate === today;
+      
+      if (isToday && !hasSessionStarted(selectedSession)) {
+        setStudents([]);
+        setAttendanceData({ 
+          total: 0, 
+          present: 0, 
+          absent: 0,
+          message: `Session ${selectedSession} hasn't started yet. It will begin at ${SESSIONS.find(s => s.id === parseInt(selectedSession))?.startTime || 'its scheduled time'}.`
+        });
         return;
       }
 
@@ -47,10 +128,18 @@ const AttendanceView = ({ selectedVenue, selectedVenueName, selectedDate, setSel
           session: selectedSession
         });
         
+        console.log('Fetching attendance with params:', { 
+          venue: selectedVenue, 
+          date: selectedDate, 
+          session: selectedSession 
+        });
+        
         const response = await axios.get(
           `${API_URL}/attendance/venue/${selectedVenue}/details?${params}`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
+        
+        console.log('Attendance response:', response.data);
         
         if (response.data.success) {
           setStudents(response.data.data?.students || []);
@@ -134,6 +223,10 @@ const AttendanceView = ({ selectedVenue, selectedVenueName, selectedDate, setSel
     });
   };
 
+  // Check if current session hasn't started yet
+  const sessionStatusMessage = getSessionStatusMessage(selectedSession);
+  const sessionNotStarted = sessionStatusMessage && !hasSessionStarted(selectedSession);
+
   return (
     <div>
       {/* Contextual Filters */}
@@ -153,12 +246,15 @@ const AttendanceView = ({ selectedVenue, selectedVenueName, selectedDate, setSel
           <select 
             style={styles.select} 
             value={selectedSession} 
-            onChange={(e) => setSelectedSession(e.target.value)}
+            onChange={(e) => {
+              console.log('Session changed from', selectedSession, 'to', e.target.value);
+              setSelectedSession(e.target.value);
+            }}
           >
             <option value="">Select Session</option>
             {SESSIONS.map((session) => (
-              <option key={session.id} value={session.id}>
-                {session.name} ({session.time})
+              <option key={session.id} value={session.id.toString()}>
+                {session.name} ({session.displayTime})
               </option>
             ))}
           </select>
@@ -189,6 +285,29 @@ const AttendanceView = ({ selectedVenue, selectedVenueName, selectedDate, setSel
           </div>
         ) : (
           <>
+            {/* Session Status Banner */}
+            {sessionStatusMessage && (
+              <div style={{
+                padding: '12px 16px',
+                marginBottom: '20px',
+                borderRadius: '8px',
+                backgroundColor: sessionNotStarted ? '#fef3c7' : '#dbeafe',
+                border: `1px solid ${sessionNotStarted ? '#fbbf24' : '#93c5fd'}`,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px'
+              }}>
+                <Clock size={20} color={sessionNotStarted ? '#f59e0b' : '#3b82f6'} />
+                <span style={{ 
+                  color: sessionNotStarted ? '#92400e' : '#1e40af',
+                  fontSize: '14px',
+                  fontWeight: '500'
+                }}>
+                  {sessionStatusMessage}
+                </span>
+              </div>
+            )}
+
             <p style={styles.sectionTitle}>
               Attendance for: {selectedVenueName} – {formatDate(selectedDate)}
               {selectedSession && ` – ${SESSIONS.find(s => s.id.toString() === selectedSession)?.name || ''}`}
@@ -201,6 +320,21 @@ const AttendanceView = ({ selectedVenue, selectedVenueName, selectedDate, setSel
             ) : error ? (
               <div style={styles.errorContainer}>
                 <div style={{ color: '#991b1b' }}>{error}</div>
+              </div>
+            ) : sessionNotStarted ? (
+              <div style={styles.sessionNotStartedContainer}>
+                <div style={{ marginBottom: '16px', color: '#f59e0b' }}>
+                  <Clock size={48} />
+                </div>
+                <div style={{ fontSize: '16px', fontWeight: '600', color: '#92400e' }}>
+                  Session Not Started
+                </div>
+                <div style={{ fontSize: '14px', color: '#b45309', marginTop: '8px' }}>
+                  {attendanceData?.message || `Session ${selectedSession} hasn't started yet.`}
+                </div>
+                <div style={{ fontSize: '13px', color: '#d97706', marginTop: '12px' }}>
+                  Please check back later when the session begins.
+                </div>
               </div>
             ) : (
               <>
@@ -505,6 +639,17 @@ const styles = {
     backgroundColor: '#fff',
     borderRadius: '12px',
     border: '1px solid #e5e7eb',
+    textAlign: 'center',
+  },
+  sessionNotStartedContainer: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '60px 20px',
+    backgroundColor: '#fffbeb',
+    borderRadius: '12px',
+    border: '1px solid #fde68a',
     textAlign: 'center',
   },
   statsRow: {

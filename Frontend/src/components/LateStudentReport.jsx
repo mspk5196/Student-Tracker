@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { AlertTriangle, Calendar, User } from 'lucide-react';
-import useAuthStore from '../store/authStore';
+import useAuthStore from '../store/useAuthStore';
 
 const LateStudentsReport = ({ facultyId = null }) => {
   const { token } = useAuthStore();
@@ -10,15 +10,18 @@ const LateStudentsReport = ({ facultyId = null }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [expandedStudent, setExpandedStudent] = useState(null);
+  const [minCount, setMinCount] = useState(5);
 
   const fetchLateStudents = async () => {
     setLoading(true);
     setError('');
     
     try {
-      const url = facultyId 
-        ? `${API_URL}/attendance/late-students/${facultyId}`
-        : `${API_URL}/attendance/late-students`;
+      const params = new URLSearchParams();
+      if (facultyId) params.set('facultyId', facultyId);
+      params.set('minCount', String(minCount));
+
+      const url = `${API_URL}/attendance/late-students?${params.toString()}`;
 
       const response = await fetch(url, {
         headers: {
@@ -46,18 +49,31 @@ const LateStudentsReport = ({ facultyId = null }) => {
     if (token) {
       fetchLateStudents();
     }
-  }, [token, facultyId]);
+  }, [token, facultyId, minCount]);
 
   return (
     <div style={styles.container}>
       <div style={styles.header}>
         <div style={styles.headerLeft}>
           <AlertTriangle size={24} color="#EF4444" />
-          <h2 style={styles.title}>Students Late 5+ Times</h2>
+          <h2 style={styles.title}>Late Students</h2>
         </div>
-        <button style={styles.refreshBtn} onClick={fetchLateStudents}>
-          Refresh
-        </button>
+        <div style={styles.headerRight}>
+          <select
+            value={minCount}
+            onChange={(e) => setMinCount(parseInt(e.target.value, 10))}
+            style={styles.thresholdSelect}
+            title="Filter by minimum late count"
+          >
+            <option value={1}>All late students</option>
+            <option value={3}>Late 3+ times</option>
+            <option value={5}>Late 5+ times</option>
+            <option value={10}>Late 10+ times</option>
+          </select>
+          <button style={styles.refreshBtn} onClick={fetchLateStudents}>
+            Refresh
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -72,19 +88,23 @@ const LateStudentsReport = ({ facultyId = null }) => {
       ) : lateStudents.length === 0 ? (
         <div style={styles.empty}>
           <AlertTriangle size={48} color="#9CA3AF" />
-          <p>No students with 5+ late attendances</p>
+          <p>
+            {minCount <= 1
+              ? 'No late students found'
+              : `No students with ${minCount}+ late attendances`}
+          </p>
         </div>
       ) : (
-        <div style={styles. grid}>
+        <div style={styles.grid}>
           {lateStudents.map(student => (
             <div key={student.student_id} style={styles.card}>
-              <div style={styles. cardHeader}>
+              <div style={styles.cardHeader}>
                 <div style={styles.avatar}>
                   {student.name.split(' ').map(n => n[0]).join('')}
                 </div>
-                <div style={styles. studentInfo}>
+                <div style={styles.studentInfo}>
                   <div style={styles.studentName}>{student.name}</div>
-                  <div style={styles.studentId}>ID: {student.studentId}</div>
+                  <div style={styles.studentId}>Roll: {student.roll_number}</div>
                 </div>
                 <div style={styles.badge}>
                   {student.late_count} Late
@@ -96,31 +116,25 @@ const LateStudentsReport = ({ facultyId = null }) => {
                   <User size={14} color="#9CA3AF" />
                   <span style={styles.infoText}>{student.department}</span>
                 </div>
-                <div style={styles. infoRow}>
-                  <span style={styles.infoLabel}>Faculty:</span>
-                  <span style={styles.infoText}>{student.faculty_name}</span>
-                </div>
-                <div style={styles.infoRow}>
-                  <span style={styles.infoLabel}>Year:</span>
-                  <span style={styles.infoText}>
-                    Year {student.year}, Semester {student.semester}
-                  </span>
-                </div>
               </div>
 
               <button 
                 style={styles.expandBtn}
-                onClick={() => setExpandedStudent(
-                  expandedStudent === student. student_id ? null : student. student_id
-                )}
+                onClick={() =>
+                  setExpandedStudent(
+                    expandedStudent === student.student_id
+                      ? null
+                      : student.student_id,
+                  )
+                }
               >
                 {expandedStudent === student.student_id ? 'Hide' : 'View'} Late Sessions
               </button>
 
-              {expandedStudent === student. student_id && (
+              {expandedStudent === student.student_id && (
                 <div style={styles.sessions}>
                   {student.late_sessions.slice(0, 10).map((session, idx) => (
-                    <div key={idx} style={styles. sessionItem}>
+                    <div key={idx} style={styles.sessionItem}>
                       <Calendar size={12} color="#F59E0B" />
                       <span style={styles.sessionText}>{session}</span>
                     </div>
@@ -146,6 +160,20 @@ const styles = {
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: '24px'
+  },
+  headerRight: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px'
+  },
+  thresholdSelect: {
+    padding: '10px 12px',
+    border: '1px solid #E5E7EB',
+    borderRadius: '8px',
+    backgroundColor: 'white',
+    fontWeight: '600',
+    color: '#374151',
+    cursor: 'pointer'
   },
   headerLeft: {
     display: 'flex',
