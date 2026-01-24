@@ -15,7 +15,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import useAuthStore from '../../../../../store/useAuthStore';
 
-const AssignmentDashboard = ({ selectedVenueId, venueName, venues }) => {
+const AssignmentDashboard = ({ selectedVenueId, venueName, venues, selectedCourseType }) => {
   const navigate = useNavigate();
   const { token, user } = useAuthStore();
   const API_URL = import.meta.env.VITE_API_URL;
@@ -35,7 +35,15 @@ const AssignmentDashboard = ({ selectedVenueId, venueName, venues }) => {
   const [materialType, setMaterialType] = useState('link');
   const [externalUrl, setExternalUrl] = useState('');
   const [files, setFiles] = useState([]);
+  const [skillFilter, setSkillFilter] = useState('');
   const [openMenuId, setOpenMenuId] = useState(null);
+
+  // Auto-populate venue from header selection
+  useEffect(() => {
+    if (selectedVenueId && selectedVenueId !== 'all') {
+      setGroup(selectedVenueId);
+    }
+  }, [selectedVenueId]);
 
   // Fetch assignments for selected venue
   useEffect(() => {
@@ -45,8 +53,12 @@ const AssignmentDashboard = ({ selectedVenueId, venueName, venues }) => {
       setLoading(true);
 
       try {
-        const response = await fetch(
-          `${API_URL}/tasks/venue/${selectedVenueId}?status=${statusFilter}`,
+        // Handle 'all' venues - fetch from all venues
+        const url = selectedVenueId === 'all'
+          ? `${API_URL}/tasks/all-venues?status=${statusFilter}`
+          : `${API_URL}/tasks/venue/${selectedVenueId}?status=${statusFilter}`;
+        
+        const response = await fetch(url,
           {
             headers: {
               'Authorization': `Bearer ${token}`,
@@ -66,6 +78,7 @@ const AssignmentDashboard = ({ selectedVenueId, venueName, venues }) => {
             day: task.day,
             dueDate: task.due_date ? new Date(task.due_date).toISOString().split('T')[0] : '',
             status: task.status,
+            skillFilter: task.skill_filter || '',
             totalSubmissions: task.total_submissions || 0,
             pendingSubmissions: task.pending_submissions || 0
           }));
@@ -101,6 +114,7 @@ const AssignmentDashboard = ({ selectedVenueId, venueName, venues }) => {
     setMaterialType('link');
     setExternalUrl('');
     setFiles([]);
+    setSkillFilter('');
   };
 
   const publishAssignment = async () => {
@@ -119,16 +133,28 @@ const AssignmentDashboard = ({ selectedVenueId, venueName, venues }) => {
       return;
     }
 
+    const isAllVenues = group === 'all';
+    const confirmMessage = isAllVenues 
+      ? `Are you sure you want to create this assignment for ALL ${venues.length} venues?`
+      : 'Publish this assignment?';
+    
+    if (!confirm(confirmMessage)) {
+      return;
+    }
+
     setLoading(true);
 
     const formData = new FormData();
     formData.append('title', title.trim());
     formData.append('description', description.trim());
-    formData.append('venue_id', group); // Use 'group' (venue_id) for the API
+    formData.append('venue_id', isAllVenues ? venues[0]?.venue_id : group);
     formData.append('day', day);
     formData.append('due_date', dueDate);
     formData.append('max_score', score);
     formData.append('material_type', materialType);
+    formData.append('skill_filter', skillFilter.trim());
+    formData.append('course_type', selectedCourseType || 'frontend');
+    formData.append('apply_to_all_venues', isAllVenues);
 
     if (materialType === 'link') {
       formData.append('external_url', externalUrl);
@@ -148,34 +174,40 @@ const AssignmentDashboard = ({ selectedVenueId, venueName, venues }) => {
       const data = await response.json();
       
       if (data.success) {
-        alert(` Assignment Published! ${data.data.students_count} students added.`);
+        if (data.data.venues_count > 1) {
+          alert(`✅ Assignment created for ${data.data.venues_count} venues successfully!\n\nTotal students: ${data.data.students_count}`);
+        } else {
+          alert(`✅ Assignment Published! ${data.data.students_count} students added.`);
+        }
         resetForm();
 
-        // Refresh assignments list
-        const refreshResponse = await fetch(
-          `${API_URL}/tasks/venue/${selectedVenueId}?status=${statusFilter}`,
-          {
-            headers: {
-              'Authorization': `Bearer ${token}`,
-              'Content-Type': 'application/json'
+        // Refresh assignments list only if not "all venues"
+        if (!isAllVenues && selectedVenueId) {
+          const refreshResponse = await fetch(
+            `${API_URL}/tasks/venue/${selectedVenueId}?status=${statusFilter}`,
+            {
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+              }
             }
-          }
-        );
+          );
 
-        const refreshData = await refreshResponse.json();
-        if (refreshData.success) {
-          const transformed = refreshData.data.map(task => ({
-            id: task.task_id,
-            title: task.title,
-            score: task.max_score,
-            group: task.venue_name,
-            day: task.day,
-            dueDate: task.due_date ? new Date(task.due_date).toISOString().split('T')[0] : '',
-            status: task.status,
-            totalSubmissions: task.total_submissions || 0,
-            pendingSubmissions: task.pending_submissions || 0
-          }));
-          setAssignments(transformed);
+          const refreshData = await refreshResponse.json();
+          if (refreshData.success) {
+            const transformed = refreshData.data.map(task => ({
+              id: task.task_id,
+              title: task.title,
+              score: task.max_score,
+              group: task.venue_name,
+              day: task.day,
+              dueDate: task.due_date ? new Date(task.due_date).toISOString().split('T')[0] : '',
+              status: task.status,
+              totalSubmissions: task.total_submissions || 0,
+              pendingSubmissions: task.pending_submissions || 0
+            }));
+            setAssignments(transformed);
+          }
         }
       } else {
         alert('❌ ' + (data.message || 'Failed to publish assignment'));
@@ -263,6 +295,7 @@ const AssignmentDashboard = ({ selectedVenueId, venueName, venues }) => {
                     disabled={loading}
                   >
                     <option value="" hidden>Select a venue... </option>
+                    <option value="all" style={{ fontWeight: 'bold', color: '#3b82f6' }}> All Venues</option>
                     {venues.map(venue => (
                       <option key={venue.venue_id} value={venue.venue_id}>
                         {venue.venue_name} ({venue.student_count} students)
@@ -322,6 +355,20 @@ const AssignmentDashboard = ({ selectedVenueId, venueName, venues }) => {
                 placeholder="Describe the assignment requirements..."
                 disabled={loading}
               />
+            </div>
+
+            <div style={styles.fieldGroup}>
+              <label style={styles.fieldLabel}>Skill Filter (Optional)</label>
+              <input
+                style={styles.textInput}
+                value={skillFilter}
+                onChange={e => setSkillFilter(e.target.value)}
+                placeholder="e.g., HTML/CSS, JavaScript, React (leave empty to show to all students)"
+                disabled={loading}
+              />
+              <div style={{ fontSize: '12px', color: '#64748b', marginTop: '6px' }}>
+                💡 If specified, this assignment will only show to students who have NOT cleared this skill
+              </div>
             </div>
 
             {/* STUDY MATERIAL */}

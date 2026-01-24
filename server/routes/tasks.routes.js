@@ -3,6 +3,7 @@ import {
   getVenuesForFaculty,
   createTask,
   getTasksByVenue,
+  getTasksAllVenues,
   getTaskDetails,
   toggleTaskStatus,
   getTaskSubmissions,
@@ -12,6 +13,7 @@ import {
   getStudentTasks,
   submitTask,
   downloadSubmission,
+  syncTaskSubmissions,
   upload
 } from '../controllers/tasks.controller.js';
 import { authenticate } from '../middleware/auth.middleware.js';
@@ -34,9 +36,13 @@ router.get('/venues', authenticate, getVenuesForFaculty);
 
 // Faculty/Admin routes - manage tasks
 router.post('/create', authenticate, upload.array('files', 10), createTask);
+router.get('/all-venues', authenticate, getTasksAllVenues);
 router.get('/venue/:venue_id', authenticate, getTasksByVenue);
 router.get('/details/:task_id', authenticate, getTaskDetails);
 router.put('/status/:task_id', authenticate, toggleTaskStatus);
+
+// Sync task submissions for newly added students
+router.post('/sync/:venue_id', authenticate, syncTaskSubmissions);
 
 // Submissions/Reports routes - for faculty grading
 router.get('/submissions/:task_id', authenticate, getTaskSubmissions);

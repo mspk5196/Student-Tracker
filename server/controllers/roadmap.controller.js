@@ -163,13 +163,175 @@ export const getRoadmapByVenue = async (req, res) => {
   }
 };
 
+// Get all roadmap modules across all venues (for "All Venues" view)
+export const getAllVenuesRoadmap = async (req, res) => {
+  try {
+    const user_id = req.user.user_id;
+    const user_role = req.user.role;
+
+    let query = `
+      SELECT 
+        r.roadmap_id,
+        r.group_id,
+        r.venue_id,
+        v.venue_name,
+        r.faculty_id,
+        r.day,
+        r.title,
+        r.description,
+        r.course_type,
+        r.learning_objectives,
+        r.module_order,
+        r.status,
+        r.is_template,
+        r.created_at,
+        r.updated_at
+      FROM roadmap r
+      LEFT JOIN venue v ON r.venue_id = v.venue_id
+      WHERE r.group_id IS NOT NULL
+    `;
+
+    // Group modules by group_id and course_type
+    const [modules] = await db.query(query + ' ORDER BY r.course_type, r.day, r.created_at DESC');
+
+    // Group by group_id to show unique modules
+    const groupedModules = {};
+    modules.forEach(module => {
+      const key = `${module.group_id}_${module.course_type}`;
+      if (!groupedModules[key]) {
+        groupedModules[key] = {
+          ...module,
+          venues_count: 0,
+          venues: [],
+          first_roadmap_id: module.roadmap_id // Store first roadmap_id to fetch resources
+        };
+      }
+      groupedModules[key].venues_count++;
+      groupedModules[key].venues.push({
+        venue_id: module.venue_id,
+        venue_name: module.venue_name,
+        roadmap_id: module.roadmap_id
+      });
+    });
+
+    const uniqueModules = Object.values(groupedModules);
+
+    // Fetch resources for each unique module (from the first venue in the group)
+    for (let module of uniqueModules) {
+      const [resources] = await db.query(`
+        SELECT 
+          resource_id,
+          resource_name,
+          resource_type,
+          resource_url,
+          file_path,
+          file_size,
+          uploaded_at
+        FROM roadmap_resources
+        WHERE roadmap_id = ?
+        ORDER BY uploaded_at DESC
+      `, [module.first_roadmap_id]);
+
+      module.resources = resources || [];
+      delete module.first_roadmap_id; // Remove temporary field
+    }
+
+    res.status(200).json({
+      success: true,
+      data: uniqueModules
+    });
+  } catch (error) {
+    console.error('Error fetching all venues roadmap:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch roadmap'
+    });
+  }
+};
+
+// Delete roadmap module group (all modules with same group_id)
+export const deleteRoadmapModuleGroup = async (req, res) => {
+  const connection = await db.getConnection();
+
+  try {
+    const { group_id } = req.params;
+
+    await connection.beginTransaction();
+
+    // First, get all roadmap_ids in this group
+    const [modules] = await connection.query(
+      'SELECT roadmap_id FROM roadmap WHERE group_id = ?',
+      [group_id]
+    );
+
+    if (modules.length === 0) {
+      await connection.rollback();
+      return res.status(404).json({
+        success: false,
+        message: 'No modules found with this group ID'
+      });
+    }
+
+    const roadmap_ids = modules.map(m => m.roadmap_id);
+
+    // Delete all resources associated with these modules
+    if (roadmap_ids.length > 0) {
+      const [resources] = await connection.query(
+        `SELECT file_path FROM roadmap_resources WHERE roadmap_id IN (?)`,
+        [roadmap_ids]
+      );
+
+      // Delete resource files from filesystem
+      resources.forEach(resource => {
+        if (resource.file_path) {
+          const filePath = path.join(process.cwd(), resource.file_path);
+          if (fs.existsSync(filePath)) {
+            fs.unlinkSync(filePath);
+          }
+        }
+      });
+
+      // Delete resource records
+      await connection.query(
+        'DELETE FROM roadmap_resources WHERE roadmap_id IN (?)',
+        [roadmap_ids]
+      );
+    }
+
+    // Delete all roadmap modules in this group
+    const [result] = await connection.query(
+      'DELETE FROM roadmap WHERE group_id = ?',
+      [group_id]
+    );
+
+    await connection.commit();
+
+    res.status(200).json({
+      success: true,
+      message: 'Module group deleted successfully',
+      data: { deleted_count: result.affectedRows }
+    });
+  } catch (error) {
+    await connection.rollback();
+    console.error('Error deleting roadmap module group:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete module group'
+    });
+  } finally {
+    connection.release();
+  }
+};
+
 // Create new roadmap module
 export const createRoadmapModule = async (req, res) => {
+  const connection = await db.getConnection();
+  
   try {
-    const { venue_id, day, title, description, status, course_type, learning_objectives } = req.body;
+    const { venue_id, day, title, description, status, course_type, learning_objectives, apply_to_all_venues } = req.body;
     const user_id = req.user.user_id; // Get user_id from JWT
 
-    console.log('Creating module:', { venue_id, day, title, course_type, user_id });
+    console.log('Creating module:', { venue_id, day, title, course_type, user_id, apply_to_all_venues });
 
     if (!venue_id || !day || !title) {
       return res.status(400).json({
@@ -184,7 +346,7 @@ export const createRoadmapModule = async (req, res) => {
     if (req.user.role === 'admin') {
       // Admin can create modules for any venue
       // First check if admin is also a faculty
-      const [faculty] = await db.query(`
+      const [faculty] = await connection.query(`
         SELECT faculty_id FROM faculties WHERE user_id = ?
       `, [user_id]);
       
@@ -192,12 +354,12 @@ export const createRoadmapModule = async (req, res) => {
         actual_faculty_id = faculty[0].faculty_id;
       } else {
         // Admin is not a faculty - use the venue's assigned faculty
-        const [venueData] = await db.query('SELECT assigned_faculty_id FROM venue WHERE venue_id = ?', [venue_id]);
+        const [venueData] = await connection.query('SELECT assigned_faculty_id FROM venue WHERE venue_id = ?', [venue_id]);
         if (venueData.length > 0 && venueData[0].assigned_faculty_id) {
           actual_faculty_id = venueData[0].assigned_faculty_id;
         } else {
           // No faculty assigned to venue - get any active faculty as fallback
-          const [anyFaculty] = await db.query('SELECT faculty_id FROM faculties LIMIT 1');
+          const [anyFaculty] = await connection.query('SELECT faculty_id FROM faculties LIMIT 1');
           if (anyFaculty.length === 0) {
             return res.status(400).json({
               success: false,
@@ -209,7 +371,7 @@ export const createRoadmapModule = async (req, res) => {
       }
     } else if (req.user.role === 'faculty') {
       // Faculty must use their own faculty_id
-      const [faculty] = await db.query(`
+      const [faculty] = await connection.query(`
         SELECT faculty_id FROM faculties WHERE user_id = ?
       `, [user_id]);
 
@@ -223,7 +385,7 @@ export const createRoadmapModule = async (req, res) => {
       actual_faculty_id = faculty[0].faculty_id;
 
       // Check if faculty is assigned to this venue
-      const [venueCheck] = await db.query(`
+      const [venueCheck] = await connection.query(`
         SELECT venue_id FROM venue WHERE venue_id = ? AND assigned_faculty_id = ?
       `, [venue_id, actual_faculty_id]);
 
@@ -240,36 +402,108 @@ export const createRoadmapModule = async (req, res) => {
       });
     }
 
-    // Check if day already exists for this venue, faculty, and course_type
-    const [existing] = await db.query(`
-      SELECT roadmap_id FROM roadmap
-      WHERE venue_id = ? AND faculty_id = ? AND day = ? AND course_type = ?
-    `, [venue_id, actual_faculty_id, day, course_type || 'frontend']);
+    await connection.beginTransaction();
 
-    if (existing.length > 0) {
+    // Determine venues to create roadmaps for
+    let targetVenues = [];
+    let group_id = null;
+    
+    if (apply_to_all_venues === 'true' || apply_to_all_venues === true) {
+      // Get all active venues
+      const [allVenues] = await connection.query(`
+        SELECT venue_id FROM venue WHERE status = 'Active'
+      `);
+      targetVenues = allVenues.map(v => v.venue_id);
+      
+      // Generate unique group_id for this batch
+      group_id = `roadmap_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    } else {
+      // Single venue
+      targetVenues = [parseInt(venue_id)];
+    }
+
+    const createdRoadmaps = [];
+    const skippedVenues = [];
+
+    // Create roadmap for each target venue
+    for (const target_venue_id of targetVenues) {
+      // Get venue's faculty or use the provided one
+      let venue_faculty_id = actual_faculty_id;
+      
+      if (apply_to_all_venues) {
+        // For multi-venue, try to use each venue's assigned faculty
+        const [venueData] = await connection.query(
+          'SELECT assigned_faculty_id FROM venue WHERE venue_id = ?', 
+          [target_venue_id]
+        );
+        if (venueData.length > 0 && venueData[0].assigned_faculty_id) {
+          venue_faculty_id = venueData[0].assigned_faculty_id;
+        }
+      }
+
+      // Check if day already exists for this venue and course_type
+      const [existing] = await connection.query(`
+        SELECT roadmap_id FROM roadmap
+        WHERE venue_id = ? AND day = ? AND course_type = ?
+      `, [target_venue_id, day, course_type || 'frontend']);
+
+      if (existing.length > 0) {
+        if (!apply_to_all_venues) {
+          // For single venue, return error
+          await connection.rollback();
+          return res.status(400).json({
+            success: false,
+            message: `Module ${day} already exists for this course in this venue`
+          });
+        } else {
+          // For all venues, skip this venue and continue
+          skippedVenues.push(target_venue_id);
+          continue;
+        }
+      }
+
+      // Insert roadmap for this venue
+      const [result] = await connection.query(`
+        INSERT INTO roadmap (group_id, venue_id, faculty_id, day, title, description, course_type, learning_objectives, module_order, status, is_template, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+      `, [group_id, target_venue_id, venue_faculty_id, day, title, description || '', course_type || 'frontend', learning_objectives || '', day, status || 'draft', group_id ? 1 : 0]);
+
+      createdRoadmaps.push({ roadmap_id: result.insertId, venue_id: target_venue_id });
+    }
+
+    await connection.commit();
+
+    // Check if any roadmaps were created
+    if (createdRoadmaps.length === 0) {
       return res.status(400).json({
         success: false,
-        message: `Module ${day} already exists for this course in this venue`
+        message: 'Module already exists in all selected venues'
       });
     }
 
-    const [result] = await db.query(`
-      INSERT INTO roadmap (venue_id, faculty_id, day, title, description, course_type, learning_objectives, module_order, status, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
-    `, [venue_id, actual_faculty_id, day, title, description || '', course_type || 'frontend', learning_objectives || '', day, status || 'draft']);
-
     res.status(201).json({
       success: true,
-      message: 'Roadmap module created successfully!',
-      data: { roadmap_id: result.insertId }
+      message: apply_to_all_venues 
+        ? `Roadmap module created for ${createdRoadmaps.length} venue(s)${skippedVenues.length > 0 ? `, skipped ${skippedVenues.length} (already exists)` : ''}!`
+        : 'Roadmap module created successfully!',
+      data: { 
+        roadmaps: createdRoadmaps,
+        group_id: group_id,
+        venues_count: createdRoadmaps.length,
+        skipped_count: skippedVenues.length,
+        total_venues: targetVenues.length
+      }
     });
   } catch (error) {
+    await connection.rollback();
     console.error('Error creating roadmap module:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to create roadmap module',
       error: error.message
     });
+  } finally {
+    connection.release();
   }
 };
 
@@ -485,11 +719,11 @@ export const deleteRoadmapModule = async (req, res) => {
 // Add resource to roadmap module
 export const addResourceToModule = async (req, res) => {
   try {
-    const { roadmap_id, resource_name, resource_type, resource_url } = req.body;
+    const { roadmap_id, resource_name, resource_type, resource_url, existing_file_path } = req.body;
     const file = req.file;
     const user_id = req.user.user_id;
 
-    console.log('Adding resource:', { roadmap_id, resource_name, resource_type, hasFile: !!file, user_id });
+    console.log('Adding resource:', { roadmap_id, resource_name, resource_type, hasFile: !!file, existing_file_path, user_id });
 
     if (!roadmap_id || !resource_name || !resource_type) {
       return res.status(400).json({
@@ -568,14 +802,23 @@ export const addResourceToModule = async (req, res) => {
 
     // If it's a PDF upload
     if (resource_type === 'pdf') {
-      if (!file) {
+      // Check if using existing file path (for multi-venue resource addition)
+      if (existing_file_path) {
+        filePath = existing_file_path;
+        // Get file size from existing file
+        if (fs.existsSync(filePath)) {
+          const stats = fs.statSync(filePath);
+          fileSize = stats.size;
+        }
+      } else if (!file) {
         return res.status(400).json({
           success: false,
           message: 'Please upload a PDF file'
         });
+      } else {
+        filePath = file.path;
+        fileSize = file.size;
       }
-      filePath = file.path;
-      fileSize = file.size;
       url = null;
     } else {
       // For video or link, URL is required
@@ -760,6 +1003,9 @@ export const getStudentRoadmap = async (req, res) => {
         r.day,
         r.title,
         r.description,
+        r.course_type,
+        r.learning_objectives,
+        r.module_order,
         r.status,
         r.created_at,
         r.updated_at,
@@ -772,7 +1018,7 @@ export const getStudentRoadmap = async (req, res) => {
       LEFT JOIN users u ON f.user_id = u.user_id
       LEFT JOIN venue v ON r.venue_id = v.venue_id
       WHERE r.venue_id = ?
-      ORDER BY r.day ASC
+      ORDER BY r.course_type, r.module_order ASC
     `, [venue_id]);
 
     console.log('Found modules for student:', modules.length);
@@ -943,6 +1189,74 @@ export const getResourceFile = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to download resource'
+    });
+  }
+};
+
+// Update all modules in a group (all venues)
+export const updateRoadmapModuleGroup = async (req, res) => {
+  try {
+    const { group_id } = req.params;
+    const { title, description, learning_objectives, status } = req.body;
+    const user_id = req.user.user_id;
+
+    console.log('Updating module group:', group_id, { title, status });
+
+    if (!title) {
+      return res.status(400).json({
+        success: false,
+        message: 'Title is required'
+      });
+    }
+
+    // Get user role
+    const [user] = await db.query(`
+      SELECT role_id FROM users WHERE user_id = ?
+    `, [user_id]);
+
+    if (user.length === 0) {
+      return res.status(403).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    const userRole = user[0].role_id;
+
+    // Only admin can update module groups
+    if (userRole !== 1) {
+      return res.status(403).json({
+        success: false,
+        message: 'Only admin can update modules across all venues'
+      });
+    }
+
+    // Update all modules with this group_id
+    const [result] = await db.query(`
+      UPDATE roadmap
+      SET title = ?, description = ?, learning_objectives = ?, status = ?, updated_at = NOW()
+      WHERE group_id = ?
+    `, [title, description || '', learning_objectives || '', status || 'published', group_id]);
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Module group not found'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: `Updated ${result.affectedRows} module(s) successfully!`,
+      data: {
+        updated_count: result.affectedRows
+      }
+    });
+  } catch (error) {
+    console.error('Error updating roadmap module group:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update roadmap module group'
     });
   }
 };

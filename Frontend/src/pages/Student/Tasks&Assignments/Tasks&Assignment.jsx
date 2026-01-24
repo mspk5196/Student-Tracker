@@ -22,92 +22,77 @@ import {
 import useAuthStore from "../../../store/useAuthStore";
 
 const TasksAssignments = () => {
+  const API_URL = import.meta.env.VITE_API_URL;
   const { token, user } = useAuthStore();
   const [activeFilter, setActiveFilter] = useState("all");
   const [selectedTaskId, setSelectedTaskId] = useState(null);
   const [submissionType, setSubmissionType] = useState("file"); // 'file' or 'link'
   const [selectedCourse, setSelectedCourse] = useState(null); // New state for course selection
+  const [loading, setLoading] = useState(false);
+  const [tasks, setTasks] = useState([]);
 
   // Courses Data
   const courses = [
-    { id: 'Frontend Dev', name: 'Frontend Development', icon: Code, color: 'blue', desc: 'HTML, CSS, React' },
-    { id: 'Backend Dev', name: 'Backend Development', icon: Server, color: 'green', desc: 'Node.js, API Design' },
-    { id: 'Database', name: 'Database Management', icon: Database, color: 'purple', desc: 'SQL, MongoDB' },
-    { id: 'Design', name: 'UI/UX Design', icon: Layout, color: 'pink', desc: 'Figma, Prototyping' },
-    { id: 'Software Engineering', name: 'Software Engineering', icon: FileText, color: 'orange', desc: 'Agile, SDLC' },
+    { id: 'frontend', name: 'Frontend Development', icon: Code, color: 'blue', desc: 'HTML, CSS, React' },
+    { id: 'backend', name: 'Backend Development', icon: Server, color: 'green', desc: 'Node.js, API Design' },
+    { id: 'devops', name: 'DevOps', icon: Database, color: 'purple', desc: 'CI/CD, Docker, K8s' },
+    { id: 'react-native', name: 'React Native', icon: Layout, color: 'pink', desc: 'Mobile Development' },
   ];
 
-  // Mock Data matching the screenshots
-  const [tasks, setTasks] = useState([
-    {
-      id: 1,
-      title: "React Component Lifecycle",
-      subject: "Frontend Dev",
-      status: "pending", // pending, submitted, graded, missing
-      dueDate: "Today, 5:00 PM",
-      points: 50,
-      assignedBy: "Prof. Sarah Wilson",
-      description:
-        "For today's task, you need to create a diagram explaining the React Component Lifecycle methods (mounting, updating, unmounting). Additionally, provide a code snippet demonstrating the usage of `useEffect` to simulate `componentDidMount` and `componentWillUnmount`.\n\nPlease refer to the attached PDF for the grading rubric and detailed requirements.",
-      resources: [
-        { name: "Lifecycle_Guide_v2.pdf", type: "pdf", size: "1.2 MB" },
-        { name: "React Docs Reference", type: "link" },
-      ],
-      dayLabel: "DAY 15 TASK",
-    },
-    {
-      id: 2,
-      title: "State Management Research",
-      subject: "Frontend Dev",
-      status: "submitted",
-      dueDate: "Yesterday",
-      points: 50,
-      assignedBy: "Prof. Sarah Wilson",
-      description:
-        "Research different state management libraries in React (Redux, Zustand, Recoil). Compare their pros and cons and submit a summary report.",
-      resources: [],
-      dayLabel: "DAY 14 - YESTERDAY",
-    },
-    {
-      id: 3,
-      title: "SQL Joins Practice",
-      subject: "Database",
-      status: "graded",
-      dueDate: "Oct 15",
-      points: 50,
-      score: 42,
-      assignedBy: "Dr. Alan Grant",
-      description:
-        "Complete the exercises on SQL Inner, Left, Right and Full Outer Joins.",
-      feedback:
-        "Good work on the outer joins. You missed one edge case in the self-join query, but otherwise solid logic.",
-      dayLabel: "DAY 14 TASK - COMPLETED",
-    },
-    {
-      id: 4,
-      title: "UI/UX Principles Quiz",
-      subject: "Design",
-      status: "graded",
-      dueDate: "Oct 12",
-      points: 20,
-      score: 18,
-      assignedBy: "Prof. Emily Chen",
-      description: "Multiple choice quiz on basic UX laws.",
-      feedback: "Excellent understanding of Fitts' Law.",
-      dayLabel: "DAY 12",
-    },
-    {
-      id: 5,
-      title: "Project Proposal Draft",
-      subject: "Software Engineering",
-      status: "missing",
-      dueDate: "Overdue by 2 days",
-      points: 100,
-      assignedBy: "Prof. Robert Martin",
-      description: "Submit your initial project proposal document.",
-      dayLabel: "PROJECT",
-    },
-  ]);
+  // Fetch tasks from backend
+  useEffect(() => {
+    const fetchTasks = async () => {
+      setLoading(true);
+      try {
+        const response = await fetch(`${API_URL}/tasks/student`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        const data = await response.json();
+        
+        if (data.success && data.data) {
+          // Transform backend data to match UI format
+          const allTasks = [];
+          Object.values(data.data.groupedTasks || {}).forEach(group => {
+            group.tasks.forEach(task => {
+              allTasks.push({
+                id: task.id,
+                title: task.title,
+                subject: task.courseType || 'frontend', // Use courseType from backend
+                status: task.status, // 'pending', 'completed', 'revision', 'overdue'
+                dueDate: task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'No due date',
+                points: task.score,
+                score: task.grade ? parseInt(task.grade.split('/')[0]) : null,
+                assignedBy: task.instructor,
+                description: task.description || 'No description provided',
+                feedback: task.feedback,
+                resources: task.materials || [],
+                dayLabel: task.moduleTitle,
+                skillFilter: task.skillFilter || '',
+                submissionStatus: task.submissionStatus,
+                submittedDate: task.submittedDate,
+                fileName: task.fileName
+              });
+            });
+          });
+          setTasks(allTasks);
+        } else {
+          setTasks([]);
+        }
+      } catch (error) {
+        console.error('Error fetching tasks:', error);
+        setTasks([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    if (token) {
+      fetchTasks();
+    }
+  }, [token, API_URL]);
 
   const filteredTasks = tasks.filter((t) => {
     // First Filter by Course
@@ -115,9 +100,9 @@ const TasksAssignments = () => {
 
     // Then Filter by Status
     if (activeFilter === "pending")
-      return t.status === "pending" || t.status === "missing";
-    if (activeFilter === "submitted") return t.status === "submitted";
-    if (activeFilter === "graded") return t.status === "graded";
+      return t.status === "pending" || t.status === "overdue" || t.status === "revision";
+    if (activeFilter === "submitted") return t.status === "pending";
+    if (activeFilter === "graded") return t.status === "completed";
     return true;
   });
 
@@ -136,11 +121,11 @@ const TasksAssignments = () => {
     switch (status) {
       case "pending":
         return "bg-yellow-50 text-yellow-700 border-yellow-200";
-      case "submitted":
-        return "bg-green-50 text-green-700 border-green-200";
-      case "graded":
+      case "completed":
         return "bg-blue-50 text-blue-700 border-blue-200";
-      case "missing":
+      case "revision":
+        return "bg-orange-50 text-orange-700 border-orange-200";
+      case "overdue":
         return "bg-red-50 text-red-700 border-red-200";
       default:
         return "bg-gray-50 text-gray-700";
@@ -151,12 +136,12 @@ const TasksAssignments = () => {
     switch (status) {
       case "pending":
         return "Pending";
-      case "submitted":
-        return "Submitted";
-      case "graded":
-        return "Graded";
-      case "missing":
-        return "Missing";
+      case "completed":
+        return "Completed";
+      case "revision":
+        return "Needs Revision";
+      case "overdue":
+        return "Overdue";
       default:
         return status;
     }
@@ -860,7 +845,14 @@ const TasksAssignments = () => {
                       <h3 className="section-title">Reference Material</h3>
                       <div className="resources-grid">
                         {selectedTask.resources.map((res, idx) => (
-                          <a key={idx} href="#" className="resource-btn">
+                          <a 
+                            key={idx} 
+                            href={res.type === "pdf" ? `http://localhost:5000${res.path}` : res.url} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            download={res.type === "pdf" ? res.name : undefined}
+                            className="resource-btn"
+                          >
                             {res.type === "pdf" ? (
                               <FileText size={18} className="text-red-500" />
                             ) : (
