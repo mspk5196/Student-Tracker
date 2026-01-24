@@ -105,11 +105,11 @@ const AppNavigator = () => {
         {/* STUDENT (role === "student") */}
         {user?.role === "student" && (
           <Route path="/" element={<SideTab />}>
-            <Route index element={<StudentDashboard />} />
-            <Route path="classes" element={<MyClassRoom />} />
+            {/* <Route index element={<StudentDashboard />} /> */}
+            {/* <Route path="classes" element={<MyClassRoom />} />
             <Route path="attendance" element={<StudentAttendance />} />
             <Route path="roadmap" element={<StudentRoadmap />} />
-            <Route path="tasks" element={<TasksAssignments />} />
+            <Route path="tasks" element={<TasksAssignments />} /> */}
             {/* <Route path="performance" element={<Performance />} /> */}
           </Route>
         )}
