@@ -1263,8 +1263,8 @@ export const syncTaskSubmissions = async (req, res) => {
         const [existingSubmissions] = await connection.query(`
           SELECT student_id 
           FROM task_submissions 
-          WHERE task_id = ? AND student_id IN (?)
-        `, [task.task_id, studentIds]);
+          WHERE task_id = ? AND student_id IN (${studentIds.map(() => '?').join(',')})
+        `, [task.task_id, ...studentIds]);
         
         const existingStudentIds = new Set(existingSubmissions.map(s => s.student_id));
         const newStudents = eligibleStudents.filter(s => !existingStudentIds.has(s.student_id));
@@ -1272,14 +1272,16 @@ export const syncTaskSubmissions = async (req, res) => {
         // Create submissions for new students
         if (newStudents.length > 0) {
           const submissionValues = newStudents.map(student => 
-            `(${task.task_id}, ${student.student_id}, 'Pending Review', NULL, NULL, NULL, NULL, NULL, NOW())`
-          ).join(',');
+            [task.task_id, student.student_id, 'Pending Review', null, null, null, null, null]
+          );
           
-          await connection.query(`
-            INSERT INTO task_submissions 
-            (task_id, student_id, status, file_path, submission_type, submitted_at, grade, feedback, created_at)
-            VALUES ${submissionValues}
-          `);
+          for (const values of submissionValues) {
+            await connection.query(`
+              INSERT INTO task_submissions 
+              (task_id, student_id, status, file_path, submission_type, submitted_at, grade, feedback)
+              VALUES (?, ?, ?, ?, ?, NOW(), ?, ?)
+            `, values);
+          }
           
           totalSubmissionsCreated += newStudents.length;
           console.log(`Created ${newStudents.length} submissions for task ${task.task_id}`);
