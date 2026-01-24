@@ -20,7 +20,7 @@ const StudyRoadmap = ({
   venues,
   isActiveTab,
   addDayTrigger,
-  selectedCourseType = 'frontend',
+  selectedCourseType = "frontend",
 }) => {
   const API_URL = import.meta.env.VITE_API_URL;
   const { token, user } = useAuthStore();
@@ -28,11 +28,20 @@ const StudyRoadmap = ({
   const [roadmap, setRoadmap] = useState([]);
   const [editingId, setEditingId] = useState(null);
   const [editingGroupId, setEditingGroupId] = useState(null);
-  const [editData, setEditData] = useState({ title: "", description: "", learning_objectives: "" });
+  const [editData, setEditData] = useState({
+    title: "",
+    description: "",
+    learning_objectives: "",
+  });
   const [lastAddDayTrigger, setLastAddDayTrigger] = useState(0);
   const [loading, setLoading] = useState(false);
   const [allVenuesModules, setAllVenuesModules] = useState([]);
-  const [messageModal, setMessageModal] = useState({ show: false, title: '', message: '', type: 'success' });
+  const [messageModal, setMessageModal] = useState({
+    show: false,
+    title: "",
+    message: "",
+    type: "success",
+  });
 
   // Resource Modal State
   const [showResourceModal, setShowResourceModal] = useState(false);
@@ -56,19 +65,16 @@ const StudyRoadmap = ({
         return;
       }
 
-      if (selectedVenueId === 'all') {
+      if (selectedVenueId === "all") {
         // Fetch modules for all venues grouped
         setLoading(true);
         try {
-          const response = await fetch(
-            `${API_URL}/roadmap/all-venues`,
-            {
-              headers: {
-                Authorization: `Bearer ${token}`,
-                "Content-Type": "application/json",
-              },
+          const response = await fetch(`${API_URL}/roadmap/all-venues`, {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
             },
-          );
+          });
 
           const data = await response.json();
 
@@ -133,28 +139,32 @@ const StudyRoadmap = ({
   const addDay = async () => {
     if (!selectedVenueId) {
       console.error("No venue selected!");
-      setMessageModal({ 
-        show: true, 
-        title: 'No Venue Selected', 
-        message: 'Please select a venue first',
-        type: 'error'
+      setMessageModal({
+        show: true,
+        title: "No Venue Selected",
+        message: "Please select a venue first",
+        type: "error",
       });
       return;
     }
 
-    const isAllVenues = selectedVenueId === 'all';
-    
+    const isAllVenues = selectedVenueId === "all";
+
     // Calculate next day number based on course type
     let nextDay = 1;
-    if (selectedVenueId === 'all') {
-      const modulesForCourse = allVenuesModules.filter(m => m.course_type === selectedCourseType);
+    if (selectedVenueId === "all") {
+      const modulesForCourse = allVenuesModules.filter(
+        (m) => m.course_type === selectedCourseType,
+      );
       if (modulesForCourse.length > 0) {
-        nextDay = Math.max(...modulesForCourse.map(m => m.day)) + 1;
+        nextDay = Math.max(...modulesForCourse.map((m) => m.day)) + 1;
       }
     } else {
-      const modulesForCourse = roadmap.filter(m => m.course_type === selectedCourseType);
+      const modulesForCourse = roadmap.filter(
+        (m) => m.course_type === selectedCourseType,
+      );
       if (modulesForCourse.length > 0) {
-        nextDay = Math.max(...modulesForCourse.map(m => m.day)) + 1;
+        nextDay = Math.max(...modulesForCourse.map((m) => m.day)) + 1;
       }
     }
 
@@ -162,20 +172,30 @@ const StudyRoadmap = ({
       const confirmed = await new Promise((resolve) => {
         setMessageModal({
           show: true,
-          title: 'Confirm Creation',
+          title: "Confirm Creation",
           message: `This will create a new ${selectedCourseType} module (Day ${nextDay}) for ALL active venues.\n\nAre you sure you want to continue?`,
-          type: 'confirm',
+          type: "confirm",
           onConfirm: () => {
-            setMessageModal({ show: false, title: '', message: '', type: 'success' });
+            setMessageModal({
+              show: false,
+              title: "",
+              message: "",
+              type: "success",
+            });
             resolve(true);
           },
           onCancel: () => {
-            setMessageModal({ show: false, title: '', message: '', type: 'success' });
+            setMessageModal({
+              show: false,
+              title: "",
+              message: "",
+              type: "success",
+            });
             resolve(false);
-          }
+          },
         });
       });
-      
+
       if (!confirmed) {
         return;
       }
@@ -185,11 +205,13 @@ const StudyRoadmap = ({
       const newDay = {
         venue_id: isAllVenues ? venues[0]?.venue_id : selectedVenueId,
         day: nextDay,
-        title: isAllVenues ? `All Venues - ${selectedCourseType} Day ${nextDay}` : `${venueName} - ${selectedCourseType} Day ${nextDay}`,
+        title: isAllVenues
+          ? `All Venues - ${selectedCourseType} Day ${nextDay}`
+          : `${venueName} - ${selectedCourseType} Day ${nextDay}`,
         description: "Enter module description here...",
         status: "draft",
         course_type: selectedCourseType,
-        apply_to_all_venues: isAllVenues
+        apply_to_all_venues: isAllVenues,
       };
 
       // Send to backend
@@ -211,11 +233,11 @@ const StudyRoadmap = ({
           if (data.data.skipped_count > 0) {
             message += `\n\nSkipped ${data.data.skipped_count} venue(s) - module already exists.`;
           }
-          setMessageModal({ 
-            show: true, 
-            title: 'Success', 
+          setMessageModal({
+            show: true,
+            title: "Success",
             message: message,
-            type: 'success'
+            type: "success",
           });
           // Refresh all venues modules
           if (isAllVenues) {
@@ -234,7 +256,8 @@ const StudyRoadmap = ({
           // Single venue creation
           const newModule = {
             ...newDay,
-            roadmap_id: data.data.roadmap_id || data.data.roadmaps[0].roadmap_id,
+            roadmap_id:
+              data.data.roadmap_id || data.data.roadmaps[0].roadmap_id,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
             resources: [],
@@ -242,28 +265,28 @@ const StudyRoadmap = ({
 
           const updatedRoadmap = [...roadmap, newModule];
           setRoadmap(updatedRoadmap);
-          setMessageModal({ 
-            show: true, 
-            title: 'Success', 
-            message: 'Roadmap module created successfully!',
-            type: 'success'
+          setMessageModal({
+            show: true,
+            title: "Success",
+            message: "Roadmap module created successfully!",
+            type: "success",
           });
         }
       } else {
-        setMessageModal({ 
-          show: true, 
-          title: 'Error', 
-          message: data.message || 'Failed to add module',
-          type: 'error'
+        setMessageModal({
+          show: true,
+          title: "Error",
+          message: data.message || "Failed to add module",
+          type: "error",
         });
       }
     } catch (error) {
       console.error("Error adding day:", error);
-      setMessageModal({ 
-        show: true, 
-        title: 'Error', 
-        message: error.message || 'Failed to add module',
-        type: 'error'
+      setMessageModal({
+        show: true,
+        title: "Error",
+        message: error.message || "Failed to add module",
+        type: "error",
       });
     }
   };
@@ -275,11 +298,11 @@ const StudyRoadmap = ({
   const setupDraft = (id) => {
     const draftModule = roadmap.find((r) => r.roadmap_id === id);
     if (!draftModule) {
-      setMessageModal({ 
-        show: true, 
-        title: 'Error', 
-        message: 'Module not found',
-        type: 'error'
+      setMessageModal({
+        show: true,
+        title: "Error",
+        message: "Module not found",
+        type: "error",
       });
       return;
     }
@@ -289,8 +312,7 @@ const StudyRoadmap = ({
       title: draftModule.title,
       description:
         draftModule.description || "Enter module description here...",
-      learning_objectives:
-        draftModule.learning_objectives || "",
+      learning_objectives: draftModule.learning_objectives || "",
     });
 
     // Update status locally to 'editing'
@@ -303,11 +325,11 @@ const StudyRoadmap = ({
   const setupDraftGroup = (group_id) => {
     const draftModule = allVenuesModules.find((r) => r.group_id === group_id);
     if (!draftModule) {
-      setMessageModal({ 
-        show: true, 
-        title: 'Error', 
-        message: 'Module not found',
-        type: 'error'
+      setMessageModal({
+        show: true,
+        title: "Error",
+        message: "Module not found",
+        type: "error",
       });
       return;
     }
@@ -317,8 +339,7 @@ const StudyRoadmap = ({
       title: draftModule.title,
       description:
         draftModule.description || "Enter module description here...",
-      learning_objectives:
-        draftModule.learning_objectives || "",
+      learning_objectives: draftModule.learning_objectives || "",
     });
 
     // Update status locally to 'editing'
@@ -330,19 +351,19 @@ const StudyRoadmap = ({
 
   const startEdit = (item) => {
     setEditingId(item.roadmap_id);
-    setEditData({ 
-      title: item.title, 
+    setEditData({
+      title: item.title,
       description: item.description,
-      learning_objectives: item.learning_objectives || ""
+      learning_objectives: item.learning_objectives || "",
     });
   };
 
   const startEditGroup = (item) => {
     setEditingGroupId(item.group_id);
-    setEditData({ 
-      title: item.title, 
+    setEditData({
+      title: item.title,
       description: item.description,
-      learning_objectives: item.learning_objectives || ""
+      learning_objectives: item.learning_objectives || "",
     });
   };
 
@@ -379,27 +400,27 @@ const StudyRoadmap = ({
 
         setRoadmap(updatedRoadmap);
         setEditingId(null);
-        setMessageModal({ 
-          show: true, 
-          title: 'Success', 
-          message: 'Module saved successfully!',
-          type: 'success'
+        setMessageModal({
+          show: true,
+          title: "Success",
+          message: "Module saved successfully!",
+          type: "success",
         });
       } else {
-        setMessageModal({ 
-          show: true, 
-          title: 'Error', 
-          message: data.message || 'Failed to save',
-          type: 'error'
+        setMessageModal({
+          show: true,
+          title: "Error",
+          message: data.message || "Failed to save",
+          type: "error",
         });
       }
     } catch (error) {
       console.error("Error saving edit:", error);
-      setMessageModal({ 
-        show: true, 
-        title: 'Error', 
-        message: error.message || 'Failed to save',
-        type: 'error'
+      setMessageModal({
+        show: true,
+        title: "Error",
+        message: error.message || "Failed to save",
+        type: "error",
       });
     }
   };
@@ -436,7 +457,7 @@ const StudyRoadmap = ({
         );
 
         setAllVenuesModules(updatedModules);
-        
+
         // Also update the single venue roadmap state if it contains modules from this group
         const updatedRoadmap = roadmap.map((item) =>
           item.group_id === group_id
@@ -450,29 +471,29 @@ const StudyRoadmap = ({
             : item,
         );
         setRoadmap(updatedRoadmap);
-        
+
         setEditingGroupId(null);
-        setMessageModal({ 
-          show: true, 
-          title: 'Success', 
+        setMessageModal({
+          show: true,
+          title: "Success",
           message: `Module updated for ${data.data.updated_count} venue(s) successfully!`,
-          type: 'success'
+          type: "success",
         });
       } else {
-        setMessageModal({ 
-          show: true, 
-          title: 'Error', 
-          message: data.message || 'Failed to save',
-          type: 'error'
+        setMessageModal({
+          show: true,
+          title: "Error",
+          message: data.message || "Failed to save",
+          type: "error",
         });
       }
     } catch (error) {
       console.error("Error saving edit:", error);
-      setMessageModal({ 
-        show: true, 
-        title: 'Error', 
-        message: error.message || 'Failed to save',
-        type: 'error'
+      setMessageModal({
+        show: true,
+        title: "Error",
+        message: error.message || "Failed to save",
+        type: "error",
       });
     }
   };
@@ -497,20 +518,30 @@ const StudyRoadmap = ({
     const confirmed = await new Promise((resolve) => {
       setMessageModal({
         show: true,
-        title: 'Confirm Deletion',
+        title: "Confirm Deletion",
         message: `Are you sure you want to delete this ${course_type} module from ALL venues? This will also delete all associated resources.`,
-        type: 'confirm',
+        type: "confirm",
         onConfirm: () => {
-          setMessageModal({ show: false, title: '', message: '', type: 'success' });
+          setMessageModal({
+            show: false,
+            title: "",
+            message: "",
+            type: "success",
+          });
           resolve(true);
         },
         onCancel: () => {
-          setMessageModal({ show: false, title: '', message: '', type: 'success' });
+          setMessageModal({
+            show: false,
+            title: "",
+            message: "",
+            type: "success",
+          });
           resolve(false);
-        }
+        },
       });
     });
-    
+
     if (!confirmed) return;
 
     try {
@@ -524,28 +555,30 @@ const StudyRoadmap = ({
       const data = await response.json();
 
       if (data.success) {
-        setAllVenuesModules(allVenuesModules.filter(item => item.group_id !== group_id));
-        setMessageModal({ 
-          show: true, 
-          title: 'Success', 
+        setAllVenuesModules(
+          allVenuesModules.filter((item) => item.group_id !== group_id),
+        );
+        setMessageModal({
+          show: true,
+          title: "Success",
           message: `Module deleted from ${data.data.deleted_count} venue(s) successfully!`,
-          type: 'success'
+          type: "success",
         });
       } else {
-        setMessageModal({ 
-          show: true, 
-          title: 'Error', 
-          message: data.message || 'Failed to delete',
-          type: 'error'
+        setMessageModal({
+          show: true,
+          title: "Error",
+          message: data.message || "Failed to delete",
+          type: "error",
         });
       }
     } catch (error) {
       console.error("Error deleting module group:", error);
-      setMessageModal({ 
-        show: true, 
-        title: 'Error', 
-        message: error.message || 'Failed to delete',
-        type: 'error'
+      setMessageModal({
+        show: true,
+        title: "Error",
+        message: error.message || "Failed to delete",
+        type: "error",
       });
     }
   };
@@ -554,20 +587,31 @@ const StudyRoadmap = ({
     const confirmed = await new Promise((resolve) => {
       setMessageModal({
         show: true,
-        title: 'Confirm Deletion',
-        message: 'Are you sure you want to delete this module? This will also delete all associated resources.',
-        type: 'confirm',
+        title: "Confirm Deletion",
+        message:
+          "Are you sure you want to delete this module? This will also delete all associated resources.",
+        type: "confirm",
         onConfirm: () => {
-          setMessageModal({ show: false, title: '', message: '', type: 'success' });
+          setMessageModal({
+            show: false,
+            title: "",
+            message: "",
+            type: "success",
+          });
           resolve(true);
         },
         onCancel: () => {
-          setMessageModal({ show: false, title: '', message: '', type: 'success' });
+          setMessageModal({
+            show: false,
+            title: "",
+            message: "",
+            type: "success",
+          });
           resolve(false);
-        }
+        },
       });
     });
-    
+
     if (!confirmed) return;
 
     try {
@@ -583,27 +627,27 @@ const StudyRoadmap = ({
       if (data.success) {
         const updatedRoadmap = roadmap.filter((item) => item.roadmap_id !== id);
         setRoadmap(updatedRoadmap);
-        setMessageModal({ 
-          show: true, 
-          title: 'Success', 
-          message: 'Module deleted successfully!',
-          type: 'success'
+        setMessageModal({
+          show: true,
+          title: "Success",
+          message: "Module deleted successfully!",
+          type: "success",
         });
       } else {
-        setMessageModal({ 
-          show: true, 
-          title: 'Error', 
-          message: data.message || 'Failed to delete',
-          type: 'error'
+        setMessageModal({
+          show: true,
+          title: "Error",
+          message: data.message || "Failed to delete",
+          type: "error",
         });
       }
     } catch (error) {
       console.error("Error deleting day:", error);
-      setMessageModal({ 
-        show: true, 
-          title: 'Error', 
-        message: error.message || 'Failed to delete',
-        type: 'error'
+      setMessageModal({
+        show: true,
+        title: "Error",
+        message: error.message || "Failed to delete",
+        type: "error",
       });
     }
   };
@@ -624,11 +668,11 @@ const StudyRoadmap = ({
           name: prev.name || fileNameWithoutExt,
         }));
       } else {
-        setMessageModal({ 
-          show: true, 
-          title: 'Invalid File', 
-          message: 'Please select a PDF file',
-          type: 'error'
+        setMessageModal({
+          show: true,
+          title: "Invalid File",
+          message: "Please select a PDF file",
+          type: "error",
         });
       }
     }
@@ -662,11 +706,11 @@ const StudyRoadmap = ({
           name: prev.name || fileNameWithoutExt,
         }));
       } else {
-        setMessageModal({ 
-          show: true, 
-          title: 'Invalid File', 
-          message: 'Please drop a PDF file',
-          type: 'error'
+        setMessageModal({
+          show: true,
+          title: "Invalid File",
+          message: "Please drop a PDF file",
+          type: "error",
         });
       }
     }
@@ -690,31 +734,31 @@ const StudyRoadmap = ({
 
   const handleAddResource = async () => {
     if (!newResource.name.trim()) {
-      setMessageModal({ 
-        show: true, 
-        title: 'Validation Error', 
-        message: 'Please enter a resource name',
-        type: 'error'
+      setMessageModal({
+        show: true,
+        title: "Validation Error",
+        message: "Please enter a resource name",
+        type: "error",
       });
       return;
     }
 
     if (newResource.kind === "pdf" && !selectedFile) {
-      setMessageModal({ 
-        show: true, 
-        title: 'Validation Error', 
-        message: 'Please select a PDF file',
-        type: 'error'
+      setMessageModal({
+        show: true,
+        title: "Validation Error",
+        message: "Please select a PDF file",
+        type: "error",
       });
       return;
     }
 
     if (newResource.kind !== "pdf" && !newResource.url.trim()) {
-      setMessageModal({ 
-        show: true, 
-        title: 'Validation Error', 
-        message: 'Please enter a URL',
-        type: 'error'
+      setMessageModal({
+        show: true,
+        title: "Validation Error",
+        message: "Please enter a URL",
+        type: "error",
       });
       return;
     }
@@ -723,13 +767,15 @@ const StudyRoadmap = ({
       // Check if adding to all venues (group) or single venue
       if (currentGroupId) {
         // Get all roadmap_ids for this group_id
-        const groupModule = allVenuesModules.find(m => m.group_id === currentGroupId);
+        const groupModule = allVenuesModules.find(
+          (m) => m.group_id === currentGroupId,
+        );
         if (!groupModule || !groupModule.venues) {
-          setMessageModal({ 
-            show: true, 
-            title: 'Error', 
-            message: 'Unable to find venues for this module group',
-            type: 'error'
+          setMessageModal({
+            show: true,
+            title: "Error",
+            message: "Unable to find venues for this module group",
+            type: "error",
           });
           return;
         }
@@ -761,11 +807,11 @@ const StudyRoadmap = ({
             sharedFilePath = firstData.data.file_path;
             successCount++;
           } else {
-            setMessageModal({ 
-              show: true, 
-              title: 'Error', 
-              message: 'Failed to upload file: ' + firstData.message,
-              type: 'error'
+            setMessageModal({
+              show: true,
+              title: "Error",
+              message: "Failed to upload file: " + firstData.message,
+              type: "error",
             });
             return;
           }
@@ -817,11 +863,11 @@ const StudyRoadmap = ({
           message += `\n\nFailed for ${failCount} venue(s).`;
         }
 
-        setMessageModal({ 
-          show: true, 
-          title: 'Success', 
+        setMessageModal({
+          show: true,
+          title: "Success",
           message: message,
-          type: successCount > 0 ? 'success' : 'error'
+          type: successCount > 0 ? "success" : "error",
         });
         return;
       }
@@ -878,27 +924,27 @@ const StudyRoadmap = ({
         setNewResource({ name: "", kind: "pdf", url: "" });
         setSelectedFile(null);
 
-        setMessageModal({ 
-          show: true, 
-          title: 'Success', 
-          message: 'Resource added successfully!',
-          type: 'success'
+        setMessageModal({
+          show: true,
+          title: "Success",
+          message: "Resource added successfully!",
+          type: "success",
         });
       } else {
-        setMessageModal({ 
-          show: true, 
-          title: 'Error', 
-          message: 'Failed to add resource: ' + data.message,
-          type: 'error'
+        setMessageModal({
+          show: true,
+          title: "Error",
+          message: "Failed to add resource: " + data.message,
+          type: "error",
         });
       }
     } catch (error) {
       console.error("Error adding resource:", error);
-      setMessageModal({ 
-        show: true, 
-        title: 'Error', 
-        message: 'Failed to add resource: ' + error.message,
-        type: 'error'
+      setMessageModal({
+        show: true,
+        title: "Error",
+        message: "Failed to add resource: " + error.message,
+        type: "error",
       });
     }
   };
@@ -943,55 +989,67 @@ const StudyRoadmap = ({
           window.URL.revokeObjectURL(url);
         } else {
           const errorData = await response.json();
-          setMessageModal({ 
-            show: true, 
-            title: 'Download Failed', 
-            message: 'Failed to download file: ' + (errorData.message || 'Unknown error'),
-            type: 'error'
+          setMessageModal({
+            show: true,
+            title: "Download Failed",
+            message:
+              "Failed to download file: " +
+              (errorData.message || "Unknown error"),
+            type: "error",
           });
         }
       } catch (error) {
         console.error("Error downloading file:", error);
-        setMessageModal({ 
-          show: true, 
-          title: 'Download Failed', 
-          message: 'Failed to download file: ' + error.message,
-          type: 'error'
+        setMessageModal({
+          show: true,
+          title: "Download Failed",
+          message: "Failed to download file: " + error.message,
+          type: "error",
         });
       }
     } else if (res.resource_url) {
       // Open external URL
       window.open(res.resource_url, "_blank", "noopener noreferrer");
     } else {
-      setMessageModal({ 
-        show: true, 
-        title: 'Error', 
-        message: 'No URL available for this resource.',
-        type: 'error'
+      setMessageModal({
+        show: true,
+        title: "Error",
+        message: "No URL available for this resource.",
+        type: "error",
       });
     }
   };
 
   const deleteResource = async (resourceId, roadmapId, e) => {
     e.stopPropagation();
-    
+
     const confirmed = await new Promise((resolve) => {
       setMessageModal({
         show: true,
-        title: 'Confirm Deletion',
-        message: 'Are you sure you want to delete this resource?',
-        type: 'confirm',
+        title: "Confirm Deletion",
+        message: "Are you sure you want to delete this resource?",
+        type: "confirm",
         onConfirm: () => {
-          setMessageModal({ show: false, title: '', message: '', type: 'success' });
+          setMessageModal({
+            show: false,
+            title: "",
+            message: "",
+            type: "success",
+          });
           resolve(true);
         },
         onCancel: () => {
-          setMessageModal({ show: false, title: '', message: '', type: 'success' });
+          setMessageModal({
+            show: false,
+            title: "",
+            message: "",
+            type: "success",
+          });
           resolve(false);
-        }
+        },
       });
     });
-    
+
     if (!confirmed) return;
 
     try {
@@ -1021,27 +1079,27 @@ const StudyRoadmap = ({
         });
 
         setRoadmap(updatedRoadmap);
-        setMessageModal({ 
-          show: true, 
-          title: 'Success', 
-          message: 'Resource deleted successfully!',
-          type: 'success'
+        setMessageModal({
+          show: true,
+          title: "Success",
+          message: "Resource deleted successfully!",
+          type: "success",
         });
       } else {
-        setMessageModal({ 
-          show: true, 
-          title: 'Error', 
-          message: 'Failed to delete resource: ' + data.message,
-          type: 'error'
+        setMessageModal({
+          show: true,
+          title: "Error",
+          message: "Failed to delete resource: " + data.message,
+          type: "error",
         });
       }
     } catch (error) {
       console.error("Error deleting resource:", error);
-      setMessageModal({ 
-        show: true, 
-        title: 'Error', 
-        message: 'Failed to delete resource: ' + error.message,
-        type: 'error'
+      setMessageModal({
+        show: true,
+        title: "Error",
+        message: "Failed to delete resource: " + error.message,
+        type: "error",
       });
     }
   };
@@ -1087,17 +1145,18 @@ const StudyRoadmap = ({
         {/* Venue Header */}
         <div style={styles.skillHeader}>
           <h2 style={styles.skillTitle}>
-            {selectedVenueId === 'all' ? 'All Venues' : (venueName || `Venue ${selectedVenueId}`)}
+            {selectedVenueId === "all"
+              ? "All Venues"
+              : venueName || `Venue ${selectedVenueId}`}
           </h2>
           <div style={styles.skillInfo}>
-            {selectedVenueId === 'all' ? (
+            {selectedVenueId === "all" ? (
               <>
                 <span style={styles.moduleCount}>
-                  {allVenuesModules.length} Module{allVenuesModules.length !== 1 ? "s" : ""}
+                  {allVenuesModules.length} Module
+                  {allVenuesModules.length !== 1 ? "s" : ""}
                 </span>
-                <span style={styles.skillCode}>
-                  {venues.length} Venues
-                </span>
+                <span style={styles.skillCode}>{venues.length} Venues</span>
               </>
             ) : (
               <>
@@ -1120,9 +1179,10 @@ const StudyRoadmap = ({
         </div>
 
         <div style={styles.contentList}>
-          {selectedVenueId === 'all' ? (
+          {selectedVenueId === "all" ? (
             // All Venues View
-            allVenuesModules.filter(m => m.course_type === selectedCourseType).length === 0 ? (
+            allVenuesModules.filter((m) => m.course_type === selectedCourseType)
+              .length === 0 ? (
               <div style={styles.emptyState}>
                 <h3 style={{ color: "#6B7280", marginBottom: "12px" }}>
                   No {selectedCourseType} modules yet
@@ -1132,12 +1192,17 @@ const StudyRoadmap = ({
                 </p>
                 <button style={styles.addDayBtn} onClick={handleAddDay}>
                   <PlusCircle size={18} />
-                  <span>Create First {selectedCourseType.charAt(0).toUpperCase() + selectedCourseType.slice(1)} Module</span>
+                  <span>
+                    Create First{" "}
+                    {selectedCourseType.charAt(0).toUpperCase() +
+                      selectedCourseType.slice(1)}{" "}
+                    Module
+                  </span>
                 </button>
               </div>
             ) : (
               allVenuesModules
-                .filter(m => m.course_type === selectedCourseType)
+                .filter((m) => m.course_type === selectedCourseType)
                 .map((module, index) => (
                   <React.Fragment key={module.group_id}>
                     {index !== 0 && <div style={styles.connector} />}
@@ -1145,7 +1210,9 @@ const StudyRoadmap = ({
                       {module.status === "draft" ? (
                         <div style={styles.draftCard}>
                           <div style={styles.headerInfo}>
-                            <div style={styles.draftBadge}>DAY {module.day}</div>
+                            <div style={styles.draftBadge}>
+                              DAY {module.day}
+                            </div>
                             <h3 style={styles.draftTitle}>{module.title}</h3>
                           </div>
                           <button
@@ -1160,7 +1227,9 @@ const StudyRoadmap = ({
                         <>
                           <div style={styles.cardHeader}>
                             <div style={styles.headerInfo}>
-                              <div style={styles.dayBadge}>DAY {module.day}</div>
+                              <div style={styles.dayBadge}>
+                                DAY {module.day}
+                              </div>
                               {editingGroupId === module.group_id ? (
                                 <input
                                   style={styles.titleInput}
@@ -1178,19 +1247,30 @@ const StudyRoadmap = ({
                               )}
                             </div>
                             <div style={styles.headerActions}>
-                              <span style={{fontSize: "12px", color: "#6b7280", marginRight: "12px"}}>
-                                {module.venues_count} venue{module.venues_count > 1 ? 's' : ''}
+                              <span
+                                style={{
+                                  fontSize: "12px",
+                                  color: "#6b7280",
+                                  marginRight: "12px",
+                                }}
+                              >
+                                {module.venues_count} venue
+                                {module.venues_count > 1 ? "s" : ""}
                               </span>
                               {editingGroupId === module.group_id ? (
                                 <>
                                   <button
-                                    onClick={() => saveEditGroup(module.group_id)}
+                                    onClick={() =>
+                                      saveEditGroup(module.group_id)
+                                    }
                                     style={styles.saveBtn}
                                   >
                                     Save
                                   </button>
                                   <button
-                                    onClick={() => cancelEditGroup(module.group_id)}
+                                    onClick={() =>
+                                      cancelEditGroup(module.group_id)
+                                    }
                                     style={styles.cancelBtn}
                                   >
                                     Cancel
@@ -1200,12 +1280,27 @@ const StudyRoadmap = ({
                                 <button
                                   onClick={() => startEditGroup(module)}
                                   style={styles.iconBtn}
+                                  onMouseEnter={(e) => {
+                                    e.currentTarget.style.background = "#F9FAFB";
+                                    e.currentTarget.style.borderColor = "#D1D5DB";
+                                    e.currentTarget.style.transform = "translateY(-1px)";
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    e.currentTarget.style.background = "#FFFFFF";
+                                    e.currentTarget.style.borderColor = "#E5E7EB";
+                                    e.currentTarget.style.transform = "translateY(0)";
+                                  }}
                                 >
                                   <Pencil size={18} />
                                 </button>
                               )}
                               <button
-                                onClick={() => deleteModuleGroup(module.group_id, module.course_type)}
+                                onClick={() =>
+                                  deleteModuleGroup(
+                                    module.group_id,
+                                    module.course_type,
+                                  )
+                                }
                                 style={styles.iconBtnRed}
                                 title="Delete from all venues"
                               >
@@ -1217,7 +1312,15 @@ const StudyRoadmap = ({
                           <div style={styles.cardBody}>
                             {editingGroupId === module.group_id ? (
                               <>
-                                <label style={{...styles.label, marginBottom: "6px", display: "block"}}>Description</label>
+                                <label
+                                  style={{
+                                    ...styles.label,
+                                    marginBottom: "6px",
+                                    display: "block",
+                                  }}
+                                >
+                                  Description
+                                </label>
                                 <textarea
                                   style={styles.textArea}
                                   value={editData.description}
@@ -1229,9 +1332,21 @@ const StudyRoadmap = ({
                                   }
                                   placeholder="Enter module description..."
                                 />
-                                <label style={{...styles.label, marginBottom: "6px", marginTop: "12px", display: "block"}}>What you will learn in this skill</label>
+                                <label
+                                  style={{
+                                    ...styles.label,
+                                    marginBottom: "6px",
+                                    marginTop: "12px",
+                                    display: "block",
+                                  }}
+                                >
+                                  What you will learn in this skill
+                                </label>
                                 <textarea
-                                  style={{...styles.textArea, minHeight: "80px"}}
+                                  style={{
+                                    ...styles.textArea,
+                                    minHeight: "80px",
+                                  }}
                                   value={editData.learning_objectives}
                                   onChange={(e) =>
                                     setEditData({
@@ -1242,133 +1357,225 @@ const StudyRoadmap = ({
                                   placeholder="List the key learning objectives for this module..."
                                 />
                                 <button
-                                  style={{...styles.addResourceBtn, marginTop: "16px"}}
-                                  onClick={() => handleOpenResourceModal(null, module.group_id)}
+                                  style={{
+                                    ...styles.addResourceBtn,
+                                    marginTop: "16px",
+                                  }}
+                                  onClick={() =>
+                                    handleOpenResourceModal(
+                                      null,
+                                      module.group_id,
+                                    )
+                                  }
                                 >
                                   <PlusCircle size={18} />
-                                  <span>Add Resource or File to All Venues</span>
+                                  <span>
+                                    Add Resource or File to All Venues
+                                  </span>
                                 </button>
                               </>
                             ) : (
                               <>
                                 <div style={styles.descriptionBox}>
-                                  <p style={styles.descriptionText}>{module.description}</p>
+                                  <p style={styles.descriptionText}>
+                                    {module.description}
+                                  </p>
                                 </div>
-                                
+
                                 {module.learning_objectives && (
                                   <div style={styles.learningBox}>
-                                    <strong style={styles.learningTitle}>What you will learn:</strong>
-                                    <p style={styles.learningText}>{module.learning_objectives}</p>
+                                    <strong style={styles.learningTitle}>
+                                      What you will learn:
+                                    </strong>
+                                    <p style={styles.learningText}>
+                                      {module.learning_objectives}
+                                    </p>
                                   </div>
                                 )}
-                                
-                                <div style={{marginTop: "12px", padding: "8px 12px", background: "#f9fafb", borderRadius: "6px", fontSize: "12px", color: "#6b7280"}}>
-                                  <strong style={{color: "#374151"}}>Venues:</strong> {module.venues.map(v => v.venue_name).join(', ')}
+
+                                <div
+                                  style={{
+                                    marginTop: "12px",
+                                    padding: "8px 12px",
+                                    background: "#f9fafb",
+                                    borderRadius: "6px",
+                                    fontSize: "12px",
+                                    color: "#6b7280",
+                                  }}
+                                >
+                                  <strong style={{ color: "#374151" }}>
+                                    Venues:
+                                  </strong>{" "}
+                                  {module.venues
+                                    .map((v) => v.venue_name)
+                                    .join(", ")}
                                 </div>
                                 <button
-                                  style={{...styles.addResourceBtn, marginTop: "16px"}}
-                                  onClick={() => handleOpenResourceModal(null, module.group_id)}
+                                  style={{
+                                    ...styles.addResourceBtn,
+                                    marginTop: "16px",
+                                  }}
+                                  onClick={() =>
+                                    handleOpenResourceModal(
+                                      null,
+                                      module.group_id,
+                                    )
+                                  }
                                 >
                                   <PlusCircle size={18} />
-                                  <span>Add Resource or File to All Venues</span>
+                                  <span>
+                                    Add Resource or File to All Venues
+                                  </span>
                                 </button>
-                                
+
                                 {/* Resources Section for All Venues */}
-                                {module.resources && module.resources.length > 0 && (
-                                  <div style={{marginTop: "16px"}}>
-                                    <h4 style={{fontSize: "14px", fontWeight: "600", color: "#374151", marginBottom: "12px"}}>
-                                      Resources:
-                                    </h4>
-                                    <div style={{display: "flex", flexDirection: "column", gap: "8px"}}>
-                                      {module.resources.map((res) => (
-                                        <div
-                                          key={res.resource_id}
-                                          style={{
-                                            display: "flex",
-                                            alignItems: "center",
-                                            justifyContent: "space-between",
-                                            padding: "10px",
-                                            background: "#f9fafb",
-                                            borderRadius: "6px",
-                                            border: "1px solid #e5e7eb"
-                                          }}
-                                        >
-                                          <div style={{display: "flex", alignItems: "center", gap: "8px", flex: 1}}>
-                                            {res.resource_type === "pdf" ? (
-                                              <FileText size={18} color="#0066FF" />
-                                            ) : res.resource_type === "video" ? (
-                                              <Video size={18} color="#0066FF" />
-                                            ) : (
-                                              <LinkIcon size={18} color="#0066FF" />
-                                            )}
-                                            <span style={{fontSize: "13px", color: "#374151", fontWeight: "500"}}>
-                                              {res.resource_name}
-                                            </span>
-                                          </div>
-                                          <div style={{display: "flex", gap: "6px"}}>
-                                            {res.resource_type === "pdf" && res.file_path ? (
-                                              <button
-                                                onClick={() => downloadResource(res)}
-                                                style={{
-                                                  padding: "6px 10px",
-                                                  background: "#0066FF",
-                                                  color: "white",
-                                                  border: "none",
-                                                  borderRadius: "4px",
-                                                  cursor: "pointer",
-                                                  fontSize: "12px",
-                                                  display: "flex",
-                                                  alignItems: "center",
-                                                  gap: "4px"
-                                                }}
-                                              >
-                                                <Download size={14} />
-                                                Download
-                                              </button>
-                                            ) : (
-                                              <a
-                                                href={res.resource_url}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                style={{
-                                                  padding: "6px 10px",
-                                                  background: "#0066FF",
-                                                  color: "white",
-                                                  border: "none",
-                                                  borderRadius: "4px",
-                                                  cursor: "pointer",
-                                                  fontSize: "12px",
-                                                  textDecoration: "none",
-                                                  display: "flex",
-                                                  alignItems: "center",
-                                                  gap: "4px"
-                                                }}
-                                              >
-                                                <ExternalLink size={14} />
-                                                Open
-                                              </a>
-                                            )}
-                                            <button
-                                              onClick={() => deleteResource(res.resource_id)}
+                                {module.resources &&
+                                  module.resources.length > 0 && (
+                                    <div style={{ marginTop: "16px" }}>
+                                      <h4
+                                        style={{
+                                          fontSize: "14px",
+                                          fontWeight: "600",
+                                          color: "#374151",
+                                          marginBottom: "12px",
+                                        }}
+                                      >
+                                        Resources:
+                                      </h4>
+                                      <div
+                                        style={{
+                                          display: "flex",
+                                          flexDirection: "column",
+                                          gap: "8px",
+                                          maxHeight: "200px",
+                                          overflowY: "auto",
+                                          paddingRight: "4px",
+                                        }}
+                                      >
+                                        {module.resources.map((res) => (
+                                          <div
+                                            key={res.resource_id}
+                                            style={{
+                                              display: "flex",
+                                              alignItems: "center",
+                                              justifyContent: "space-between",
+                                              padding: "10px",
+                                              background: "#f9fafb",
+                                              borderRadius: "6px",
+                                              border: "1px solid #e5e7eb",
+                                            }}
+                                          >
+                                            <div
                                               style={{
-                                                padding: "6px 10px",
-                                                background: "#ef4444",
-                                                color: "white",
-                                                border: "none",
-                                                borderRadius: "4px",
-                                                cursor: "pointer",
-                                                fontSize: "12px"
+                                                display: "flex",
+                                                alignItems: "center",
+                                                gap: "8px",
+                                                flex: 1,
                                               }}
-                                              title="Delete resource"
                                             >
-                                              <Trash2 size={14} />
-                                            </button>
+                                              {res.resource_type === "pdf" ? (
+                                                <FileText
+                                                  size={18}
+                                                  color="#0066FF"
+                                                />
+                                              ) : res.resource_type ===
+                                                "video" ? (
+                                                <Video
+                                                  size={18}
+                                                  color="#0066FF"
+                                                />
+                                              ) : (
+                                                <LinkIcon
+                                                  size={18}
+                                                  color="#0066FF"
+                                                />
+                                              )}
+                                              <span
+                                                style={{
+                                                  fontSize: "13px",
+                                                  color: "#374151",
+                                                  fontWeight: "500",
+                                                }}
+                                              >
+                                                {res.resource_name}
+                                              </span>
+                                            </div>
+                                            <div
+                                              style={{
+                                                display: "flex",
+                                                gap: "6px",
+                                              }}
+                                            >
+                                              {res.resource_type === "pdf" &&
+                                              res.file_path ? (
+                                                <button
+                                                  onClick={() =>
+                                                    downloadResource(res)
+                                                  }
+                                                  style={{
+                                                    padding: "6px 10px",
+                                                    background: "#0066FF",
+                                                    color: "white",
+                                                    border: "none",
+                                                    borderRadius: "4px",
+                                                    cursor: "pointer",
+                                                    fontSize: "12px",
+                                                    display: "flex",
+                                                    alignItems: "center",
+                                                    gap: "4px",
+                                                  }}
+                                                >
+                                                  <Download size={14} />
+                                                  Download
+                                                </button>
+                                              ) : (
+                                                <a
+                                                  href={res.resource_url}
+                                                  target="_blank"
+                                                  rel="noopener noreferrer"
+                                                  style={{
+                                                    padding: "6px 10px",
+                                                    background: "#0066FF",
+                                                    color: "white",
+                                                    border: "none",
+                                                    borderRadius: "4px",
+                                                    cursor: "pointer",
+                                                    fontSize: "12px",
+                                                    textDecoration: "none",
+                                                    display: "flex",
+                                                    alignItems: "center",
+                                                    gap: "4px",
+                                                  }}
+                                                >
+                                                  <ExternalLink size={14} />
+                                                  Open
+                                                </a>
+                                              )}
+                                              <button
+                                                onClick={() =>
+                                                  deleteResource(
+                                                    res.resource_id,
+                                                  )
+                                                }
+                                                style={{
+                                                  padding: "6px 10px",
+                                                  background: "#ef4444",
+                                                  color: "white",
+                                                  border: "none",
+                                                  borderRadius: "4px",
+                                                  cursor: "pointer",
+                                                  fontSize: "12px",
+                                                }}
+                                                title="Delete resource"
+                                              >
+                                                <Trash2 size={14} />
+                                              </button>
+                                            </div>
                                           </div>
-                                        </div>
-                                      ))}
+                                        ))}
+                                      </div>
                                     </div>
-                                  </div>
-                                )}
+                                  )}
                               </>
                             )}
                           </div>
@@ -1462,6 +1669,16 @@ const StudyRoadmap = ({
                             <button
                               onClick={() => startEdit(module)}
                               style={styles.iconBtn}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.background = "#F9FAFB";
+                                e.currentTarget.style.borderColor = "#D1D5DB";
+                                e.currentTarget.style.transform = "translateY(-1px)";
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.background = "#FFFFFF";
+                                e.currentTarget.style.borderColor = "#E5E7EB";
+                                e.currentTarget.style.transform = "translateY(0)";
+                              }}
                             >
                               <Pencil size={18} />
                             </button>
@@ -1478,7 +1695,15 @@ const StudyRoadmap = ({
                       <div style={styles.cardBody}>
                         {editingId === module.roadmap_id ? (
                           <>
-                            <label style={{...styles.label, marginBottom: "6px", display: "block"}}>Description</label>
+                            <label
+                              style={{
+                                ...styles.label,
+                                marginBottom: "6px",
+                                display: "block",
+                              }}
+                            >
+                              Description
+                            </label>
                             <textarea
                               style={styles.textArea}
                               value={editData.description}
@@ -1490,9 +1715,18 @@ const StudyRoadmap = ({
                               }
                               placeholder="Enter module description..."
                             />
-                            <label style={{...styles.label, marginBottom: "6px", marginTop: "12px", display: "block"}}>What you will learn in this skill</label>
+                            <label
+                              style={{
+                                ...styles.label,
+                                marginBottom: "6px",
+                                marginTop: "12px",
+                                display: "block",
+                              }}
+                            >
+                              What you will learn in this skill
+                            </label>
                             <textarea
-                              style={{...styles.textArea, minHeight: "80px"}}
+                              style={{ ...styles.textArea, minHeight: "80px" }}
                               value={editData.learning_objectives}
                               onChange={(e) =>
                                 setEditData({
@@ -1506,13 +1740,19 @@ const StudyRoadmap = ({
                         ) : (
                           <>
                             <div style={styles.descriptionBox}>
-                              <p style={styles.descriptionText}>{module.description}</p>
+                              <p style={styles.descriptionText}>
+                                {module.description}
+                              </p>
                             </div>
-                            
+
                             {module.learning_objectives && (
                               <div style={styles.learningBox}>
-                                <strong style={styles.learningTitle}>What you will learn:</strong>
-                                <p style={styles.learningText}>{module.learning_objectives}</p>
+                                <strong style={styles.learningTitle}>
+                                  What you will learn:
+                                </strong>
+                                <p style={styles.learningText}>
+                                  {module.learning_objectives}
+                                </p>
                               </div>
                             )}
                           </>
@@ -1526,10 +1766,15 @@ const StudyRoadmap = ({
                                 style={styles.resourceItem}
                               >
                                 <div style={styles.resourceLeft}>
-                                  <div style={{
-                                    ...styles.resourceIconWrapper,
-                                    backgroundColor: res.resource_type === "pdf" ? "#EEF2FF" : "#FEF2F2"
-                                  }}>
+                                  <div
+                                    style={{
+                                      ...styles.resourceIconWrapper,
+                                      backgroundColor:
+                                        res.resource_type === "pdf"
+                                          ? "#EEF2FF"
+                                          : "#FEF2F2",
+                                    }}
+                                  >
                                     {getResourceIcon(res.resource_type)}
                                   </div>
 
@@ -1544,12 +1789,8 @@ const StudyRoadmap = ({
                                         : res.resource_type === "video"
                                           ? "Video Link"
                                           : "Web Resource"}
-                                      {res.file_size && (
-                                        <> • {res.file_size}</>
-                                      )}
-                                      {res.duration && (
-                                        <> • {res.duration}</>
-                                      )}
+                                      {res.file_size && <> • {res.file_size}</>}
+                                      {res.duration && <> • {res.duration}</>}
                                     </span>
                                   </div>
                                 </div>
@@ -1557,7 +1798,7 @@ const StudyRoadmap = ({
                                   {res.resource_type === "pdf" ? (
                                     <Download
                                       size={20}
-                                      style={styles.iconBtn}
+                                      style={styles.iconAction}
                                       color="#6B7280"
                                       onClick={(e) => {
                                         e.stopPropagation();
@@ -1567,7 +1808,7 @@ const StudyRoadmap = ({
                                   ) : (
                                     <ExternalLink
                                       size={20}
-                                      style={styles.iconBtn}
+                                      style={styles.iconAction}
                                       color="#6B7280"
                                       onClick={(e) => {
                                         e.stopPropagation();
@@ -1577,7 +1818,7 @@ const StudyRoadmap = ({
                                   )}
                                   <Trash2
                                     size={20}
-                                    style={styles.iconBtn}
+                                    style={styles.iconAction}
                                     color="#6B7280"
                                     onClick={(e) =>
                                       deleteResource(
@@ -1611,25 +1852,25 @@ const StudyRoadmap = ({
           )}
 
           {/* Add another day button */}
-          {selectedVenueId === 'all' ? (
-            allVenuesModules.filter(m => m.course_type === selectedCourseType).length > 0 && (
-              <div style={styles.addAnotherContainer}>
-                <button style={styles.addAnotherBtn} onClick={handleAddDay}>
-                  <PlusCircle size={18} />
-                  <span>Add Another Day</span>
-                </button>
-              </div>
-            )
-          ) : (
-            roadmap.length > 0 && (
-              <div style={styles.addAnotherContainer}>
-                <button style={styles.addAnotherBtn} onClick={handleAddDay}>
-                  <PlusCircle size={18} />
-                  <span>Add Another Day</span>
-                </button>
-              </div>
-            )
-          )}
+          {selectedVenueId === "all"
+            ? allVenuesModules.filter(
+                (m) => m.course_type === selectedCourseType,
+              ).length > 0 && (
+                <div style={styles.addAnotherContainer}>
+                  <button style={styles.addAnotherBtn} onClick={handleAddDay}>
+                    <PlusCircle size={18} />
+                    <span>Add Another Day</span>
+                  </button>
+                </div>
+              )
+            : roadmap.length > 0 && (
+                <div style={styles.addAnotherContainer}>
+                  <button style={styles.addAnotherBtn} onClick={handleAddDay}>
+                    <PlusCircle size={18} />
+                    <span>Add Another Day</span>
+                  </button>
+                </div>
+              )}
         </div>
       </div>
 
@@ -1855,87 +2096,109 @@ Tutorial Video"
 
       {/* Enhanced Message Modal */}
       {messageModal.show && (
-        <div style={{
-          position: "fixed",
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: "rgba(0, 0, 0, 0.6)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          zIndex: 1000,
-          backdropFilter: "blur(4px)",
-          animation: "fadeIn 0.2s ease-out"
-        }}>
-          <div style={{
-            background: "linear-gradient(135deg, #ffffff 0%, #f9fafb 100%)",
-            borderRadius: "20px",
-            padding: "32px",
-            width: "90%",
-            maxWidth: "440px",
-            boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)",
-            position: "relative"
-          }}>
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: "rgba(0, 0, 0, 0.6)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1000,
+            backdropFilter: "blur(4px)",
+            animation: "fadeIn 0.2s ease-out",
+          }}
+        >
+          <div
+            style={{
+              background: "linear-gradient(135deg, #ffffff 0%, #f9fafb 100%)",
+              borderRadius: "20px",
+              padding: "32px",
+              width: "90%",
+              maxWidth: "440px",
+              boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)",
+              position: "relative",
+            }}
+          >
             {/* Icon Circle */}
-            <div style={{
-              width: "64px",
-              height: "64px",
-              borderRadius: "50%",
-              background: messageModal.type === 'success' 
-                ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)'
-                : messageModal.type === 'confirm'
-                ? 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)'
-                : 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              margin: "0 auto 20px auto",
-              boxShadow: messageModal.type === 'success'
-                ? '0 8px 16px rgba(16, 185, 129, 0.3)'
-                : messageModal.type === 'confirm'
-                ? '0 8px 16px rgba(245, 158, 11, 0.3)'
-                : '0 8px 16px rgba(239, 68, 68, 0.3)'
-            }}>
-              <span style={{
-                fontSize: "32px",
-                color: "white",
-                fontWeight: "bold"
-              }}>
-                {messageModal.type === 'success' ? '✓' : messageModal.type === 'confirm' ? '?' : '✕'}
+            <div
+              style={{
+                width: "64px",
+                height: "64px",
+                borderRadius: "50%",
+                background:
+                  messageModal.type === "success"
+                    ? "linear-gradient(135deg, #10b981 0%, #059669 100%)"
+                    : messageModal.type === "confirm"
+                      ? "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)"
+                      : "linear-gradient(135deg, #ef4444 0%, #dc2626 100%)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                margin: "0 auto 20px auto",
+                boxShadow:
+                  messageModal.type === "success"
+                    ? "0 8px 16px rgba(16, 185, 129, 0.3)"
+                    : messageModal.type === "confirm"
+                      ? "0 8px 16px rgba(245, 158, 11, 0.3)"
+                      : "0 8px 16px rgba(239, 68, 68, 0.3)",
+              }}
+            >
+              <span
+                style={{
+                  fontSize: "32px",
+                  color: "white",
+                  fontWeight: "bold",
+                }}
+              >
+                {messageModal.type === "success"
+                  ? "✓"
+                  : messageModal.type === "confirm"
+                    ? "?"
+                    : "✕"}
               </span>
             </div>
 
             {/* Title */}
-            <h3 style={{
-              margin: "0 0 12px 0",
-              fontSize: "22px",
-              fontWeight: "700",
-              color: "#111827",
-              textAlign: "center"
-            }}>
+            <h3
+              style={{
+                margin: "0 0 12px 0",
+                fontSize: "22px",
+                fontWeight: "700",
+                color: "#111827",
+                textAlign: "center",
+              }}
+            >
               {messageModal.title}
             </h3>
 
             {/* Message */}
-            <p style={{
-              margin: "0 0 24px 0",
-              color: "#6b7280",
-              lineHeight: "1.6",
-              whiteSpace: "pre-line",
-              textAlign: "center",
-              fontSize: "15px"
-            }}>
+            <p
+              style={{
+                margin: "0 0 24px 0",
+                color: "#6b7280",
+                lineHeight: "1.6",
+                whiteSpace: "pre-line",
+                textAlign: "center",
+                fontSize: "15px",
+              }}
+            >
               {messageModal.message}
             </p>
 
             {/* Button */}
-            <div style={{display: "flex", justifyContent: "center", gap: "12px"}}>
-              {messageModal.type === 'confirm' ? (
+            <div
+              style={{ display: "flex", justifyContent: "center", gap: "12px" }}
+            >
+              {messageModal.type === "confirm" ? (
                 <>
                   <button
-                    onClick={() => messageModal.onCancel && messageModal.onCancel()}
+                    onClick={() =>
+                      messageModal.onCancel && messageModal.onCancel()
+                    }
                     style={{
                       padding: "12px 32px",
                       borderRadius: "10px",
@@ -1945,7 +2208,7 @@ Tutorial Video"
                       cursor: "pointer",
                       fontWeight: "600",
                       fontSize: "15px",
-                      transition: "all 0.2s ease"
+                      transition: "all 0.2s ease",
                     }}
                     onMouseOver={(e) => {
                       e.target.style.borderColor = "#9ca3af";
@@ -1959,46 +2222,66 @@ Tutorial Video"
                     No
                   </button>
                   <button
-                    onClick={() => messageModal.onConfirm && messageModal.onConfirm()}
+                    onClick={() =>
+                      messageModal.onConfirm && messageModal.onConfirm()
+                    }
                     style={{
                       padding: "12px 32px",
                       borderRadius: "10px",
                       border: "none",
-                      background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+                      background:
+                        "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)",
                       color: "white",
                       cursor: "pointer",
                       fontWeight: "600",
                       fontSize: "15px",
-                      boxShadow: '0 4px 12px rgba(245, 158, 11, 0.4)',
-                      transition: "all 0.2s ease"
+                      boxShadow: "0 4px 12px rgba(245, 158, 11, 0.4)",
+                      transition: "all 0.2s ease",
                     }}
-                    onMouseOver={(e) => e.target.style.transform = "translateY(-2px)"}
-                    onMouseOut={(e) => e.target.style.transform = "translateY(0)"}
+                    onMouseOver={(e) =>
+                      (e.target.style.transform = "translateY(-2px)")
+                    }
+                    onMouseOut={(e) =>
+                      (e.target.style.transform = "translateY(0)")
+                    }
                   >
                     Yes
                   </button>
                 </>
               ) : (
                 <button
-                  onClick={() => setMessageModal({ show: false, title: '', message: '', type: 'success' })}
+                  onClick={() =>
+                    setMessageModal({
+                      show: false,
+                      title: "",
+                      message: "",
+                      type: "success",
+                    })
+                  }
                   style={{
                     padding: "12px 48px",
                     borderRadius: "10px",
                     border: "none",
-                    background: messageModal.type === 'success' 
-                      ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)'
-                      : 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+                    background:
+                      messageModal.type === "success"
+                        ? "linear-gradient(135deg, #10b981 0%, #059669 100%)"
+                        : "linear-gradient(135deg, #ef4444 0%, #dc2626 100%)",
                     color: "white",
                     cursor: "pointer",
                     fontWeight: "600",
                     fontSize: "15px",
-                    boxShadow: messageModal.type === 'success'
-                      ? '0 4px 12px rgba(16, 185, 129, 0.4)'
-                      : '0 4px 12px rgba(239, 68, 68, 0.4)',
-                    transition: "all 0.2s ease"
+                    boxShadow:
+                      messageModal.type === "success"
+                        ? "0 4px 12px rgba(16, 185, 129, 0.4)"
+                        : "0 4px 12px rgba(239, 68, 68, 0.4)",
+                    transition: "all 0.2s ease",
                   }}
-                  onMouseOver={(e) => e.target.style.transform = "translateY(-2px)"}
-                  onMouseOut={(e) => e.target.style.transform = "translateY(0)"}
+                  onMouseOver={(e) =>
+                    (e.target.style.transform = "translateY(-2px)")
+                  }
+                  onMouseOut={(e) =>
+                    (e.target.style.transform = "translateY(0)")
+                  }
                 >
                   Got it!
                 </button>
@@ -2171,7 +2454,9 @@ const styles = {
     border: "1px solid #E5E7EB",
     color: "#374151",
     cursor: "pointer",
-    padding: "8px",
+    width: "36px",
+    height: "36px",
+    padding: "0",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
@@ -2183,7 +2468,9 @@ const styles = {
     border: "1px solid #E5E7EB",
     color: "#EF4444",
     cursor: "pointer",
-    padding: "8px",
+    width: "36px",
+    height: "36px",
+    padding: "0",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
@@ -2270,6 +2557,9 @@ const styles = {
     gap: "12px",
     marginTop: "24px",
     marginBottom: "16px",
+    maxHeight: "200px",
+    overflowY: "auto",
+    paddingRight: "6px",
   },
   resourceItem: {
     display: "flex",
@@ -2316,9 +2606,9 @@ const styles = {
   cursor: {
     cursor: "pointer",
   },
-  iconBtn: {
+  iconAction: {
     cursor: "pointer",
-    transition: "color 0.2s ease",
+    transition: "transform 0.15s ease, color 0.2s ease",
   },
   resourceActions: {
     display: "flex",
