@@ -32,6 +32,7 @@ router.post('/session', getOrCreateSession);
 router.get('/session/:sessionId/:venueId', getSessionAttendance);
 router.post('/save', saveAttendance);
 router.get('/late-students', getLateStudents);  // Uses JWT to get faculty
+router.get('/late-students/:facultyId', getLateStudents);  // Optional filter
 router.get('/history', getStudentAttendanceHistory);  // Uses JWT to get student
 router.get('/dashboard', getStudentAttendanceDashboard);  // Uses JWT to get student
 

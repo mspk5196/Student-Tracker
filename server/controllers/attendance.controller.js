@@ -235,10 +235,20 @@ export const getOrCreateSession = async (req, res) => {
       });
     }
 
-    // Clean up session name
+    // Map timeSlot to session number (1-4)
+    const timeSlotMapping = {
+      '09:00 AM - 10:30 AM': 'S1',
+      '10:30 AM - 12:30 PM': 'S2',
+      '01:30 PM - 03:00 PM': 'S3',
+      '03:00 PM - 04:30 PM': 'S4'
+    };
+    
+    const sessionNum = timeSlotMapping[timeSlot] || 'S1';
+
+    // Clean up session name and include session number
     const cleanSessionName = sessionName.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '');
     const cleanTimeSlot = timeSlot.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_:-]/g, '');
-    const fullSessionName = `${cleanSessionName}_${date}_${cleanTimeSlot}`;
+    const fullSessionName = `${sessionNum}_${cleanSessionName}_${date}_${cleanTimeSlot}`;
 
 
     // Check if session already exists
@@ -404,12 +414,12 @@ export const saveAttendance = async (req, res) => {
         case 'present':
           isPresent = 1;
           isLate = 0;
-          remarks = null;
+          remarks = record.remarks && String(record.remarks).trim() ? String(record.remarks).trim() : null;
           break;
         case 'late':
           isPresent = 1;
           isLate = 1;
-          remarks = null;
+          remarks = record.remarks && String(record.remarks).trim() ? String(record.remarks).trim() : null;
           break;
         case 'ps':
           isPresent = 1;
@@ -420,7 +430,7 @@ export const saveAttendance = async (req, res) => {
         default:
           isPresent = 0;
           isLate = 0;
-          remarks = null;
+          remarks = record.remarks && String(record.remarks).trim() ? String(record.remarks).trim() : null;
           break;
       }
 
@@ -486,7 +496,10 @@ export const saveAttendance = async (req, res) => {
 // Get students who are late 5+ times
 export const getLateStudents = async (req, res) => {
   try {
-    const { facultyId } = req.params;
+    const { facultyId: facultyIdParam } = req.params;
+    const { facultyId: facultyIdQuery, minCount } = req.query;
+    const facultyId = facultyIdQuery ?? facultyIdParam;
+    const minLateCount = Math.max(1, parseInt(minCount ?? '5', 10) || 5);
     let query = `
       SELECT 
         s.student_id,
@@ -517,9 +530,11 @@ export const getLateStudents = async (req, res) => {
 
     query += `
       GROUP BY s.student_id
-      HAVING late_count >= 5
+      HAVING late_count >= ?
       ORDER BY late_count DESC, u.name
     `;
+
+    params.push(minLateCount);
 
     const [students] = await db.query(query, params);
 
@@ -864,10 +879,12 @@ export const getVenueAttendanceDetails = async (req, res) => {
       });
     }
 
-    // Get attendance records for the selected date
+    // Get attendance records for the selected date and session
+    // Session is now encoded in the session_name as S1_, S2_, S3_, or S4_ prefix
     let attendanceRecords;
+    
     if (isAllVenues) {
-      [attendanceRecords] = await db.query(`
+      let query = `
         SELECT 
           a.student_id,
           a.is_present,
@@ -877,10 +894,19 @@ export const getVenueAttendanceDetails = async (req, res) => {
           asess.session_name
         FROM attendance a
         INNER JOIN attendance_session asess ON a.session_id = asess.session_id
-        WHERE (asess.session_name LIKE CONCAT('%', ?, '%') OR DATE(asess.created_at) = ?)
-      `, [selectedDate, selectedDate]);
+        WHERE (asess.session_name LIKE CONCAT('%_', ?, '_%') OR DATE(a.created_at) = ?)
+      `;
+      const params = [selectedDate, selectedDate];
+      
+      if (session) {
+        // Filter by session number (1-4) by checking if session_name starts with S1_, S2_, etc.
+        query += ` AND asess.session_name LIKE CONCAT('S', ?, '%')`;
+        params.push(session);
+      }
+      
+      [attendanceRecords] = await db.query(query, params);
     } else {
-      [attendanceRecords] = await db.query(`
+      let query = `
         SELECT 
           a.student_id,
           a.is_present,
@@ -891,8 +917,17 @@ export const getVenueAttendanceDetails = async (req, res) => {
         FROM attendance a
         INNER JOIN attendance_session asess ON a.session_id = asess.session_id
         WHERE a.venue_id = ?
-          AND (asess.session_name LIKE CONCAT('%', ?, '%') OR DATE(asess.created_at) = ?)
-      `, [venueId, selectedDate, selectedDate]);
+          AND (asess.session_name LIKE CONCAT('%_', ?, '_%') OR DATE(a.created_at) = ?)
+      `;
+      const params = [venueId, selectedDate, selectedDate];
+      
+      if (session) {
+        // Filter by session number (1-4) by checking if session_name starts with S1_, S2_, etc.
+        query += ` AND asess.session_name LIKE CONCAT('S', ?, '%')`;
+        params.push(session);
+      }
+      
+      [attendanceRecords] = await db.query(query, params);
     }
 
     // Create a map of attendance by student_id
@@ -1074,6 +1109,11 @@ export const updateAttendanceByDateAndSession = async (req, res) => {
       const isPresent = record.status === 'present' ? 1 : 0;
       const isLate = record.status === 'late' ? 1 : 0;
       const isPs = record.status === 'ps' ? 1 : 0;
+      const remarks = isPs
+        ? 'PS'
+        : record.remarks && String(record.remarks).trim()
+          ? String(record.remarks).trim()
+          : null;
 
       // Check if record exists
       const [existing] = await connection.query(`
@@ -1085,17 +1125,17 @@ export const updateAttendanceByDateAndSession = async (req, res) => {
         // Update existing
         await connection.query(`
           UPDATE attendance
-          SET is_present = ?, is_late = ?, is_ps = ?, faculty_id = ?, updated_at = NOW()
+          SET is_present = ?, is_late = ?, is_ps = ?, remarks = ?, faculty_id = ?, updated_at = NOW()
           WHERE attendance_id = ?
-        `, [isPresent, isLate, isPs, actualFacultyId, existing[0].attendance_id]);
+        `, [isPresent, isLate, isPs, remarks, actualFacultyId, existing[0].attendance_id]);
         updatedCount++;
       } else {
         // Insert new
         await connection.query(`
           INSERT INTO attendance
-          (student_id, faculty_id, venue_id, session_id, attendance_date, is_present, is_late, is_ps, created_at)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())
-        `, [record.student_id, actualFacultyId, venueId, sessionId, date, isPresent, isLate, isPs]);
+          (student_id, faculty_id, venue_id, session_id, attendance_date, is_present, is_late, is_ps, remarks, created_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+        `, [record.student_id, actualFacultyId, venueId, sessionId, date, isPresent, isLate, isPs, remarks]);
         insertedCount++;
       }
     }
