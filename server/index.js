@@ -3,6 +3,7 @@ import cors from "cors";
 import dotenv from "dotenv";
 import path from "path";
 import { fileURLToPath } from "url";
+import cron from "node-cron";
 import authRoutes from "./routes/auth.routes.js";
 import facultyRoutes from "./routes/faculty.routes.js";
 import studentRoutes from "./routes/student.routes.js";
@@ -42,5 +43,69 @@ app.use(`${API_PREFIX}/api/skill-reports`, skillReportRoutes);
 app.use(`${API_PREFIX}/api/skill-completion`, skillCompletionRoutes);
 app.use(`${API_PREFIX}/api/schedule`, scheduleRoutes);
 // app.use('/api/faculty/dashboard', facultyDashboardRoutes); 
+// Cron job to update schedule daily at 8 PM
+cron.schedule('0 20 * * *', () => {
+    console.log('Running daily schedule update at 8 PM...');
+    updateDailySchedule();
+}, {
+    scheduled: true,
+    timezone: "Asia/Kolkata" // Adjust timezone as needed
+});
+
+// Function to update daily schedule
+async function updateDailySchedule() {
+    try {
+        console.log('Starting daily schedule update...');
+        
+        // Import db connection
+        const { default: db } = await import('./config/db.js');
+        
+        // Get current date info
+        const today = new Date();
+        const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+        const currentDay = days[today.getDay()];
+        
+        console.log(`Daily update running for: ${currentDay} - ${today.toDateString()}`);
+        
+        // 1. Check active student enrollments
+        const [activeStudents] = await db.execute(`
+            SELECT COUNT(DISTINCT s.student_id) as active_students
+            FROM students s
+            INNER JOIN group_students gs ON s.student_id = gs.student_id
+            WHERE gs.status = 'Active'
+        `);
+        
+        // 2. Check active groups with schedules
+        const [activeGroups] = await db.execute(`
+            SELECT COUNT(DISTINCT g.group_id) as active_groups,
+                   COUNT(DISTINCT CASE WHEN g.schedule_days IS NOT NULL THEN g.group_id END) as scheduled_groups
+            FROM groups g
+            WHERE g.status = 'Active'
+        `);
+        
+        // 3. Log summary
+        console.log(`Schedule Update Summary:
+            - Active Students: ${activeStudents[0].active_students}
+            - Active Groups: ${activeGroups[0].active_groups}
+            - Scheduled Groups: ${activeGroups[0].scheduled_groups}
+            - Current Day: ${currentDay}
+        `);
+        
+        // 4. Optional: Clear any cached schedule data if you have caching
+        // await clearScheduleCache();
+        
+        // 5. Optional: Update any schedule-related statistics
+        // await updateScheduleStatistics();
+        
+        console.log('Daily schedule update completed successfully');
+        
+    } catch (error) {
+        console.error('Error in daily schedule update:', error);
+    }
+}
+
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server running on ${PORT}`));
+app.listen(PORT, () => {
+    console.log(`Server running on ${PORT}`);
+    console.log('Daily schedule update cron job scheduled for 8 PM');
+});
