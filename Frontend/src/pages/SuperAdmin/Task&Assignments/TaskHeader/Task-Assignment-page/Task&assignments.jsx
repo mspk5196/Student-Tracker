@@ -358,17 +358,14 @@ const AssignmentDashboard = ({ selectedVenueId, venueName, venues, selectedCours
             </div>
 
             <div style={styles.fieldGroup}>
-              <label style={styles.fieldLabel}>Skill Filter (Optional)</label>
+              <label style={styles.fieldLabel}>Skill Filter </label>
               <input
                 style={styles.textInput}
                 value={skillFilter}
                 onChange={e => setSkillFilter(e.target.value)}
-                placeholder="e.g., HTML/CSS, JavaScript, React (leave empty to show to all students)"
+                placeholder="e.g., HTML/CSS, JavaScript, React. . ."
                 disabled={loading}
               />
-              <div style={{ fontSize: '12px', color: '#64748b', marginTop: '6px' }}>
-                💡 If specified, this assignment will only show to students who have NOT cleared this skill
-              </div>
             </div>
 
             {/* STUDY MATERIAL */}

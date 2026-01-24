@@ -1251,13 +1251,17 @@ const StudyRoadmap = ({
                               </>
                             ) : (
                               <>
-                                <p style={styles.description}>{module.description}</p>
+                                <div style={styles.descriptionBox}>
+                                  <p style={styles.descriptionText}>{module.description}</p>
+                                </div>
+                                
                                 {module.learning_objectives && (
-                                  <div style={{marginTop: "12px", padding: "12px", background: "#f0f9ff", borderLeft: "3px solid #0066FF", borderRadius: "6px"}}>
-                                    <strong style={{color: "#0066FF", fontSize: "13px", display: "block", marginBottom: "6px"}}>What you will learn:</strong>
-                                    <p style={{...styles.description, margin: 0, whiteSpace: "pre-line"}}>{module.learning_objectives}</p>
+                                  <div style={styles.learningBox}>
+                                    <strong style={styles.learningTitle}>What you will learn:</strong>
+                                    <p style={styles.learningText}>{module.learning_objectives}</p>
                                   </div>
                                 )}
+                                
                                 <div style={{marginTop: "12px", padding: "8px 12px", background: "#f9fafb", borderRadius: "6px", fontSize: "12px", color: "#6b7280"}}>
                                   <strong style={{color: "#374151"}}>Venues:</strong> {module.venues.map(v => v.venue_name).join(', ')}
                                 </div>
@@ -1501,11 +1505,14 @@ const StudyRoadmap = ({
                           </>
                         ) : (
                           <>
-                            <p style={styles.description}>{module.description}</p>
+                            <div style={styles.descriptionBox}>
+                              <p style={styles.descriptionText}>{module.description}</p>
+                            </div>
+                            
                             {module.learning_objectives && (
-                              <div style={{marginTop: "12px", padding: "12px", background: "#f0f9ff", borderLeft: "3px solid #0066FF", borderRadius: "6px"}}>
-                                <strong style={{color: "#0066FF", fontSize: "13px", display: "block", marginBottom: "6px"}}>What you will learn:</strong>
-                                <p style={{...styles.description, margin: 0, whiteSpace: "pre-line"}}>{module.learning_objectives}</p>
+                              <div style={styles.learningBox}>
+                                <strong style={styles.learningTitle}>What you will learn:</strong>
+                                <p style={styles.learningText}>{module.learning_objectives}</p>
                               </div>
                             )}
                           </>
@@ -1519,7 +1526,10 @@ const StudyRoadmap = ({
                                 style={styles.resourceItem}
                               >
                                 <div style={styles.resourceLeft}>
-                                  <div style={styles.resourceIconWrapper}>
+                                  <div style={{
+                                    ...styles.resourceIconWrapper,
+                                    backgroundColor: res.resource_type === "pdf" ? "#EEF2FF" : "#FEF2F2"
+                                  }}>
                                     {getResourceIcon(res.resource_type)}
                                   </div>
 
@@ -1534,15 +1544,21 @@ const StudyRoadmap = ({
                                         : res.resource_type === "video"
                                           ? "Video Link"
                                           : "Web Resource"}
+                                      {res.file_size && (
+                                        <> • {res.file_size}</>
+                                      )}
+                                      {res.duration && (
+                                        <> • {res.duration}</>
+                                      )}
                                     </span>
                                   </div>
                                 </div>
                                 <div style={styles.resourceActions}>
                                   {res.resource_type === "pdf" ? (
                                     <Download
-                                      size={18}
-                                      style={styles.cursor}
-                                      color="#0066FF"
+                                      size={20}
+                                      style={styles.iconBtn}
+                                      color="#6B7280"
                                       onClick={(e) => {
                                         e.stopPropagation();
                                         handleResourceAction(res);
@@ -1550,9 +1566,9 @@ const StudyRoadmap = ({
                                     />
                                   ) : (
                                     <ExternalLink
-                                      size={18}
-                                      style={styles.cursor}
-                                      color="#0066FF"
+                                      size={20}
+                                      style={styles.iconBtn}
+                                      color="#6B7280"
                                       onClick={(e) => {
                                         e.stopPropagation();
                                         handleResourceAction(res);
@@ -1560,12 +1576,9 @@ const StudyRoadmap = ({
                                     />
                                   )}
                                   <Trash2
-                                    size={18}
-                                    style={{
-                                      ...styles.cursor,
-                                      marginLeft: "8px",
-                                      color: "#EF4444",
-                                    }}
+                                    size={20}
+                                    style={styles.iconBtn}
+                                    color="#6B7280"
                                     onClick={(e) =>
                                       deleteResource(
                                         res.resource_id,
@@ -2154,24 +2167,28 @@ const styles = {
     gap: "8px",
   },
   iconBtn: {
-    background: "none",
-    border: "none",
-    color: "#9CA3AF",
+    background: "#FFFFFF",
+    border: "1px solid #E5E7EB",
+    color: "#374151",
     cursor: "pointer",
     padding: "8px",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
+    borderRadius: "6px",
+    transition: "all 0.2s ease",
   },
   iconBtnRed: {
-    background: "none",
-    border: "none",
+    background: "#FFFFFF",
+    border: "1px solid #E5E7EB",
     color: "#EF4444",
     cursor: "pointer",
     padding: "8px",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
+    borderRadius: "6px",
+    transition: "all 0.2s ease",
   },
   saveBtn: {
     backgroundColor: "#10B981",
@@ -2214,54 +2231,99 @@ const styles = {
     margin: "0 0 20px 0",
     lineHeight: 1.6,
   },
+  descriptionBox: {
+    padding: "0",
+    marginBottom: "16px",
+  },
+  descriptionText: {
+    fontSize: "14px",
+    color: "#6B7280",
+    margin: "0",
+    lineHeight: 1.6,
+  },
+  learningBox: {
+    marginTop: "0",
+    marginBottom: "24px",
+    padding: "16px",
+    background: "#EFF6FF",
+    border: "1px solid #DBEAFE",
+    borderLeft: "3px solid #3B82F6",
+    borderRadius: "8px",
+  },
+  learningTitle: {
+    color: "#1D4ED8",
+    fontSize: "14px",
+    fontWeight: "600",
+    display: "block",
+    marginBottom: "8px",
+  },
+  learningText: {
+    fontSize: "14px",
+    color: "#475569",
+    margin: "0",
+    lineHeight: 1.6,
+    whiteSpace: "pre-line",
+  },
   resourceList: {
     display: "flex",
     flexDirection: "column",
     gap: "12px",
+    marginTop: "24px",
     marginBottom: "16px",
   },
   resourceItem: {
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
-    padding: "14px 16px",
-    borderRadius: "10px",
-    border: "1px solid #F3F4F6",
+    padding: "16px",
+    borderRadius: "8px",
+    border: "1px solid #E5E7EB",
+    backgroundColor: "#FFFFFF",
+    transition: "all 0.2s ease",
   },
   resourceLeft: {
     display: "flex",
     alignItems: "center",
-    gap: "16px",
+    gap: "12px",
+    flex: 1,
   },
   resourceIconWrapper: {
-    width: "40px",
-    height: "40px",
+    width: "48px",
+    height: "48px",
     backgroundColor: "#F9FAFB",
     borderRadius: "8px",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
+    flexShrink: 0,
   },
   resourceInfo: {
     display: "flex",
     flexDirection: "column",
+    gap: "4px",
   },
   resName: {
     fontSize: "14px",
-    fontWeight: "600",
-    color: "#374151",
+    fontWeight: "500",
+    color: "#111827",
+    lineHeight: "1.4",
   },
   resMeta: {
-    fontSize: "12px",
-    color: "#9CA3AF",
+    fontSize: "13px",
+    color: "#6B7280",
+    lineHeight: "1.4",
   },
   cursor: {
     cursor: "pointer",
   },
+  iconBtn: {
+    cursor: "pointer",
+    transition: "color 0.2s ease",
+  },
   resourceActions: {
     display: "flex",
     alignItems: "center",
-    gap: "8px",
+    gap: "12px",
   },
   addResourceBtn: {
     display: "flex",
@@ -2269,14 +2331,15 @@ const styles = {
     justifyContent: "center",
     gap: "8px",
     width: "100%",
-    padding: "14px",
+    padding: "16px",
     backgroundColor: "transparent",
-    border: "1px dashed #E5E7EB",
-    borderRadius: "10px",
+    border: "2px dashed #E5E7EB",
+    borderRadius: "8px",
     color: "#6B7280",
     fontSize: "14px",
     fontWeight: "500",
     cursor: "pointer",
+    transition: "all 0.2s ease",
   },
   draftCard: {
     padding: "20px",

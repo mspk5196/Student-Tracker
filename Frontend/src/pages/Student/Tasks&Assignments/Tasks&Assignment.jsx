@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Search,
   Clock,
@@ -17,7 +17,8 @@ import {
   Database,
   Layout,
   Server,
-  ArrowLeft
+  ArrowLeft,
+  Loader
 } from "lucide-react";
 import useAuthStore from "../../../store/useAuthStore";
 
@@ -26,10 +27,14 @@ const TasksAssignments = () => {
   const { token, user } = useAuthStore();
   const [activeFilter, setActiveFilter] = useState("all");
   const [selectedTaskId, setSelectedTaskId] = useState(null);
-  const [submissionType, setSubmissionType] = useState("file"); // 'file' or 'link'
   const [selectedCourse, setSelectedCourse] = useState(null); // New state for course selection
   const [loading, setLoading] = useState(false);
   const [tasks, setTasks] = useState([]);
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [linkUrl, setLinkUrl] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [submitMessage, setSubmitMessage] = useState("");
+  const fileInputRef = useRef(null);
 
   // Courses Data
   const courses = [
@@ -100,13 +105,166 @@ const TasksAssignments = () => {
 
     // Then Filter by Status
     if (activeFilter === "pending")
-      return t.status === "pending" || t.status === "overdue" || t.status === "revision";
-    if (activeFilter === "submitted") return t.status === "pending";
-    if (activeFilter === "graded") return t.status === "completed";
+      return (t.status === "pending" || t.status === "overdue" || t.status === "revision") && !t.submissionStatus;
+    if (activeFilter === "submitted") 
+      return t.submissionStatus === "submitted" || (t.fileName && t.status !== "completed");
+    if (activeFilter === "graded") 
+      return t.status === "completed";
     return true;
   });
 
   const selectedTask = tasks.find((t) => t.id === selectedTaskId);
+
+  // Handle file selection
+  const handleFileSelect = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setSelectedFile(file);
+      setLinkUrl("");
+    }
+  };
+
+  // Handle link submission
+  const handleLinkSubmit = async () => {
+    if (!linkUrl.trim()) {
+      setSubmitMessage("Please enter a valid URL");
+      setTimeout(() => setSubmitMessage(""), 3000);
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const response = await fetch(`${API_URL}/tasks/${selectedTaskId}/submit`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          link_url: linkUrl
+        })
+      });
+
+      const data = await response.json();
+      
+      if (data.success) {
+        setSubmitMessage("Link submitted successfully!");
+        setLinkUrl("");
+        // Refresh tasks
+        const tasksResponse = await fetch(`${API_URL}/tasks/student`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const tasksData = await tasksResponse.json();
+        if (tasksData.success && tasksData.data) {
+          const allTasks = [];
+          Object.values(tasksData.data.groupedTasks || {}).forEach(group => {
+            group.tasks.forEach(task => {
+              allTasks.push({
+                id: task.id,
+                title: task.title,
+                subject: task.courseType || 'frontend',
+                status: task.status,
+                dueDate: task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'No due date',
+                points: task.score,
+                score: task.grade ? parseInt(task.grade.split('/')[0]) : null,
+                assignedBy: task.instructor,
+                description: task.description || 'No description provided',
+                feedback: task.feedback,
+                resources: task.materials || [],
+                dayLabel: task.moduleTitle,
+                skillFilter: task.skillFilter || '',
+                submissionStatus: task.submissionStatus,
+                submittedDate: task.submittedDate,
+                fileName: task.fileName
+              });
+            });
+          });
+          setTasks(allTasks);
+        }
+      } else {
+        setSubmitMessage(data.message || "Failed to submit link");
+      }
+    } catch (error) {
+      console.error('Error submitting link:', error);
+      setSubmitMessage("An error occurred while submitting");
+    } finally {
+      setSubmitting(false);
+      setTimeout(() => setSubmitMessage(""), 3000);
+    }
+  };
+
+  // Handle file/image submission
+  const handleFileSubmit = async () => {
+    const fileToUpload = selectedFile;
+    
+    if (!fileToUpload) {
+      setSubmitMessage("Please select a file");
+      setTimeout(() => setSubmitMessage(""), 3000);
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', fileToUpload);
+
+      const response = await fetch(`${API_URL}/tasks/${selectedTaskId}/submit`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: formData
+      });
+
+      const data = await response.json();
+      
+      if (data.success) {
+        setSubmitMessage("File submitted successfully!");
+        setSelectedFile(null);
+        if (fileInputRef.current) fileInputRef.current.value = "";
+        
+        // Refresh tasks
+        const tasksResponse = await fetch(`${API_URL}/tasks/student`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const tasksData = await tasksResponse.json();
+        if (tasksData.success && tasksData.data) {
+          const allTasks = [];
+          Object.values(tasksData.data.groupedTasks || {}).forEach(group => {
+            group.tasks.forEach(task => {
+              allTasks.push({
+                id: task.id,
+                title: task.title,
+                subject: task.courseType || 'frontend',
+                status: task.status,
+                dueDate: task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'No due date',
+                points: task.score,
+                score: task.grade ? parseInt(task.grade.split('/')[0]) : null,
+                assignedBy: task.instructor,
+                description: task.description || 'No description provided',
+                feedback: task.feedback,
+                resources: task.materials || [],
+                dayLabel: task.moduleTitle,
+                skillFilter: task.skillFilter || '',
+                submissionStatus: task.submissionStatus,
+                submittedDate: task.submittedDate,
+                fileName: task.fileName
+              });
+            });
+          });
+          setTasks(allTasks);
+        }
+      } else {
+        setSubmitMessage(data.message || "Failed to submit file");
+      }
+    } catch (error) {
+      console.error('Error submitting file:', error);
+      setSubmitMessage("An error occurred while submitting");
+    } finally {
+      setSubmitting(false);
+      setTimeout(() => setSubmitMessage(""), 3000);
+    }
+  };
 
   // Auto-select first task when entering a course
   useEffect(() => {
@@ -121,8 +279,10 @@ const TasksAssignments = () => {
     switch (status) {
       case "pending":
         return "bg-yellow-50 text-yellow-700 border-yellow-200";
-      case "completed":
+      case "submitted":
         return "bg-blue-50 text-blue-700 border-blue-200";
+      case "completed":
+        return "bg-green-50 text-green-700 border-green-200";
       case "revision":
         return "bg-orange-50 text-orange-700 border-orange-200";
       case "overdue":
@@ -136,8 +296,10 @@ const TasksAssignments = () => {
     switch (status) {
       case "pending":
         return "Pending";
+      case "submitted":
+        return "Submitted";
       case "completed":
-        return "Completed";
+        return "Graded";
       case "revision":
         return "Needs Revision";
       case "overdue":
@@ -636,6 +798,9 @@ const TasksAssignments = () => {
         .bg-yellow-50 { background-color: #fefce8; }
         .text-yellow-700 { color: #a16207; }
         .border-yellow-200 { border-color: #fef08a; }
+        .bg-orange-50 { background-color: #fff7ed; }
+        .text-orange-700 { color: #c2410c; }
+        .border-orange-200 { border-color: #fed7aa; }
         .bg-green-50 { background-color: #f0fdf4; }
         .text-green-700 { color: #15803d; }
         .border-green-200 { border-color: #bbf7d0; }
@@ -647,6 +812,15 @@ const TasksAssignments = () => {
         .border-red-200 { border-color: #fecaca; }
         .bg-gray-50 { background-color: #f9fafb; }
         .text-gray-700 { color: #374151; }
+
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+        
+        .animate-spin {
+          animation: spin 1s linear infinite;
+        }
 
       `}</style>
 
@@ -731,7 +905,7 @@ const TasksAssignments = () => {
                     Pending (
                     {
                       tasks.filter(
-                        (t) => t.subject === selectedCourse && (t.status === "pending" || t.status === "missing"),
+                        (t) => t.subject === selectedCourse && (t.status === "pending" || t.status === "overdue" || t.status === "revision") && !t.submissionStatus && !t.fileName
                       ).length
                     }
                     )
@@ -740,13 +914,25 @@ const TasksAssignments = () => {
                     className={`filter-pill ${activeFilter === "submitted" ? "active" : ""}`}
                     onClick={() => setActiveFilter("submitted")}
                   >
-                    Submitted
+                    Submitted (
+                    {
+                      tasks.filter(
+                        (t) => t.subject === selectedCourse && (t.submissionStatus === "submitted" || (t.fileName && t.status !== "completed"))
+                      ).length
+                    }
+                    )
                   </button>
                   <button
                     className={`filter-pill ${activeFilter === "graded" ? "active" : ""}`}
                     onClick={() => setActiveFilter("graded")}
                   >
-                    Graded
+                    Graded (
+                    {
+                      tasks.filter(
+                        (t) => t.subject === selectedCourse && t.status === "completed"
+                      ).length
+                    }
+                    )
                   </button>
                 </div>
               </div>
@@ -766,9 +952,15 @@ const TasksAssignments = () => {
                       <div className="card-meta">
                         <span className="subject-tag">{task.subject}</span>
                         <span
-                          className={`status-badge ${getStatusColor(task.status)}`}
+                          className={`status-badge ${getStatusColor(
+                            task.status === "completed" ? "completed" : 
+                            (task.submissionStatus === "submitted" || task.fileName) ? "submitted" : 
+                            task.status
+                          )}`}
                         >
-                          {getStatusLabel(task.status)}
+                          {task.status === "completed" ? "Graded" : 
+                           (task.submissionStatus === "submitted" || task.fileName) ? "Submitted" : 
+                           getStatusLabel(task.status)}
                         </span>
                       </div>
                     </div>
@@ -890,22 +1082,247 @@ const TasksAssignments = () => {
                               Your Submission
                             </h3>
                             <p className="text-gray-600 text-sm mt-1">
-                              Submitted Oct 14 at 4:30 PM
+                              {selectedTask.submittedDate 
+                                ? `Submitted ${new Date(selectedTask.submittedDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} at ${new Date(selectedTask.submittedDate).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`
+                                : 'Submission details not available'
+                              }
                             </p>
                           </div>
-                          <div className="resource-btn bg-white">
-                            <FileText size={18} className="text-blue-500" />
-                            my_submission_final.pdf
-                          </div>
+                          {selectedTask.fileName && (
+                            <div className="resource-btn bg-white">
+                              {selectedTask.fileName.startsWith('http') ? (
+                                <>
+                                  <Link size={18} className="text-blue-500" />
+                                  Submitted Link
+                                </>
+                              ) : (
+                                <>
+                                  <FileText size={18} className="text-blue-500" />
+                                  {selectedTask.fileName}
+                                </>
+                              )}
+                            </div>
+                          )}
                         </div>
                       </div>
 
-                      <div className="grad-feedback-box">
-                        <div className="feedback-title">
-                          <CheckCircle2 size={20} />
-                          Faculty Feedback
+                      {selectedTask.feedback && (
+                        <div className="grad-feedback-box">
+                          <div className="feedback-title">
+                            <CheckCircle2 size={20} />
+                            Faculty Feedback
+                          </div>
+                          <p className="feedback-text">{selectedTask.feedback}</p>
                         </div>
-                        <p className="feedback-text">{selectedTask.feedback}</p>
+                      )}
+                    </>
+                  ) : selectedTask.status === "revision" ? (
+                    <>
+                      <div
+                        className="submission-area"
+                        style={{ background: "#fff7ed", borderColor: "#fed7aa" }}
+                      >
+                        <div
+                          style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                          }}
+                        >
+                          <div>
+                            <h3
+                              style={{ fontSize: "16px", margin: 0, color: "#c2410c", fontWeight: "700" }}
+                            >
+                              Previous Submission
+                            </h3>
+                            <p style={{ color: "#9a3412", fontSize: "14px", marginTop: "4px" }}>
+                              {selectedTask.submittedDate 
+                                ? `Submitted ${new Date(selectedTask.submittedDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} at ${new Date(selectedTask.submittedDate).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`
+                                : 'Submission details not available'
+                              }
+                            </p>
+                          </div>
+                          {selectedTask.fileName && (
+                            <div className="resource-btn" style={{ backgroundColor: '#fff', borderColor: '#fed7aa' }}>
+                              {selectedTask.fileName.startsWith('http') ? (
+                                <>
+                                  <Link size={18} style={{ color: "#c2410c" }} />
+                                  Previous Link
+                                </>
+                              ) : (
+                                <>
+                                  <FileText size={18} style={{ color: "#c2410c" }} />
+                                  {selectedTask.fileName}
+                                </>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <div style={{
+                        background: "#fef2f2",
+                        border: "1px solid #fecaca",
+                        borderLeft: "3px solid #ef4444",
+                        borderRadius: "12px",
+                        padding: "20px",
+                        marginTop: "16px"
+                      }}>
+                        <div style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "8px",
+                          fontWeight: "600",
+                          color: "#b91c1c",
+                          marginBottom: "12px",
+                          fontSize: "15px"
+                        }}>
+                          <AlertCircle size={20} />
+                          Task Not Satisfied - Redo Required
+                        </div>
+                        <p style={{ fontSize: "14px", color: "#991b1b", margin: "0 0 12px 0", lineHeight: "1.6" }}>
+                          Your submission did not meet the required standards (score below 50%). Please review the feedback and resubmit your work.
+                        </p>
+                        {selectedTask.feedback && (
+                          <>
+                            <strong style={{ color: "#7f1d1d", fontSize: "13px", display: "block", marginTop: "12px", marginBottom: "6px" }}>
+                              Faculty Feedback:
+                            </strong>
+                            <p style={{ fontSize: "14px", color: "#991b1b", margin: 0, lineHeight: "1.5" }}>
+                              {selectedTask.feedback}
+                            </p>
+                          </>
+                        )}
+                      </div>
+
+                      {/* Resubmission Form */}
+                      <div className="submission-area" style={{ marginTop: "24px" }}>
+                        <h3 className="section-title" style={{ marginTop: 0, color: "#c2410c" }}>
+                          Resubmit Your Work
+                        </h3>
+
+                        <input
+                          type="file"
+                          ref={fileInputRef}
+                          onChange={handleFileSelect}
+                          style={{ display: 'none' }}
+                          accept=".pdf,.doc,.docx,.xlsx,.xls,.txt,.zip,.cpp,.py,.js,.java,.c,image/*"
+                        />
+                        
+                        <div className="upload-options">
+                          <div 
+                            className="upload-card"
+                            onClick={() => fileInputRef.current?.click()}
+                            style={{
+                              border: selectedFile ? '2px solid #0066FF' : '1px solid #e2e8f0',
+                              backgroundColor: selectedFile ? '#eff6ff' : 'white'
+                            }}
+                          >
+                            {selectedFile ? (
+                              <>
+                                <CheckCircle2 size={32} color="#0066FF" />
+                                <span className="upload-label" style={{ color: '#0066FF' }}>
+                                  File Selected
+                                </span>
+                                <span className="upload-sub" style={{ 
+                                  fontWeight: 600, 
+                                  color: '#374151',
+                                  wordBreak: 'break-word',
+                                  textAlign: 'center',
+                                  padding: '0 8px'
+                                }}>
+                                  {selectedFile.name}
+                                </span>
+                              </>
+                            ) : (
+                              <>
+                                <FileText size={32} color="#64748b" />
+                                <span className="upload-label">Upload Document</span>
+                                <span className="upload-sub">PDF, Word, Excel, Images</span>
+                              </>
+                            )}
+                          </div>
+                          
+                          <div 
+                            className="upload-card"
+                            style={{
+                              border: linkUrl ? '2px solid #0066FF' : '1px solid #e2e8f0',
+                              backgroundColor: linkUrl ? '#eff6ff' : 'white',
+                              cursor: 'default'
+                            }}
+                          >
+                            {linkUrl ? (
+                              <CheckCircle2 size={32} color="#0066FF" />
+                            ) : (
+                              <Link size={32} color="#64748b" />
+                            )}
+                            <span className="upload-label" style={{ color: linkUrl ? '#0066FF' : '#1e293b' }}>
+                              Paste Link
+                            </span>
+                            <input
+                              type="text"
+                              placeholder="https://..."
+                              value={linkUrl}
+                              onChange={(e) => {
+                                setLinkUrl(e.target.value);
+                                if (e.target.value) {
+                                  setSelectedFile(null);
+                                  if (fileInputRef.current) fileInputRef.current.value = "";
+                                }
+                              }}
+                              onClick={(e) => e.stopPropagation()}
+                              style={{
+                                width: "100%",
+                                padding: "8px 12px",
+                                borderRadius: "6px",
+                                border: "1px solid #e2e8f0",
+                                outline: "none",
+                                fontSize: "13px",
+                                marginTop: "8px",
+                                textAlign: "center"
+                              }}
+                            />
+                          </div>
+                        </div>
+                        
+                        {submitMessage && (
+                          <div style={{
+                            marginTop: '16px',
+                            padding: '12px',
+                            borderRadius: '8px',
+                            background: submitMessage.includes('success') ? '#f0fdf4' : '#fef2f2',
+                            color: submitMessage.includes('success') ? '#15803d' : '#b91c1c',
+                            fontSize: '14px',
+                            fontWeight: 500
+                          }}>
+                            {submitMessage}
+                          </div>
+                        )}
+
+                        <div style={{ overflow: "hidden" }}>
+                          <button 
+                            className="submit-btn"
+                            onClick={selectedFile ? handleFileSubmit : handleLinkSubmit}
+                            disabled={submitting || (!selectedFile && !linkUrl.trim())}
+                            style={{
+                              opacity: submitting || (!selectedFile && !linkUrl.trim()) ? 0.5 : 1,
+                              cursor: submitting || (!selectedFile && !linkUrl.trim()) ? 'not-allowed' : 'pointer',
+                              background: '#c2410c'
+                            }}
+                          >
+                            {submitting ? (
+                              <>
+                                <Loader size={18} className="animate-spin" />
+                                Resubmitting...
+                              </>
+                            ) : (
+                              <>
+                                <Upload size={18} />
+                                Resubmit Assignment
+                              </>
+                            )}
+                          </button>
+                        </div>
                       </div>
                     </>
                   ) : selectedTask.status === "submitted" ? (
@@ -928,13 +1345,27 @@ const TasksAssignments = () => {
                             Your Submission
                           </h3>
                           <p className="text-gray-600 text-sm mt-1">
-                            Submitted yesterday at 4:30 PM
+                            {selectedTask.submittedDate 
+                              ? `Submitted ${new Date(selectedTask.submittedDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} at ${new Date(selectedTask.submittedDate).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`
+                              : 'Awaiting review'
+                            }
                           </p>
                         </div>
-                        <div className="resource-btn bg-white">
-                          <FileText size={18} className="text-blue-500" />
-                          submission_v1.pdf
-                        </div>
+                        {selectedTask.fileName && (
+                          <div className="resource-btn bg-white">
+                            {selectedTask.fileName.startsWith('http') ? (
+                              <>
+                                <Link size={18} className="text-blue-500" />
+                                Submitted Link
+                              </>
+                            ) : (
+                              <>
+                                <FileText size={18} className="text-blue-500" />
+                                {selectedTask.fileName}
+                              </>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
                   ) : (
@@ -943,81 +1374,125 @@ const TasksAssignments = () => {
                         Your Submission
                       </h3>
 
-                      <div className="submission-tabs">
-                        <span
-                          className={`sub-tab ${submissionType === "file" ? "active" : ""}`}
-                          onClick={() => setSubmissionType("file")}
-                        >
-                          File Upload
-                        </span>
-                        <span
-                          className={`sub-tab ${submissionType === "link" ? "active" : ""}`}
-                          onClick={() => setSubmissionType("link")}
-                        >
-                          External Link
-                        </span>
-                      </div>
-
-                      {submissionType === "file" ? (
-                        <div className="upload-options">
-                          <div className="upload-card">
-                            <FileText size={32} color="#64748b" />
-                            <span className="upload-label">Upload Document</span>
-                            <span className="upload-sub">PDF or Word</span>
-                          </div>
-                          <div className="upload-card">
-                            <Link size={32} color="#64748b" />
-                            <span className="upload-label">Paste URL</span>
-                            <span className="upload-sub">Drive, GitHub, etc.</span>
-                          </div>
-                        </div>
-                      ) : (
-                        <div
-                          className="link-input-area"
+                      <input
+                        type="file"
+                        ref={fileInputRef}
+                        onChange={handleFileSelect}
+                        style={{ display: 'none' }}
+                        accept=".pdf,.doc,.docx,.xlsx,.xls,.txt,.zip,.cpp,.py,.js,.java,.c,image/*"
+                      />
+                      
+                      <div className="upload-options">
+                        <div 
+                          className="upload-card"
+                          onClick={() => fileInputRef.current?.click()}
                           style={{
-                            padding: "30px",
-                            textAlign: "center",
-                            border: "1px dashed #cbd5e1",
-                            borderRadius: "8px",
-                            background: "white",
+                            border: selectedFile ? '2px solid #0066FF' : '1px solid #e2e8f0',
+                            backgroundColor: selectedFile ? '#eff6ff' : 'white'
                           }}
                         >
-                          <div
-                            style={{
-                              position: "relative",
-                              maxWidth: "400px",
-                              margin: "0 auto",
+                          {selectedFile ? (
+                            <>
+                              <CheckCircle2 size={32} color="#0066FF" />
+                              <span className="upload-label" style={{ color: '#0066FF' }}>
+                                File Selected
+                              </span>
+                              <span className="upload-sub" style={{ 
+                                fontWeight: 600, 
+                                color: '#374151',
+                                wordBreak: 'break-word',
+                                textAlign: 'center',
+                                padding: '0 8px'
+                              }}>
+                                {selectedFile.name}
+                              </span>
+                            </>
+                          ) : (
+                            <>
+                              <FileText size={32} color="#64748b" />
+                              <span className="upload-label">Upload Document</span>
+                              <span className="upload-sub">PDF, Word, Excel, Images</span>
+                            </>
+                          )}
+                        </div>
+                        
+                        <div 
+                          className="upload-card"
+                          style={{
+                            border: linkUrl ? '2px solid #0066FF' : '1px solid #e2e8f0',
+                            backgroundColor: linkUrl ? '#eff6ff' : 'white',
+                            cursor: 'default'
+                          }}
+                        >
+                          {linkUrl ? (
+                            <CheckCircle2 size={32} color="#0066FF" />
+                          ) : (
+                            <Link size={32} color="#64748b" />
+                          )}
+                          <span className="upload-label" style={{ color: linkUrl ? '#0066FF' : '#1e293b' }}>
+                            Paste Link
+                          </span>
+                          <input
+                            type="text"
+                            placeholder="https://..."
+                            value={linkUrl}
+                            onChange={(e) => {
+                              setLinkUrl(e.target.value);
+                              if (e.target.value) {
+                                setSelectedFile(null);
+                                if (fileInputRef.current) fileInputRef.current.value = "";
+                              }
                             }}
-                          >
-                            <Link
-                              size={16}
-                              style={{
-                                position: "absolute",
-                                left: "12px",
-                                top: "50%",
-                                transform: "translateY(-50%)",
-                                color: "#94a3b8",
-                              }}
-                            />
-                            <input
-                              type="text"
-                              placeholder="https://..."
-                              style={{
-                                width: "100%",
-                                padding: "10px 12px 10px 36px",
-                                borderRadius: "8px",
-                                border: "1px solid #e2e8f0",
-                                outline: "none",
-                              }}
-                            />
-                          </div>
+                            onClick={(e) => e.stopPropagation()}
+                            style={{
+                              width: "100%",
+                              padding: "8px 12px",
+                              borderRadius: "6px",
+                              border: "1px solid #e2e8f0",
+                              outline: "none",
+                              fontSize: "13px",
+                              marginTop: "8px",
+                              textAlign: "center"
+                            }}
+                          />
+                        </div>
+                      </div>
+                      
+                      {submitMessage && (
+                        <div style={{
+                          marginTop: '16px',
+                          padding: '12px',
+                          borderRadius: '8px',
+                          background: submitMessage.includes('success') ? '#f0fdf4' : '#fef2f2',
+                          color: submitMessage.includes('success') ? '#15803d' : '#b91c1c',
+                          fontSize: '14px',
+                          fontWeight: 500
+                        }}>
+                          {submitMessage}
                         </div>
                       )}
 
                       <div style={{ overflow: "hidden" }}>
-                        <button className="submit-btn">
-                          <Upload size={18} />
-                          Submit Assignment
+                        <button 
+                          className="submit-btn"
+                          onClick={selectedFile ? handleFileSubmit : handleLinkSubmit}
+                          disabled={submitting || (!selectedFile && !linkUrl.trim())}
+                          style={{
+                            opacity: submitting || (!selectedFile && !linkUrl.trim()) ? 0.5 : 1,
+                            cursor: submitting || (!selectedFile && !linkUrl.trim()) ? 'not-allowed' : 'pointer'
+                          }}
+                        >
+                          {submitting ? (
+                            <>
+                              <Loader size={18} className="animate-spin" />
+                              Submitting...
+                            </>
+                          ) : (
+                            <>
+                              <Upload size={18} />
+                              Submit Assignment
+                            </>
+                          )}
                         </button>
                       </div>
                     </div>
