@@ -505,42 +505,80 @@ export const getTaskSubmissions = async (req, res) => {
 
     const offset = (parseInt(page) - 1) * parseInt(limit);
 
-    // Base query conditions
-    let whereConditions = ['ts.task_id = ?'];
-    let params = [task_id];
+    // First, get the venue_id and skill_filter for this task
+    const [taskInfo] = await db.query(`
+      SELECT venue_id, skill_filter FROM tasks WHERE task_id = ?
+    `, [task_id]);
 
-    // Status filter
+    if (taskInfo.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Task not found'
+      });
+    }
+
+    const venue_id = taskInfo[0].venue_id;
+    const skill_filter = taskInfo[0].skill_filter;
+
+    // Get students who have CLEARED the skill (if skill_filter exists)
+    let clearedStudentIds = new Set();
+    if (skill_filter && skill_filter.trim()) {
+      const [clearedStudents] = await db.query(`
+        SELECT DISTINCT student_id
+        FROM student_skills
+        WHERE course_name = ? AND status = 'Cleared'
+      `, [skill_filter.trim()]);
+      clearedStudentIds = new Set(clearedStudents.map(s => s.student_id));
+    }
+
+    // Build WHERE conditions for filtering
+    let whereConditions = ['1=1'];
+    let params = [task_id, venue_id];
+
+    // Exclude students who have cleared the skill
+    if (clearedStudentIds.size > 0) {
+      whereConditions.push(`s.student_id NOT IN (${[...clearedStudentIds].join(',')})`);
+    }
+
+    // Status filter - handle 'Not Submitted' specially
     if (status && status !== 'All Statuses') {
-      whereConditions.push('ts.status = ?');
-      params.push(status);
+      if (status === 'Not Submitted') {
+        whereConditions.push('ts.submission_id IS NULL');
+      } else {
+        whereConditions.push('ts.status = ?');
+        params.push(status);
+      }
     }
 
     // Search filter (searches in name and roll number)
     if (search && search.trim() !== '') {
-      whereConditions.push('(u.name LIKE ? OR u. ID LIKE ?)');
+      whereConditions.push('(u.name LIKE ? OR u.ID LIKE ?)');
       params.push(`%${search}%`, `%${search}%`);
     }
 
-    const whereClause = whereConditions. join(' AND ');
+    const whereClause = whereConditions.join(' AND ');
 
-    // Get total count for pagination
+    // Get total count - all students in the venue for this task (excluding cleared skill students)
     const [countResult] = await db.query(`
-      SELECT COUNT(*) as total
-      FROM task_submissions ts
-      INNER JOIN students s ON ts.student_id = s.student_id
+      SELECT COUNT(DISTINCT s.student_id) as total
+      FROM students s
       INNER JOIN users u ON s.user_id = u.user_id
-      WHERE ${whereClause}
+      INNER JOIN group_students gs ON s.student_id = gs.student_id AND gs.status = 'Active'
+      INNER JOIN \`groups\` g ON gs.group_id = g.group_id
+      LEFT JOIN task_submissions ts ON s.student_id = ts.student_id AND ts.task_id = ?
+      WHERE g.venue_id = ? AND ${whereClause}
     `, params);
 
     const total = countResult[0].total;
 
-    // Get paginated data
+    // Get paginated data - all students with LEFT JOIN to submissions
     const query = `
       SELECT 
         ts.submission_id,
         ts.submitted_at,
         ts.file_name,
         ts.file_path,
+        ts.link_url,
         ts.status,
         ts.grade,
         ts.feedback,
@@ -550,22 +588,24 @@ export const getTaskSubmissions = async (req, res) => {
         u.name as student_name,
         u.email as student_email,
         u.department
-      FROM task_submissions ts
-      INNER JOIN students s ON ts. student_id = s.student_id
+      FROM students s
       INNER JOIN users u ON s.user_id = u.user_id
-      WHERE ${whereClause}
-      ORDER BY ts.submitted_at DESC
+      INNER JOIN group_students gs ON s.student_id = gs.student_id AND gs.status = 'Active'
+      INNER JOIN \`groups\` g ON gs.group_id = g.group_id
+      LEFT JOIN task_submissions ts ON s.student_id = ts.student_id AND ts.task_id = ?
+      WHERE g.venue_id = ? AND ${whereClause}
+      ORDER BY ts.submitted_at IS NULL, ts.submitted_at DESC, u.name ASC
       LIMIT ? OFFSET ?
     `;
 
-    const [submissions] = await db.query(query, [... params, parseInt(limit), parseInt(offset)]);
+    const [submissions] = await db.query(query, [...params, parseInt(limit), parseInt(offset)]);
 
     res.status(200).json({
       success: true,
-      data:  submissions,
+      data: submissions,
       pagination: {
         total,
-        page:  parseInt(page),
+        page: parseInt(page),
         limit: parseInt(limit),
         totalPages: Math.ceil(total / parseInt(limit))
       }
@@ -1048,66 +1088,71 @@ export const submitTask = async (req, res) => {
     const due_date = task[0].due_date;
     const is_late = due_date && new Date() > new Date(due_date);
 
-    if (file && file.originalname) {
-      // File submission
-      if (existing.length > 0) {
-        // Update existing submission
-        await db.query(`
-          UPDATE task_submissions 
-          SET file_name = ?, file_path = ?, is_late = ?, 
-              submitted_at = NOW(), status = 'Pending Review'
-          WHERE submission_id = ?
-        `, [file.originalname, file.path, is_late, existing[0].submission_id]);
+    // Support both file and link submission at the same time
+    const hasFile = file && file.originalname;
+    const hasLink = link_url && link_url.trim();
 
-        return res.status(200).json({
-          success: true,
-          message: 'Assignment resubmitted successfully!'
-        });
-      } else {
-        // Create new submission
-        await db.query(`
-          INSERT INTO task_submissions 
-          (task_id, student_id, file_name, file_path, is_late, submitted_at, status)
-          VALUES (?, ?, ?, ?, ?, NOW(), 'Pending Review')
-        `, [task_id, student_id, file.originalname, file.path, is_late]);
-
-        return res.status(201).json({
-          success: true,
-          message: 'Assignment submitted successfully!'
-        });
-      }
-    } else if (link_url) {
-      // Link submission - store in file_path as URL
-      if (existing.length > 0) {
-        // Update existing submission
-        await db.query(`
-          UPDATE task_submissions 
-          SET file_name = 'Link Submission', file_path = ?, is_late = ?, 
-              submitted_at = NOW(), status = 'Pending Review'
-          WHERE submission_id = ?
-        `, [link_url, is_late, existing[0].submission_id]);
-
-        return res.status(200).json({
-          success: true,
-          message: 'Link submitted successfully!'
-        });
-      } else {
-        // Create new submission
-        await db.query(`
-          INSERT INTO task_submissions 
-          (task_id, student_id, file_name, file_path, is_late, submitted_at, status)
-          VALUES (?, ?, 'Link Submission', ?, ?, NOW(), 'Pending Review')
-        `, [task_id, student_id, link_url, is_late]);
-
-        return res.status(201).json({
-          success: true,
-          message: 'Link submitted successfully!'
-        });
-      }
-    } else {
+    if (!hasFile && !hasLink) {
       return res.status(400).json({
         success: false,
         message: 'Please provide either a file or a link'
+      });
+    }
+
+    if (existing.length > 0) {
+      // Update existing submission - support both file and link
+      const updateFields = [];
+      const updateValues = [];
+
+      if (hasFile) {
+        updateFields.push('file_name = ?', 'file_path = ?');
+        updateValues.push(file.originalname, file.path);
+      }
+
+      if (hasLink) {
+        updateFields.push('link_url = ?');
+        updateValues.push(link_url.trim());
+      }
+
+      updateFields.push('is_late = ?', 'submitted_at = NOW()', "status = 'Pending Review'");
+      updateValues.push(is_late, existing[0].submission_id);
+
+      await db.query(`
+        UPDATE task_submissions 
+        SET ${updateFields.join(', ')}
+        WHERE submission_id = ?
+      `, updateValues);
+
+      return res.status(200).json({
+        success: true,
+        message: 'Assignment resubmitted successfully!'
+      });
+    } else {
+      // Create new submission - support both file and link
+      const columns = ['task_id', 'student_id', 'is_late', 'submitted_at', 'status'];
+      const values = [task_id, student_id, is_late];
+      const placeholders = ['?', '?', '?', 'NOW()', "'Pending Review'"];
+
+      if (hasFile) {
+        columns.push('file_name', 'file_path');
+        placeholders.push('?', '?');
+        values.push(file.originalname, file.path);
+      }
+
+      if (hasLink) {
+        columns.push('link_url');
+        placeholders.push('?');
+        values.push(link_url.trim());
+      }
+
+      await db.query(`
+        INSERT INTO task_submissions (${columns.join(', ')})
+        VALUES (${placeholders.join(', ')})
+      `, values);
+
+      return res.status(201).json({
+        success: true,
+        message: 'Assignment submitted successfully!'
       });
     }
   } catch (error) {

@@ -115,90 +115,19 @@ const TasksAssignments = () => {
 
   const selectedTask = tasks.find((t) => t.id === selectedTaskId);
 
-  // Handle file selection
+  // Handle file selection - allow both file and link
   const handleFileSelect = (e) => {
     const file = e.target.files[0];
     if (file) {
       setSelectedFile(file);
-      setLinkUrl("");
+      // Don't clear linkUrl - allow both file and link
     }
   };
 
-  // Handle link submission
-  const handleLinkSubmit = async () => {
-    if (!linkUrl.trim()) {
-      setSubmitMessage("Please enter a valid URL");
-      setTimeout(() => setSubmitMessage(""), 3000);
-      return;
-    }
-
-    setSubmitting(true);
-    try {
-      const response = await fetch(`${API_URL}/tasks/${selectedTaskId}/submit`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          link_url: linkUrl
-        })
-      });
-
-      const data = await response.json();
-      
-      if (data.success) {
-        setSubmitMessage("Link submitted successfully!");
-        setLinkUrl("");
-        // Refresh tasks
-        const tasksResponse = await fetch(`${API_URL}/tasks/student`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        const tasksData = await tasksResponse.json();
-        if (tasksData.success && tasksData.data) {
-          const allTasks = [];
-          Object.values(tasksData.data.groupedTasks || {}).forEach(group => {
-            group.tasks.forEach(task => {
-              allTasks.push({
-                id: task.id,
-                title: task.title,
-                subject: task.courseType || 'frontend',
-                status: task.status,
-                dueDate: task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'No due date',
-                points: task.score,
-                score: task.grade ? parseInt(task.grade.split('/')[0]) : null,
-                assignedBy: task.instructor,
-                description: task.description || 'No description provided',
-                feedback: task.feedback,
-                resources: task.materials || [],
-                dayLabel: task.moduleTitle,
-                skillFilter: task.skillFilter || '',
-                submissionStatus: task.submissionStatus,
-                submittedDate: task.submittedDate,
-                fileName: task.fileName
-              });
-            });
-          });
-          setTasks(allTasks);
-        }
-      } else {
-        setSubmitMessage(data.message || "Failed to submit link");
-      }
-    } catch (error) {
-      console.error('Error submitting link:', error);
-      setSubmitMessage("An error occurred while submitting");
-    } finally {
-      setSubmitting(false);
-      setTimeout(() => setSubmitMessage(""), 3000);
-    }
-  };
-
-  // Handle file/image submission
-  const handleFileSubmit = async () => {
-    const fileToUpload = selectedFile;
-    
-    if (!fileToUpload) {
-      setSubmitMessage("Please select a file");
+  // Combined submit handler for both file and link
+  const handleSubmit = async () => {
+    if (!selectedFile && !linkUrl.trim()) {
+      setSubmitMessage("Please select a file or enter a link");
       setTimeout(() => setSubmitMessage(""), 3000);
       return;
     }
@@ -206,7 +135,14 @@ const TasksAssignments = () => {
     setSubmitting(true);
     try {
       const formData = new FormData();
-      formData.append('file', fileToUpload);
+      
+      if (selectedFile) {
+        formData.append('file', selectedFile);
+      }
+      
+      if (linkUrl.trim()) {
+        formData.append('link_url', linkUrl.trim());
+      }
 
       const response = await fetch(`${API_URL}/tasks/${selectedTaskId}/submit`, {
         method: 'POST',
@@ -219,8 +155,9 @@ const TasksAssignments = () => {
       const data = await response.json();
       
       if (data.success) {
-        setSubmitMessage("File submitted successfully!");
+        setSubmitMessage("Assignment submitted successfully!");
         setSelectedFile(null);
+        setLinkUrl("");
         if (fileInputRef.current) fileInputRef.current.value = "";
         
         // Refresh tasks
@@ -255,15 +192,25 @@ const TasksAssignments = () => {
           setTasks(allTasks);
         }
       } else {
-        setSubmitMessage(data.message || "Failed to submit file");
+        setSubmitMessage(data.message || "Failed to submit assignment");
       }
     } catch (error) {
-      console.error('Error submitting file:', error);
+      console.error('Error submitting assignment:', error);
       setSubmitMessage("An error occurred while submitting");
     } finally {
       setSubmitting(false);
       setTimeout(() => setSubmitMessage(""), 3000);
     }
+  };
+
+  // Handle link submission (legacy - now use handleSubmit)
+  const handleLinkSubmit = async () => {
+    await handleSubmit();
+  };
+
+  // Handle file/image submission (legacy - now use handleSubmit)
+  const handleFileSubmit = async () => {
+    await handleSubmit();
   };
 
   // Auto-select first task when entering a course
@@ -1265,10 +1212,7 @@ const TasksAssignments = () => {
                               value={linkUrl}
                               onChange={(e) => {
                                 setLinkUrl(e.target.value);
-                                if (e.target.value) {
-                                  setSelectedFile(null);
-                                  if (fileInputRef.current) fileInputRef.current.value = "";
-                                }
+                                // Allow both file and link - don't clear file
                               }}
                               onClick={(e) => e.stopPropagation()}
                               style={{
@@ -1302,7 +1246,7 @@ const TasksAssignments = () => {
                         <div style={{ overflow: "hidden" }}>
                           <button 
                             className="submit-btn"
-                            onClick={selectedFile ? handleFileSubmit : handleLinkSubmit}
+                            onClick={handleSubmit}
                             disabled={submitting || (!selectedFile && !linkUrl.trim())}
                             style={{
                               opacity: submitting || (!selectedFile && !linkUrl.trim()) ? 0.5 : 1,
@@ -1438,10 +1382,7 @@ const TasksAssignments = () => {
                             value={linkUrl}
                             onChange={(e) => {
                               setLinkUrl(e.target.value);
-                              if (e.target.value) {
-                                setSelectedFile(null);
-                                if (fileInputRef.current) fileInputRef.current.value = "";
-                              }
+                              // Allow both file and link - don't clear file
                             }}
                             onClick={(e) => e.stopPropagation()}
                             style={{
@@ -1475,7 +1416,7 @@ const TasksAssignments = () => {
                       <div style={{ overflow: "hidden" }}>
                         <button 
                           className="submit-btn"
-                          onClick={selectedFile ? handleFileSubmit : handleLinkSubmit}
+                          onClick={handleSubmit}
                           disabled={submitting || (!selectedFile && !linkUrl.trim())}
                           style={{
                             opacity: submitting || (!selectedFile && !linkUrl.trim()) ? 0.5 : 1,
