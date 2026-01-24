@@ -302,7 +302,7 @@ const AttendanceManagement = () => {
     const updateStatus = (id, status) => {
         
         setStudents(prev =>
-            prev.map(s => (s.id === id ? { ...s, status, remarks: s.remarks || '' } : s))
+            prev.map(s => (s.id === id ? { ...s, status, remarks: '' } : s))
         );
     };
 
