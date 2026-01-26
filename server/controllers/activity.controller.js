@@ -21,7 +21,7 @@ async function resolveStudentIdFromToken(req) {
   const userId = req.user?.user_id || req.user?.userId || req.user?.id;
   if (!userId) return null;
 
-  const [rows] = await db.query('SELECT student_id FROM students WHEREuser_id = ? LIMIT 1', [userId]);
+  const [rows] = await db.query('SELECT student_id FROM students WHERE user_id = ? LIMIT 1', [userId]);
   return rows.length > 0 ? rows[0].student_id : null;
 }
 
@@ -37,7 +37,7 @@ export const getStudentActivityHeatmap = async (req, res) => {
 
     const studentId = await resolveStudentIdFromToken(req);
     if (!studentId) {
-      return res.status(404).json({ success: false, message: 'Studentnot found for this user' });
+      return res.status(404).json({ success: false, message: 'Student not found for this user' });
     }
 
     // Aggregate submissions by date for the selected year.
@@ -46,8 +46,7 @@ export const getStudentActivityHeatmap = async (req, res) => {
       SELECT
         DATE(ts.submitted_at) as day,
         COUNT(*) as submissions_count,
-        GROUP_CONCAT(DISTINCT t.title ORDER BY ts.submitted_at DESC
-SEPARATOR '||') as titles
+        GROUP_CONCAT(DISTINCT t.title ORDER BY ts.submitted_at DESC SEPARATOR '||') as titles
       FROM task_submissions ts
       INNER JOIN tasks t ON t.task_id = ts.task_id
       WHERE ts.student_id = ?
@@ -61,10 +60,8 @@ SEPARATOR '||') as titles
 
     const dayMap = new Map();
     submissionByDay.forEach(row => {
-      const iso = row.day instanceof Date ? toISODate(row.day) :
-String(row.day);
-      const titles = row.titles ?
-String(row.titles).split('||').filter(Boolean) : [];
+      const iso = row.day instanceof Date ? toISODate(row.day) : String(row.day);
+      const titles = row.titles ? String(row.titles).split('||').filter(Boolean) : [];
       dayMap.set(iso, {
         count: Number(row.submissions_count) || 0,
         titles,
