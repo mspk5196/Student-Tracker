@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import useAuthStore from "../../store/useAuthStore";
+import logoIcon from "../../assets/logo-Icon.png";
 
 import {
   LayoutDashboard,
@@ -212,9 +213,13 @@ const SideTab = () => {
       <div style={styles.logo}>
         <div style={styles.logoContent}>
           <div style={styles.logoIcon}>
-            <GraduationCap size={24} color="#ffffff" />
+            <img
+              src={logoIcon}
+              alt="PBL Portal"
+              style={{ width: 124, height: 124, objectFit: "contain" }}
+            />
           </div>
-          <span style={styles.logoText}>Academia</span>
+          <span style={styles.logoText}>PBL Portal</span>
         </div>
       </div>
 
@@ -405,19 +410,26 @@ const styles = {
     borderRight: "1px solid #e5e7eb",
   },
   logo: {
-    padding: "14px 20px",
+    padding: "12px 20px",
     borderBottom: "1px solid #e5e7eb",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    minHeight: "57px",
+    boxSizing: "border-box",
   },
   logoContent: {
     display: "flex",
     alignItems: "center",
-    gap: "12px",
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: "10px",
+    width: "100%",
   },
   logoIcon: {
-    width: "40px",
-    height: "40px",
-    backgroundColor: "#2563eb",
-    borderRadius: "8px",
+    width: "44px",
+    height: "44px",
+    borderRadius: "10px",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
@@ -426,6 +438,7 @@ const styles = {
     fontSize: "20px",
     fontWeight: "600",
     color: "#111827",
+    lineHeight: "1",
   },
 
   // Scrollable menu
