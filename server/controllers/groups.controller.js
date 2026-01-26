@@ -235,12 +235,33 @@ export const addIndividualStudentToVenue = async (req, res) => {
       }
     }
 
-    // Create allocation.
-    await connection.query(
-      `INSERT INTO group_students (group_id, student_id, status)
-       VALUES (?, ?, 'Active')`,
-      [groupId, studentId]
+    // Check if student was previously in this group but was dropped
+    const [previousAllocation] = await connection.query(
+      `SELECT gs.group_id, gs.status
+       FROM group_students gs
+       INNER JOIN \`groups\` g ON g.group_id = gs.group_id
+       WHERE gs.student_id = ? AND g.venue_id = ?
+       FOR UPDATE`,
+      [studentId, venueId]
     );
+
+    if (previousAllocation.length > 0) {
+      // Student was previously in this venue - reactivate them
+      await connection.query(
+        `UPDATE group_students gs
+         INNER JOIN \`groups\` g ON gs.group_id = g.group_id
+         SET gs.status = 'Active'
+         WHERE gs.student_id = ? AND g.venue_id = ?`,
+        [studentId, venueId]
+      );
+    } else {
+      // Create new allocation
+      await connection.query(
+        `INSERT INTO group_students (group_id, student_id, status)
+         VALUES (?, ?, 'Active')`,
+        [groupId, studentId]
+      );
+    }
 
     await connection.commit();
 
