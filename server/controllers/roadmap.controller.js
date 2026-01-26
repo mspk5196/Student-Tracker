@@ -1128,7 +1128,19 @@ export const getStudentRoadmap = async (req, res) => {
 
     console.log('Found modules for student:', modules.length);
 
-    // Determine unlock status for each module based on skill progression
+    // Group modules by course type for sequential progression
+    const modulesByCourse = {};
+    for (const module of modules) {
+      if (!modulesByCourse[module.course_type]) {
+        modulesByCourse[module.course_type] = [];
+      }
+      modulesByCourse[module.course_type].push(module);
+    }
+
+    // Track previous module completion for each course type
+    const previousModuleCompleted = {};
+
+    // Determine unlock status for each module based on sequential progression
     for (let module of modules) {
       // Get resources for each module
       const [resources] = await db.query(`
@@ -1147,10 +1159,8 @@ export const getStudentRoadmap = async (req, res) => {
 
       module.resources = resources || [];
 
-      // Determine if module is locked based on title matching with skill order
-      let moduleSkillName = null;
-      
       // Try to match by title with skill order
+      let moduleSkillName = null;
       const titleLower = module.title.toLowerCase();
       for (const skill of skillProgression) {
         if (skill.course_type === module.course_type && 
@@ -1166,12 +1176,42 @@ export const getStudentRoadmap = async (req, res) => {
         s.course_type === module.course_type
       );
 
-      module.is_locked = skillEntry ? skillEntry.is_locked : false;
-      module.is_completed = skillEntry ? skillEntry.is_cleared : false;
-      module.is_current = skillEntry ? skillEntry.is_current : false;
-      module.skill_status = skillEntry ? skillEntry.status : 'Available';
+      // Initialize course tracker if not exists
+      if (previousModuleCompleted[module.course_type] === undefined) {
+        // First module of this course type - always unlocked
+        previousModuleCompleted[module.course_type] = true;
+      }
+
+      // Determine if module is locked based on previous module completion
+      // A module is locked if the previous module in the same course is not completed
+      const isPreviousCompleted = previousModuleCompleted[module.course_type];
+      
+      // If we have a skill entry, use its completion status
+      if (skillEntry) {
+        module.is_completed = skillEntry.is_cleared;
+        module.is_locked = !isPreviousCompleted;
+        module.is_current = !module.is_locked && !module.is_completed;
+        module.skill_status = skillEntry.status;
+      } else {
+        // For modules without skill matching, use sequential order
+        // The module is completed only if student has cleared it (check student_skills)
+        const courseNameFromTitle = module.title.toLowerCase().trim();
+        const matchingSkill = studentSkills.find(s => 
+          courseNameFromTitle.includes(s.course_name.toLowerCase().trim()) ||
+          s.course_name.toLowerCase().trim().includes(courseNameFromTitle.substring(0, 10))
+        );
+        
+        module.is_completed = matchingSkill?.status === 'Cleared';
+        module.is_locked = !isPreviousCompleted;
+        module.is_current = !module.is_locked && !module.is_completed;
+        module.skill_status = module.is_completed ? 'Cleared' : (module.is_locked ? 'Locked' : 'Available');
+      }
+
       module.locked_reason = module.is_locked ? 
         `Complete previous skill to unlock` : '';
+
+      // Update tracker for next module - previous is completed only if current is completed
+      previousModuleCompleted[module.course_type] = module.is_completed;
     }
 
     res.status(200).json({

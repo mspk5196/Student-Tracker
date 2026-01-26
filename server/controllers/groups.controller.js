@@ -263,6 +263,16 @@ export const addIndividualStudentToVenue = async (req, res) => {
       );
     }
 
+    // Get count of existing tasks and roadmap for this venue (for info)
+    const [taskCount] = await connection.query(
+      `SELECT COUNT(*) as count FROM tasks WHERE venue_id = ? AND status = 'Active'`,
+      [venueId]
+    );
+    const [roadmapCount] = await connection.query(
+      `SELECT COUNT(*) as count FROM roadmap WHERE venue_id = ?`,
+      [venueId]
+    );
+
     await connection.commit();
 
     return res.status(201).json({
@@ -274,6 +284,8 @@ export const addIndividualStudentToVenue = async (req, res) => {
         group_id: groupId,
         user_id: userId,
         student_id: studentId,
+        existing_tasks: taskCount[0]?.count || 0,
+        existing_roadmap_modules: roadmapCount[0]?.count || 0
       },
     });
   } catch (error) {
@@ -998,6 +1010,16 @@ export const allocateStudentsByRollRange = async (req, res) => {
       );
     }
 
+    // Get count of existing tasks and roadmap for this venue
+    const [taskCount] = await connection.query(
+      `SELECT COUNT(*) as count FROM tasks WHERE venue_id = ? AND status = 'Active'`,
+      [venueId]
+    );
+    const [roadmapCount] = await connection.query(
+      `SELECT COUNT(*) as count FROM roadmap WHERE venue_id = ?`,
+      [venueId]
+    );
+
     await connection.commit();
 
     res.status(200).json({ 
@@ -1005,7 +1027,9 @@ export const allocateStudentsByRollRange = async (req, res) => {
       message: `Successfully allocated ${students.length} students (${rollNumberFrom} to ${rollNumberTo}) to ${venue.venue_name}!`,
       data: {
         allocated: students.length,
-        students: students.map(s => ({ name: s.name, rollNumber: s.rollNumber }))
+        students: students.map(s => ({ name: s.name, rollNumber: s.rollNumber })),
+        existing_tasks: taskCount[0]?.count || 0,
+        existing_roadmap_modules: roadmapCount[0]?.count || 0
       }
     });
 
