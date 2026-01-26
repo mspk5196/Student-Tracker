@@ -218,14 +218,15 @@ const StudentRoadmap = () => {
           tasks: [] // TODO: Integrate tasks if available
         }));
 
-        // If backend didn't provide progression info, fall back to old frontend logic
-        const hasBackendProgression = transformedData.some(m => m.is_locked || m.is_completed);
+        // Check if backend provided progression info (skill_progression exists or has lock data)
+        const hasBackendProgression = backendSkillProgression.length > 0 || 
+          transformedData.some(m => m.is_locked || m.is_completed || m.is_current);
         
         let finalData = transformedData;
         let recommendedSelectedId = transformedData[0]?.roadmap_id ?? null;
 
-        if (!hasBackendProgression) {
-          // Fallback: fetch skills and apply frontend unlocking
+        if (!hasBackendProgression && transformedData.length > 1) {
+          // Fallback: fetch skills and apply frontend unlocking only if needed
           let skills = [];
           if (studentId) {
             try {
@@ -257,9 +258,11 @@ const StudentRoadmap = () => {
             recommendedSelectedId = selectedId;
           }
         } else {
-          // Use backend-provided progression
+          // Use backend-provided progression - modules should already have correct lock status
+          // Find the first active module (current, or first unlocked and not completed)
           const firstActive = transformedData.find((m) => m.is_current) || 
                              transformedData.find((m) => !m.is_locked && !m.is_completed) || 
+                             transformedData.find((m) => !m.is_locked) ||
                              transformedData[0];
           recommendedSelectedId = firstActive?.roadmap_id ?? null;
         }
@@ -1057,7 +1060,27 @@ const StudentRoadmap = () => {
 
         {/* Right Column: Details */}
         <div className="detail-column">
-          {selectedNode && (
+          {selectedNode && selectedNode.is_locked ? (
+            <div className="detail-card" style={{ textAlign: 'center', padding: '60px 32px' }}>
+              <Lock size={64} style={{ color: '#cbd5e1', margin: '0 auto 24px' }} />
+              <h2 style={{ fontSize: '24px', fontWeight: '700', color: '#64748b', marginBottom: '12px' }}>
+                This module is locked
+              </h2>
+              <p style={{ fontSize: '16px', color: '#94a3b8', maxWidth: '400px', margin: '0 auto 24px' }}>
+                {selectedNode.locked_reason || 'Complete the previous skill to unlock this module and access its learning materials.'}
+              </p>
+              <div style={{
+                background: '#f1f5f9',
+                borderRadius: '12px',
+                padding: '16px 24px',
+                display: 'inline-block'
+              }}>
+                <p style={{ fontSize: '14px', color: '#64748b', fontWeight: '500' }}>
+                  📚 {selectedNode.title}
+                </p>
+              </div>
+            </div>
+          ) : selectedNode && (
             <div className="detail-card">
               <div className="node-header-info">
                 <div className="header-breadcrumbs">
