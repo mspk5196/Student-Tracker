@@ -912,6 +912,234 @@ const StudentRoadmap = () => {
           color: #1e3a8a;
         }
 
+        /* Responsive (added as overrides only; base styles unchanged) */
+        /* 14-inch / small-desktop: keep same UI, just prevent header crowding */
+        @media (max-width: 1400px) {
+          .left-section {
+            flex-wrap: wrap;
+            gap: 14px;
+          }
+
+          .dropdown-container {
+            min-width: 220px;
+          }
+
+          .overall-progress {
+            min-width: 0;
+          }
+        }
+
+        /* Shrink content gradually on smaller desktops */
+        @media (max-width: 1280px) {
+          .content-grid {
+            grid-template-columns: 340px 1fr;
+            gap: 18px;
+            padding: 18px;
+          }
+
+          .timeline-column {
+            padding: 20px;
+          }
+
+          .detail-card {
+            padding: 24px;
+          }
+
+          .main-title {
+            font-size: 26px;
+          }
+
+          .main-description {
+            font-size: 15px;
+          }
+
+          .subsection {
+            padding: 18px;
+          }
+
+          .subsection-title {
+            font-size: 15px;
+          }
+
+          .node-title {
+            font-size: 14px;
+          }
+
+          .node-meta {
+            font-size: 12px;
+          }
+
+          .resource-icon-box {
+            width: 36px;
+            height: 36px;
+            margin-right: 10px;
+          }
+
+          .resource-name {
+            font-size: 13px;
+          }
+
+          .resource-item,
+          .task-item {
+            padding: 10px;
+          }
+        }
+
+        @media (max-width: 1150px) {
+          .content-grid {
+            grid-template-columns: 320px 1fr;
+            gap: 16px;
+            padding: 16px;
+          }
+
+          .node-marker {
+            width: 30px;
+            height: 30px;
+            font-size: 13px;
+          }
+
+          .timeline-track::before {
+            left: 26px;
+          }
+        }
+
+        /* Tablet / small windows */
+        @media (max-width: 1024px) {
+          .dropdown-container {
+            min-width: 200px;
+          }
+
+          .content-grid {
+            grid-template-columns: 320px 1fr;
+            gap: 16px;
+            padding: 16px;
+          }
+
+          .timeline-column {
+            padding: 20px;
+          }
+
+          .detail-card {
+            padding: 24px;
+          }
+
+          .grid-layout {
+            gap: 16px;
+          }
+        }
+
+        /* Mobile */
+        @media (max-width: 768px) {
+          .sticky-header {
+            flex-direction: column;
+            align-items: stretch;
+            gap: 12px;
+          }
+
+          .left-section {
+            width: 100%;
+            gap: 12px;
+          }
+
+          .right-section {
+            width: 100%;
+            justify-content: space-between;
+          }
+
+          .dropdown-container {
+            min-width: 0;
+            flex: 1 1 180px;
+          }
+
+          .content-grid {
+            grid-template-columns: 1fr;
+            height: auto;
+            padding: 12px;
+            gap: 12px;
+          }
+
+          .timeline-column,
+          .detail-column {
+            overflow-y: visible;
+          }
+
+          .detail-card {
+            padding: 16px;
+          }
+
+          .node-header-info {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 12px;
+          }
+
+          .node-progress-wrapper {
+            text-align: left;
+            width: 100%;
+          }
+
+          .node-progress-bar {
+            width: 100%;
+          }
+
+          .grid-layout {
+            grid-template-columns: 1fr;
+          }
+
+          .main-title {
+            font-size: 22px;
+          }
+
+          .main-description {
+            font-size: 14px;
+          }
+
+          .action-bar {
+            flex-direction: column;
+            align-items: stretch;
+          }
+
+          .btn {
+            width: 100%;
+            justify-content: center;
+          }
+        }
+
+        /* Small mobile */
+        @media (max-width: 480px) {
+          .sticky-header {
+            padding: 10px 12px;
+          }
+
+          .timeline-column {
+            padding: 16px;
+          }
+
+          .timeline-node {
+            gap: 14px;
+            padding-bottom: 28px;
+          }
+
+          .node-marker {
+            width: 28px;
+            height: 28px;
+            font-size: 12px;
+          }
+
+          .timeline-track::before {
+            left: 25px;
+          }
+
+          .subsection {
+            padding: 14px;
+          }
+
+          .resource-item,
+          .task-item {
+            padding: 10px;
+          }
+        }
+
         /* Tailwind utilities helpers since native tailwind might not be available */
         .text-blue-500 { color: #3b82f6; }
         .text-blue-600 { color: #2563eb; }

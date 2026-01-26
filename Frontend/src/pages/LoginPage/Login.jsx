@@ -19,14 +19,11 @@ const Login = () => {
   /* ================= GOOGLE LOGIN ================= */
   const handleGoogleSuccess = async (response) => {
     try {
-      const res = await fetch(
-        `${import.meta.env.VITE_API_URL}/auth/google`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ credential: response.credential }),
-        }
-      );
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/auth/google`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ credential: response.credential }),
+      });
 
       if (!res.ok) {
         alert("User not authorized");
@@ -37,7 +34,7 @@ const Login = () => {
 
       // Login with JWT token - this will fetch user data automatically
       const result = await login(data.token);
-      
+
       if (result.success) {
         navigate("/"); // single entry point
       } else {
@@ -61,9 +58,7 @@ const Login = () => {
 
         <GoogleSignInButton onSuccess={handleGoogleSuccess} />
 
-        <p style={styles.footerText}>
-          Sign in with your BIT Google account
-        </p>
+        <p style={styles.footerText}>Sign in with your BIT Google account</p>
       </div>
     </div>
   );
@@ -71,11 +66,10 @@ const Login = () => {
 
 export default Login;
 
-
 const styles = {
   page: {
-    height: "100vh",               // 🔹 instead of minHeight
-    overflow: "hidden",            // 🔹 removes scroll
+    height: "100vh", // 🔹 instead of minHeight
+    overflow: "hidden", // 🔹 removes scroll
     background: "linear-gradient(135deg, #e3f2fd 0%, #ffffff 60%)",
     display: "flex",
     alignItems: "center",
@@ -87,8 +81,8 @@ const styles = {
   card: {
     backgroundColor: "#ffffff",
     width: "100%",
-    maxWidth: "500px",              // 🔹 slightly smaller
-    padding: "32px",                // 🔹 reduced height
+    maxWidth: "500px",
+    padding: "32px",
     borderRadius: "14px",
     boxShadow: "0 16px 32px rgba(0,0,0,0.12)",
     textAlign: "center",
@@ -96,17 +90,20 @@ const styles = {
 
   heading: {
     color: "#455a64",
-    fontSize: "24px",               // 🔹 slightly smaller
+    fontSize: "24px",
     fontWeight: "600",
-    marginBottom: "18px",
+    marginBottom: "2px",
   },
 
   logo: {
-    width: "240px",                 // 🔹 reduced a bit
-    marginBottom: "22px",
+    width: "350px",
+    maxWidth: "350px",
+    height: "auto",
+    marginBottom: "2px",
   },
 
   portalTitle: {
+    marginTop: "-28px",
     color: "#37474f",
     fontSize: "18px",
     fontWeight: "500",
@@ -129,7 +126,7 @@ const styles = {
 
   button: {
     width: "100%",
-    padding: "10px",                // 🔹 reduced
+    padding: "10px", // 🔹 reduced
     marginBottom: "8px",
     backgroundColor: "#4285f4",
     color: "#fff",
@@ -150,4 +147,3 @@ const styles = {
     cursor: "not-allowed",
   },
 };
-
