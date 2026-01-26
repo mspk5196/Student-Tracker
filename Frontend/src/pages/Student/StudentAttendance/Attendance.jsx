@@ -40,6 +40,14 @@ const StudentAttendance = () => {
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 5;
 
+    // Define standard time slots for a day
+    const TIME_SLOTS = [
+        { hour: 1, name: 'Hour 1', time: '09:00 - 10:00' },
+        { hour: 2, name: 'Hour 2', time: '10:00 - 11:00' },
+        { hour: 3, name: 'Hour 3', time: '11:00 - 12:00' },
+        { hour: 4, name: 'Hour 4', time: '13:00 - 14:00' }
+    ];
+
     // --- FETCH DATA FROM BACKEND ---
     useEffect(() => {
         const fetchAttendanceData = async () => {
@@ -116,14 +124,55 @@ const StudentAttendance = () => {
                             sessionDate = `${dateMatch[1]}-${dateMatch[2]}-${dateMatch[3]}`;
                         }
                         
+                        // Try to extract hour/session number from the record
+                        let hour = null;
+                        let timeDisplay = 'N/A';
+                        
+                        // Method 1: Check if record has hour_number field
+                        if (record.hour_number) {
+                            hour = parseInt(record.hour_number);
+                            timeDisplay = `Hour ${hour}`;
+                        }
+                        // Method 2: Check if record has session_number field
+                        else if (record.session_number) {
+                            hour = parseInt(record.session_number);
+                            timeDisplay = `Hour ${hour}`;
+                        }
+                        // Method 3: Extract from session_name
+                        else if (record.session_name) {
+                            const hourMatch = record.session_name.match(/Hour[_\s]*(\d+)/i) || 
+                                             record.session_name.match(/_(\d+)[hH]/i);
+                            if (hourMatch) {
+                                hour = parseInt(hourMatch[1]);
+                                timeDisplay = `Hour ${hour}`;
+                            }
+                        }
+                        // Method 4: Use time field if available
+                        else if (record.time) {
+                            const timeMatch = record.time.match(/(\d+):/);
+                            if (timeMatch) {
+                                hour = Math.ceil(parseInt(timeMatch[1]) / 100 * 4);
+                                timeDisplay = `Hour ${hour}`;
+                            }
+                        }
+
                         return {
                             id: record.attendance_id || index,
                             date: sessionDate,
-                            subject: record.venue_name,
-                            time: record.session_name || 'N/A',
-                            status: record.is_present === 1 ? (record.is_late === 1 ? 'late' : 'present') : 'absent'
+                            subject: record.venue_name || record.subject_name || 'Unknown Subject',
+                            time: timeDisplay,
+                            hour: hour,
+                            status: record.is_present === 1 ? (record.is_late === 1 ? 'late' : 'present') : 'absent',
+                            originalData: record // Keep original data for reference
                         };
+                    }).sort((a, b) => {
+                        // Sort by date (newest first) then by hour (1-4)
+                        if (a.date === b.date) {
+                            return (a.hour || 0) - (b.hour || 0);
+                        }
+                        return new Date(b.date) - new Date(a.date);
                     });
+                    
                     setAttendanceHistory(history);
                 }
 
@@ -138,37 +187,67 @@ const StudentAttendance = () => {
         fetchAttendanceData();
     }, [user, token, API_URL]);
 
-    // Create a map of dates with attendance records
-    const attendanceByDate = attendanceHistory.reduce((acc, record) => {
+    // Create a map of dates with attendance records grouped by hour
+    const attendanceByDateAndHour = attendanceHistory.reduce((acc, record) => {
         if (!acc[record.date]) {
-            acc[record.date] = [];
+            acc[record.date] = {};
         }
-        acc[record.date].push(record);
+        
+        // If hour is specified, use it; otherwise find the first available slot
+        if (record.hour && record.hour >= 1 && record.hour <= 4) {
+            acc[record.date][record.hour] = record;
+        } else {
+            // Find first available slot for this date
+            for (let i = 1; i <= 4; i++) {
+                if (!acc[record.date][i]) {
+                    acc[record.date][i] = {
+                        ...record,
+                        hour: i,
+                        time: `Hour ${i}`
+                    };
+                    break;
+                }
+            }
+        }
+        
         return acc;
     }, {});
 
     // Get unique dates from actual attendance records only
     const uniqueDates = [...new Set(attendanceHistory.map(record => record.date))].sort((a, b) => new Date(b) - new Date(a));
 
-    // Generate complete history with 4 blocks per day (only for dates with records)
+    // Generate complete history with 4 time slots per day
     const completeHistory = uniqueDates.flatMap(date => {
-        const recordsForDate = attendanceByDate[date] || [];
+        const dateRecords = attendanceByDateAndHour[date] || {};
         const blocks = [];
         
-        // Add existing records
-        blocks.push(...recordsForDate);
-        
-        // Fill remaining slots with absent blocks (up to 4 total)
-        const remainingSlots = 4 - recordsForDate.length;
-        for (let i = 0; i < remainingSlots; i++) {
-            blocks.push({
-                id: `absent-${date}-${i}`,
-                date: date,
-                subject: 'No Session',
-                time: `Hour ${recordsForDate.length + i + 1}`,
-                status: 'absent'
-            });
-        }
+        // Create all 4 time slots for this date
+        TIME_SLOTS.forEach(slot => {
+            const existingRecord = dateRecords[slot.hour];
+            
+            if (existingRecord) {
+                // Use the existing record with corrected hour info
+                blocks.push({
+                    ...existingRecord,
+                    id: existingRecord.id || `record-${date}-${slot.hour}`,
+                    time: slot.name,
+                    actualTime: slot.time,
+                    displayTime: `${slot.name} (${slot.time})`
+                });
+            } else {
+                // Create absent record for this hour slot
+                blocks.push({
+                    id: `absent-${date}-${slot.hour}`,
+                    date: date,
+                    subject: 'No Session',
+                    time: slot.name,
+                    actualTime: slot.time,
+                    displayTime: `${slot.name} (${slot.time})`,
+                    hour: slot.hour,
+                    status: 'absent'
+                });
+            }
+        });
         
         return blocks;
     });
@@ -227,6 +306,17 @@ const StudentAttendance = () => {
             }
         }
         return pages;
+    };
+
+    // Helper to get time slots display
+    const getTimeSlotsDisplay = () => {
+        return TIME_SLOTS.map(slot => `${slot.name}`).join(' • ');
+    };
+
+    // Handle date change
+    const handleDateChange = (date) => {
+        setSelectedDate(date);
+        setCurrentPage(1);
     };
 
     return (
@@ -292,6 +382,14 @@ const StudentAttendance = () => {
                     .pagination-controls {
                         width: 100%;
                         justify-content: center !important;
+                    }
+                    .time-slots-display {
+                        display: none !important;
+                    }
+                    .daily-summary {
+                        flex-direction: column !important;
+                        align-items: flex-start !important;
+                        gap: 12px !important;
                     }
                 }
                 
@@ -552,239 +650,243 @@ const StudentAttendance = () => {
                             </div>
                         </div>
 
-                {/* Right Side: Attendance History */}
-                <div style={styles.rightCol}>
-                    <div style={styles.card}>
-                        <div style={styles.cardHeader}>
-                            <h2 style={styles.sectionTitle} className="section-title">
-                                {selectedDate ? `Attendance for ${new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}` : 'Attendance History'}
-                            </h2>
-                            <div style={styles.filterGroup} className="filter-group">
-                                <div style={styles.searchBox} className="search-box">
-                                    <Search size={14} style={styles.searchIcon} />
-                                    <input
-                                        style={styles.searchInput}
-                                        placeholder="Search Subject..."
-                                        value={searchQuery}
-                                        onChange={(e) => setSearchQuery(e.target.value)}
-                                    />
+                        {/* Right Side: Attendance History */}
+                        <div style={styles.rightCol}>
+                            <div style={styles.card}>
+                                <div style={styles.cardHeader}>
+                                    <h2 style={styles.sectionTitle} className="section-title">
+                                        {selectedDate ? `Attendance for ${new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}` : 'Attendance History'}
+                                    </h2>
+                                    <div style={styles.filterGroup} className="filter-group">
+                                        <div style={styles.searchBox} className="search-box">
+                                            <Search size={14} style={styles.searchIcon} />
+                                            <input
+                                                style={styles.searchInput}
+                                                placeholder="Search Subject..."
+                                                value={searchQuery}
+                                                onChange={(e) => setSearchQuery(e.target.value)}
+                                            />
+                                        </div>
+                                        <select
+                                            style={styles.filterSelect}
+                                            value={filter}
+                                            onChange={(e) => setFilter(e.target.value)}
+                                        >
+                                            <option value="all">All Status</option>
+                                            <option value="present">Present</option>
+                                            <option value="absent">Absent</option>
+                                            <option value="late">Late</option>
+                                        </select>
+                                        <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                                            <Calendar size={14} style={{ position: 'absolute', left: '10px', color: '#9CA3AF', zIndex: 1 }} />
+                                            <input
+                                                type="date"
+                                                style={{
+                                                    ...styles.filterSelect,
+                                                    paddingLeft: '32px',
+                                                    minWidth: '160px',
+                                                    cursor: 'pointer'
+                                                }}
+                                                value={selectedDate}
+                                                onChange={(e) => handleDateChange(e.target.value)}
+                                                max={uniqueDates.length > 0 ? uniqueDates[0] : new Date().toISOString().split('T')[0]}
+                                                min={uniqueDates.length > 0 ? uniqueDates[uniqueDates.length - 1] : ''}
+                                                placeholder="Select date"
+                                            />
+                                        </div>
+                                    </div>
                                 </div>
-                                <select
-                                    style={styles.filterSelect}
-                                    value={filter}
-                                    onChange={(e) => setFilter(e.target.value)}
-                                >
-                                    <option value="all">All Status</option>
-                                    <option value="present">Present</option>
-                                    <option value="absent">Absent</option>
-                                    <option value="late">Late</option>
-                                </select>
-                                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                                    <Calendar size={14} style={{ position: 'absolute', left: '10px', color: '#9CA3AF', zIndex: 1 }} />
-                                    <input
-                                        type="date"
-                                        style={{
-                                            ...styles.filterSelect,
-                                            paddingLeft: '32px',
-                                            minWidth: '160px',
-                                            cursor: 'pointer'
-                                        }}
-                                        value={selectedDate}
-                                        onChange={(e) => {
-                                            setSelectedDate(e.target.value);
-                                            setCurrentPage(1);
-                                        }}
-                                        max={uniqueDates.length > 0 ? uniqueDates[0] : new Date().toISOString().split('T')[0]}
-                                        min={uniqueDates.length > 0 ? uniqueDates[uniqueDates.length - 1] : ''}
-                                        placeholder="Select date"
-                                    />
-                                </div>
-                            </div>
-                        </div>
 
-                        {/* Daily Summary - Show when date is selected */}
-                        {selectedDate && groupedByDate[selectedDate] && (
-                            <div style={{
-                                padding: '16px',
-                                backgroundColor: '#F9FAFB',
-                                borderBottom: '1px solid #E5E7EB',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'space-between',
-                                flexWrap: 'wrap',
-                                gap: '12px'
-                            }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                    <Clock size={18} color="#6366F1" />
-                                    <span style={{ fontSize: '14px', fontWeight: '600', color: '#374151' }}>
-                                        4 hours per day
-                                    </span>
-                                </div>
-                                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                                    {['present', 'late', 'absent'].map(status => {
-                                        const count = groupedByDate[selectedDate].filter(r => r.status === status).length;
-                                        const statusStyle = getStatusStyle(status);
-                                        return count > 0 && (
-                                            <div key={status} style={{
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                gap: '6px',
-                                                padding: '6px 12px',
-                                                backgroundColor: statusStyle.bg,
-                                                borderRadius: '6px',
-                                                fontSize: '13px',
-                                                fontWeight: '600',
-                                                color: statusStyle.color
-                                            }}>
-                                                {statusStyle.icon}
-                                                <span>{count} {status}</span>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                                {groupedByDate[selectedDate].filter(r => r.status === 'present').length === 4 && (
+                                {/* Daily Summary - Show when date is selected */}
+                                {selectedDate && groupedByDate[selectedDate] && (
                                     <div style={{
-                                        width: '100%',
-                                        marginTop: '8px',
-                                        padding: '8px 12px',
-                                        backgroundColor: '#ECFDF5',
-                                        borderRadius: '6px',
+                                        padding: '16px',
+                                        backgroundColor: '#F9FAFB',
+                                        borderBottom: '1px solid #E5E7EB',
                                         display: 'flex',
                                         alignItems: 'center',
-                                        gap: '8px',
-                                        fontSize: '13px',
-                                        color: '#059669'
-                                    }}>
-                                        <Info size={14} />
-                                        <span>Perfect attendance - all 4 hours present!</span>
+                                        justifyContent: 'space-between',
+                                        flexWrap: 'wrap',
+                                        gap: '12px'
+                                    }} className="daily-summary">
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                <Clock size={18} color="#6366F1" />
+                                                <span style={{ fontSize: '14px', fontWeight: '600', color: '#374151' }}>
+                                                    4 hours per day
+                                                </span>
+                                            </div>
+                                            <div style={{ fontSize: '13px', color: '#6B7280' }} className="time-slots-display">
+                                                {getTimeSlotsDisplay()}
+                                            </div>
+                                        </div>
+                                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                                            {['present', 'late', 'absent'].map(status => {
+                                                const count = groupedByDate[selectedDate].filter(r => r.status === status).length;
+                                                const statusStyle = getStatusStyle(status);
+                                                return count > 0 && (
+                                                    <div key={status} style={{
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        gap: '6px',
+                                                        padding: '6px 12px',
+                                                        backgroundColor: statusStyle.bg,
+                                                        borderRadius: '6px',
+                                                        fontSize: '13px',
+                                                        fontWeight: '600',
+                                                        color: statusStyle.color
+                                                    }}>
+                                                        {statusStyle.icon}
+                                                        <span>{count} {status}</span>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                        {groupedByDate[selectedDate].filter(r => r.status === 'present' || r.status === 'late').length === 4 && (
+                                            <div style={{
+                                                width: '100%',
+                                                marginTop: '8px',
+                                                padding: '8px 12px',
+                                                backgroundColor: '#ECFDF5',
+                                                borderRadius: '6px',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '8px',
+                                                fontSize: '13px',
+                                                color: '#059669'
+                                            }}>
+                                                <Info size={14} />
+                                                <span>Perfect attendance - all 4 hours attended!</span>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
+                                <div style={styles.historyList}>
+                                    {currentItems.length === 0 ? (
+                                        <div style={{ 
+                                            padding: '60px 40px', 
+                                            textAlign: 'center'
+                                        }}>
+                                            <div style={{
+                                                width: '80px',
+                                                height: '80px',
+                                                margin: '0 auto 24px',
+                                                backgroundColor: '#F3F4F6',
+                                                borderRadius: '50%',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center'
+                                            }}>
+                                                <Calendar size={40} color="#9CA3AF" />
+                                            </div>
+                                            <h3 style={{ 
+                                                fontSize: '18px', 
+                                                fontWeight: '700', 
+                                                color: '#1F2937',
+                                                marginBottom: '8px' 
+                                            }}>
+                                                {displayHistory.length === 0 && attendanceHistory.length > 0 
+                                                    ? 'No Matching Records' 
+                                                    : 'No Attendance History'}
+                                            </h3>
+                                            <p style={{ 
+                                                fontSize: '14px', 
+                                                color: '#6B7280',
+                                                lineHeight: '1.6',
+                                                maxWidth: '300px',
+                                                margin: '0 auto'
+                                            }}>
+                                                {displayHistory.length === 0 && attendanceHistory.length > 0
+                                                    ? selectedDate 
+                                                        ? `No attendance records found for ${new Date(selectedDate).toLocaleDateString()}. Try selecting a different date.`
+                                                        : 'Try adjusting your search or filter criteria'
+                                                    : 'Your attendance records will appear here once faculty marks your attendance'}
+                                            </p>
+                                        </div>
+                                    ) : (
+                                        currentItems.map(record => {
+                                            const status = getStatusStyle(record.status);
+                                            return (
+                                                <div key={record.id} style={styles.historyItem} className="history-item">
+                                                    <div style={styles.historyLeft} className="history-left">
+                                                        <div style={{ ...styles.statusIndicator, backgroundColor: status.bg, color: status.color }}>
+                                                            {status.icon}
+                                                        </div>
+                                                        <div style={styles.historyDetails}>
+                                                            <div style={styles.historySubject}>{record.subject}</div>
+                                                            <div style={styles.historyMeta}>
+                                                                <Calendar size={12} style={{ marginRight: 4 }} /> 
+                                                                {record.date}
+                                                                <span style={{ margin: '0 8px' }}>•</span>
+                                                                <Clock size={12} style={{ marginRight: 4 }} /> 
+                                                                {record.displayTime || record.time}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div style={{ ...styles.historyStatusText, color: status.color }} className="history-status-text">
+                                                        {record.status.toUpperCase()}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })
+                                    )}
+                                </div>
+                                
+                                {/* Pagination Component - Only show if there's data */}
+                                {displayHistory.length > 0 && (
+                                    <div style={styles.paginationContainer} className="pagination-container">
+                                        <div style={styles.paginationInfo} className="pagination-info">
+                                            Showing {startIndex + 1}-{endIndex} of {displayHistory.length} records
+                                        </div>
+                                        <div style={styles.paginationControls} className="pagination-controls">
+                                            <div style={styles.paginationButtons} className="pagination-buttons">
+                                                <button
+                                                    style={{
+                                                        ...styles.paginationButton,
+                                                        ...styles.prevButton,
+                                                        opacity: currentPage === 1 ? 0.5 : 1
+                                                    }}
+                                                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                                                    disabled={currentPage === 1}
+                                                >
+                                                    <ChevronLeft size={16} /> Prev
+                                                </button>
+                                                
+                                                {getPageNumbers().map(page => (
+                                                    <button
+                                                        key={page}
+                                                        style={{
+                                                            ...styles.paginationButton,
+                                                            ...styles.pageNumber,
+                                                            backgroundColor: currentPage === page ? '#2563EB' : 'transparent',
+                                                            color: currentPage === page ? '#FFFFFF' : '#374151'
+                                                        }}
+                                                        onClick={() => setCurrentPage(page)}
+                                                    >
+                                                        {page}
+                                                    </button>
+                                                ))}
+                                                
+                                                <button
+                                                    style={{
+                                                        ...styles.paginationButton,
+                                                        ...styles.nextButton,
+                                                        opacity: currentPage === totalPages ? 0.5 : 1
+                                                    }}
+                                                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                                                    disabled={currentPage === totalPages}
+                                                >
+                                                    Next <ChevronRight size={16} />
+                                                </button>
+                                            </div>
+                                        </div>
                                     </div>
                                 )}
                             </div>
-                        )}
-
-                        <div style={styles.historyList}>
-                            {currentItems.length === 0 ? (
-                                <div style={{ 
-                                    padding: '60px 40px', 
-                                    textAlign: 'center'
-                                }}>
-                                    <div style={{
-                                        width: '80px',
-                                        height: '80px',
-                                        margin: '0 auto 24px',
-                                        backgroundColor: '#F3F4F6',
-                                        borderRadius: '50%',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center'
-                                    }}>
-                                        <Calendar size={40} color="#9CA3AF" />
-                                    </div>
-                                    <h3 style={{ 
-                                        fontSize: '18px', 
-                                        fontWeight: '700', 
-                                        color: '#1F2937',
-                                        marginBottom: '8px' 
-                                    }}>
-                                        {displayHistory.length === 0 && attendanceHistory.length > 0 
-                                            ? 'No Matching Records' 
-                                            : 'No Attendance History'}
-                                    </h3>
-                                    <p style={{ 
-                                        fontSize: '14px', 
-                                        color: '#6B7280',
-                                        lineHeight: '1.6',
-                                        maxWidth: '300px',
-                                        margin: '0 auto'
-                                    }}>
-                                        {displayHistory.length === 0 && attendanceHistory.length > 0
-                                            ? selectedDate 
-                                                ? `No attendance records found for ${new Date(selectedDate).toLocaleDateString()}. Try selecting a different date.`
-                                                : 'Try adjusting your search or filter criteria'
-                                            : 'Your attendance records will appear here once faculty marks your attendance'}
-                                    </p>
-                                </div>
-                            ) : (
-                                currentItems.map(record => {
-                                const status = getStatusStyle(record.status);
-                                return (
-                                    <div key={record.id} style={styles.historyItem} className="history-item">
-                                        <div style={styles.historyLeft} className="history-left">
-                                            <div style={{ ...styles.statusIndicator, backgroundColor: status.bg, color: status.color }}>
-                                                {status.icon}
-                                            </div>
-                                            <div style={styles.historyDetails}>
-                                                <div style={styles.historySubject}>{record.subject}</div>
-                                                <div style={styles.historyMeta}>
-                                                    <Calendar size={12} style={{ marginRight: 4 }} /> {record.date}
-                                                    <span style={{ margin: '0 8px' }}>•</span>
-                                                    <Clock size={12} style={{ marginRight: 4 }} /> {record.time}
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div style={{ ...styles.historyStatusText, color: status.color }} className="history-status-text">
-                                            {record.status.toUpperCase()}
-                                        </div>
-                                    </div>
-                                );
-                            })
-                            )}
                         </div>
-                        
-                        {/* Pagination Component - Only show if there's data */}
-                        {displayHistory.length > 0 && (
-                            <div style={styles.paginationContainer} className="pagination-container">
-                            <div style={styles.paginationInfo} className="pagination-info">
-                                Showing {startIndex + 1}-{endIndex} of {displayHistory.length} records
-                            </div>
-                            <div style={styles.paginationControls} className="pagination-controls">
-                                <div style={styles.paginationButtons} className="pagination-buttons">
-                                    <button
-                                        style={{
-                                            ...styles.paginationButton,
-                                            ...styles.prevButton,
-                                            opacity: currentPage === 1 ? 0.5 : 1
-                                        }}
-                                        onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                                        disabled={currentPage === 1}
-                                    >
-                                        <ChevronLeft size={16} /> Prev
-                                    </button>
-                                    
-                                    {getPageNumbers().map(page => (
-                                        <button
-                                            key={page}
-                                            style={{
-                                                ...styles.paginationButton,
-                                                ...styles.pageNumber,
-                                                backgroundColor: currentPage === page ? '#2563EB' : 'transparent',
-                                                color: currentPage === page ? '#FFFFFF' : '#374151'
-                                            }}
-                                            onClick={() => setCurrentPage(page)}
-                                        >
-                                            {page}
-                                        </button>
-                                    ))}
-                                    
-                                    <button
-                                        style={{
-                                            ...styles.paginationButton,
-                                            ...styles.nextButton,
-                                            opacity: currentPage === totalPages ? 0.5 : 1
-                                        }}
-                                        onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                                        disabled={currentPage === totalPages}
-                                    >
-                                        Next <ChevronRight size={16} />
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                        )}
                     </div>
-                </div>
-            </div>
-            </>
+                </>
             )}
         </div>
     );
@@ -795,6 +897,7 @@ const styles = {
         backgroundColor: '#F8F9FA',
         minHeight: '100vh',
         fontFamily: '"Inter", sans-serif',
+        padding: '24px'
     },
     header: {
         display: 'flex',
@@ -985,7 +1088,11 @@ const styles = {
         borderRadius: '8px',
         border: '1px solid #E5E7EB',
         fontSize: '13px',
-        outline: 'none'
+        outline: 'none',
+        transition: 'border-color 0.2s',
+        '&:focus': {
+            borderColor: '#2563EB'
+        }
     },
     filterSelect: {
         padding: '8px 12px',
@@ -993,7 +1100,13 @@ const styles = {
         border: '1px solid #E5E7EB',
         fontSize: '13px',
         color: '#374151',
-        outline: 'none'
+        outline: 'none',
+        backgroundColor: '#FFFFFF',
+        cursor: 'pointer',
+        transition: 'border-color 0.2s',
+        '&:focus': {
+            borderColor: '#2563EB'
+        }
     },
     historyList: {
         display: 'flex',
@@ -1006,7 +1119,11 @@ const styles = {
         padding: '16px 24px',
         borderBottom: '1px solid #F3F4F6',
         gap: '12px',
-        minWidth: 0
+        minWidth: 0,
+        transition: 'background-color 0.2s',
+        '&:hover': {
+            backgroundColor: '#F9FAFB'
+        }
     },
     historyLeft: {
         display: 'flex',
@@ -1022,7 +1139,8 @@ const styles = {
         borderRadius: '8px',
         display: 'flex',
         alignItems: 'center',
-        justifyContent: 'center'
+        justifyContent: 'center',
+        flexShrink: 0
     },
     historyDetails: {
         display: 'flex',
@@ -1049,13 +1167,16 @@ const styles = {
         whiteSpace: 'nowrap',
         overflow: 'hidden',
         textOverflow: 'ellipsis',
-        maxWidth: '100%'
+        maxWidth: '100%',
+        flexWrap: 'wrap'
     },
     historyStatusText: {
         fontSize: '11px',
         fontWeight: '700',
         whiteSpace: 'nowrap',
-        flexShrink: 0
+        flexShrink: 0,
+        textTransform: 'uppercase',
+        letterSpacing: '0.05em'
     },
     // Pagination Styles
     paginationContainer: {
@@ -1064,7 +1185,9 @@ const styles = {
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
-        backgroundColor: '#F9FAFB'
+        backgroundColor: '#F9FAFB',
+        borderBottomLeftRadius: '16px',
+        borderBottomRightRadius: '16px'
     },
     paginationInfo: {
         fontSize: '14px',
@@ -1092,7 +1215,15 @@ const styles = {
         display: 'flex',
         alignItems: 'center',
         gap: '6px',
-        transition: 'all 0.2s'
+        transition: 'all 0.2s',
+        '&:hover:not(:disabled)': {
+            backgroundColor: '#F3F4F6',
+            borderColor: '#D1D5DB'
+        },
+        '&:disabled': {
+            cursor: 'not-allowed',
+            opacity: 0.5
+        }
     },
     prevButton: {
         backgroundColor: '#FFFFFF',

@@ -1046,6 +1046,7 @@ export const getStudentRoadmap = async (req, res) => {
       success: true,
       data: modules,
       venue: {
+        student_id: student[0].student_id,
         venue_id: venue_id,
         venue_name: student[0].venue_name
       }

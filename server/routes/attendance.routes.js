@@ -14,6 +14,7 @@ import {
   getAttendanceByDateAndSession,
   updateAttendanceByDateAndSession
 } from '../controllers/attendance.controller.js';
+import { getStudentSubjectWiseAttendance } from '../controllers/studentDashboard.controller.js';
 import { authenticate } from '../middleware/auth.middleware.js';
 
 const router = express.Router();
@@ -35,6 +36,9 @@ router.get('/late-students', getLateStudents);  // Uses JWT to get faculty
 router.get('/late-students/:facultyId', getLateStudents);  // Optional filter
 router.get('/history', getStudentAttendanceHistory);  // Uses JWT to get student
 router.get('/dashboard', getStudentAttendanceDashboard);  // Uses JWT to get student
+
+// Student dashboard subject-wise attendance (StudentDashboard.jsx uses /attendance/subject-wise)
+router.get('/subject-wise', getStudentSubjectWiseAttendance);
 
 // New routes for attendance editing by date and session
 router.get('/by-date-session', getAttendanceByDateAndSession);  // GET with query params: venueId, date, sessionId

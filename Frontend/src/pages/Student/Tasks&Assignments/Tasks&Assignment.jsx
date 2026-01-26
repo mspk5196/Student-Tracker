@@ -78,7 +78,9 @@ const TasksAssignments = () => {
                 skillFilter: task.skillFilter || '',
                 submissionStatus: task.submissionStatus,
                 submittedDate: task.submittedDate,
-                fileName: task.fileName
+                fileName: task.fileName,
+                filePath: task.filePath,
+                linkUrl: task.link_url
               });
             });
           });
@@ -103,13 +105,18 @@ const TasksAssignments = () => {
     // First Filter by Course
     if (selectedCourse && t.subject !== selectedCourse) return false;
 
+    const hasActualSubmission = Boolean(t.fileName || t.linkUrl || t.submittedDate);
+
     // Then Filter by Status
-    if (activeFilter === "pending")
-      return (t.status === "pending" || t.status === "overdue" || t.status === "revision") && !t.submissionStatus;
-    if (activeFilter === "submitted") 
-      return t.submissionStatus === "submitted" || (t.fileName && t.status !== "completed");
-    if (activeFilter === "graded") 
-      return t.status === "completed";
+    if (activeFilter === "pending") {
+      // Pending = needs student action (includes redo / revision)
+      return t.status === "revision" || (t.status !== "completed" && !hasActualSubmission);
+    }
+    if (activeFilter === "submitted") {
+      // Submitted = student has submitted, waiting for grading
+      return t.status !== "completed" && t.status !== "revision" && hasActualSubmission;
+    }
+    if (activeFilter === "graded") return t.status === "completed";
     return true;
   });
 
@@ -185,7 +192,9 @@ const TasksAssignments = () => {
                 skillFilter: task.skillFilter || '',
                 submissionStatus: task.submissionStatus,
                 submittedDate: task.submittedDate,
-                fileName: task.fileName
+                fileName: task.fileName,
+                filePath: task.filePath,
+                linkUrl: task.link_url
               });
             });
           });
@@ -953,16 +962,24 @@ const TasksAssignments = () => {
                     </div>
 
                     <div className="score-display">
-                      {selectedTask.status === "graded" ? (
+                      {selectedTask.status === "completed" && selectedTask.score !== null ? (
                         <>
-                          <div className="points-value" style={{ color: "#0066FF" }}>
-                            {selectedTask.score}
+                          <div
+                            className="points-value"
+                            style={{
+                              color:
+                                selectedTask.points && selectedTask.score >= selectedTask.points * 0.5
+                                  ? "#16a34a"
+                                  : "#dc2626",
+                            }}
+                          >
+                            {selectedTask.score}/{selectedTask.points}
                           </div>
                           <div
                             className="text-gray-500 font-bold tracking-wider"
                             style={{ fontSize: "10px", marginTop: "4px" }}
                           >
-                            MAX POINTS
+                            YOUR GRADE
                           </div>
                         </>
                       ) : (
@@ -1008,7 +1025,7 @@ const TasksAssignments = () => {
                   )}
 
                   {/* Submission Section */}
-                  {selectedTask.status === "graded" ? (
+                  {selectedTask.status === "completed" ? (
                     <>
                       <div
                         className="submission-area"
@@ -1035,21 +1052,39 @@ const TasksAssignments = () => {
                               }
                             </p>
                           </div>
-                          {selectedTask.fileName && (
-                            <div className="resource-btn bg-white">
-                              {selectedTask.fileName.startsWith('http') ? (
-                                <>
-                                  <Link size={18} className="text-blue-500" />
-                                  Submitted Link
-                                </>
-                              ) : (
-                                <>
-                                  <FileText size={18} className="text-blue-500" />
-                                  {selectedTask.fileName}
-                                </>
-                              )}
-                            </div>
-                          )}
+                          <div style={{ display: 'flex', gap: '12px' }}>
+                            {selectedTask.fileName && selectedTask.filePath && (
+                              <a
+                                href={`${API_URL}/${(() => {
+                                  const normalized = String(selectedTask.filePath)
+                                    .replace(/\\/g, '/')
+                                    .replace(/^\/+/, '');
+                                  return normalized.startsWith('uploads/') ? normalized : `uploads/${normalized}`;
+                                })()}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="resource-btn bg-white"
+                                download
+                              >
+                                <FileText size={18} className="text-blue-500" />
+                                {selectedTask.fileName}
+                                <Download size={14} className="text-gray-400 ms-1" />
+                              </a>
+                            )}
+
+                            {selectedTask.linkUrl && (
+                              <a
+                                href={selectedTask.linkUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="resource-btn bg-white"
+                              >
+                                <Link size={18} className="text-blue-500" />
+                                View Link
+                                <ExternalLink size={14} className="text-gray-400 ms-1" />
+                              </a>
+                            )}
+                          </div>
                         </div>
                       </div>
 
