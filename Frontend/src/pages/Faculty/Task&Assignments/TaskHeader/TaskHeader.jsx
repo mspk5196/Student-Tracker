@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import AssignmentDashboard from './Task-Assignment-page/Task&assignments';
 import StudyRoadmap from './Study-Road-Map/RoadMap';
+import SkillOrderManager from './Study-Road-Map/SkillOrderManager';
 import useAuthStore from '../../../../store/useAuthStore'; // FIXED PATH - 3 levels up
 
 const TaskHeader = () => {
@@ -116,6 +117,15 @@ useEffect(() => {
               >
                 Study Roadmap
               </button>
+              <button 
+                onClick={() => setActiveTab('skill-order')}
+                style={{
+                  ...styles.tab,
+                  ...(activeTab === 'skill-order' ? styles.activeTab : styles.inactiveTab)
+                }}
+              >
+                Skill Order
+              </button>
             </div>
 
             <div style={styles.dropdownContainer}>
@@ -203,7 +213,7 @@ useEffect(() => {
                 venues={venues}
                 selectedCourseType={selectedCourse}
               />
-            ) : (
+            ) : activeTab === 'roadmap' ? (
               <StudyRoadmap 
                 selectedVenueId={selectedVenueId}
                 venueName={getCurrentVenueName()}
@@ -212,6 +222,10 @@ useEffect(() => {
                 addDayTrigger={addDayTrigger}
                 selectedCourseType={selectedCourse}
                 key={`${selectedVenueId}-${addDayTrigger}`}
+              />
+            ) : (
+              <SkillOrderManager 
+                selectedCourseType={selectedCourse}
               />
             )
           )}

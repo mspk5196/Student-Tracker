@@ -30,6 +30,14 @@ export const googleAuth = async (req, res) => {
     }
 
     const user = rows[0];
+    
+    // 🚫 TEMPORARILY DISABLE STUDENT ACCESS - UNCOMMENT TOMORROW
+    if (user.role === 'Student') {
+      return res.status(403).json({ 
+        message: 'Student access is temporarily disabled. Please try again later.' 
+      });
+    }
+    
     const token = jwt.sign(
       {
         user_id: user.user_id,

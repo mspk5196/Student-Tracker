@@ -18,6 +18,7 @@ import scheduleRoutes from "./routes/schedule.routes.js";
 import activityRoutes from "./routes/activity.routes.js";
 import assignmentsRoutes from "./routes/assignments.routes.js";
 import gradesRoutes from "./routes/grades.routes.js";
+import skillOrderRoutes from "./routes/skillOrder.routes.js";
 // import facultyDashboardRoutes from './routes/facultyDashboardRoutes.js';
 dotenv.config();
 
@@ -48,6 +49,7 @@ app.use(`${API_PREFIX}/api/skill-reports`, skillReportRoutes);
 app.use(`${API_PREFIX}/api/skill-completion`, skillCompletionRoutes);
 app.use(`${API_PREFIX}/api/schedule`, scheduleRoutes);
 app.use(`${API_PREFIX}/api/activity`, activityRoutes);
+app.use(`${API_PREFIX}/api/skill-order`, skillOrderRoutes);
 // app.use('/api/faculty/dashboard', facultyDashboardRoutes); 
 // Cron job to update schedule daily at 8 PM
 cron.schedule('0 20 * * *', () => {

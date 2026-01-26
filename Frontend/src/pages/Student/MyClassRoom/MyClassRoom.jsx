@@ -550,7 +550,10 @@ const MyClassRoom = () => {
       const response = await fetch(
         `${import.meta.env.VITE_API_URL}/schedule?date=${dateStr}`,
         {
-          headers: { Authorization: `Bearer ${token}` },
+          headers: { 
+            Authorization: `Bearer ${token}`,
+            'Cache-Control': 'no-cache'
+          },
         },
       );
 

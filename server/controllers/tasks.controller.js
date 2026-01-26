@@ -495,9 +495,20 @@ export const toggleTaskStatus = async (req, res) => {
 export const getTaskSubmissions = async (req, res) => {
   try {
     const { task_id } = req.params;
-    const { status, search, page = 1, limit = 5 } = req.query;
+    const { status, search, page = 1, limit = 10 } = req.query;
 
     const offset = (parseInt(page) - 1) * parseInt(limit);
+
+    // Helper function to normalize skill names for comparison
+    const normalizeSkillName = (name) => {
+      if (!name) return '';
+      return name
+        .toLowerCase()
+        .trim()
+        .replace(/\s+/g, ' ')
+        .replace(/\s*\/\s*/g, '/')
+        .replace(/\s*-\s*/g, '-');
+    };
 
     // First, get the venue_id and skill_filter for this task
     const [taskInfo] = await db.query(`
@@ -513,16 +524,27 @@ export const getTaskSubmissions = async (req, res) => {
 
     const venue_id = taskInfo[0].venue_id;
     const skill_filter = taskInfo[0].skill_filter;
+    const normalizedSkillFilter = normalizeSkillName(skill_filter);
 
     // Get students who have CLEARED the skill (if skill_filter exists)
+    // Use normalized matching to handle "HTML/CSS" vs "HTML /CSS"
     let clearedStudentIds = new Set();
     if (skill_filter && skill_filter.trim()) {
-      const [clearedStudents] = await db.query(`
-        SELECT DISTINCT student_id
+      const [allClearedStudents] = await db.query(`
+        SELECT DISTINCT student_id, course_name
         FROM student_skills
-        WHERE course_name = ? AND status = 'Cleared'
-      `, [skill_filter.trim()]);
-      clearedStudentIds = new Set(clearedStudents.map(s => s.student_id));
+        WHERE status = 'Cleared'
+      `);
+      
+      // Filter using normalized comparison
+      allClearedStudents.forEach(s => {
+        if (normalizeSkillName(s.course_name) === normalizedSkillFilter) {
+          clearedStudentIds.add(s.student_id);
+        }
+      });
+      
+      console.log(`Task skill_filter: "${skill_filter}" -> normalized: "${normalizedSkillFilter}"`);
+      console.log(`Students who cleared this skill: ${clearedStudentIds.size}`);
     }
 
     // Build WHERE conditions for filtering
@@ -829,6 +851,7 @@ export const getVenuesByEmail = async (req, res) => {
 export const getStudentTasks = async (req, res) => {
   try {
     const user_id = req.user.user_id;
+    const { course_type } = req.query;
 
     // Get student info and their venue
     const [studentInfo] = await db.query(`
@@ -865,10 +888,36 @@ export const getStudentTasks = async (req, res) => {
           venue_name: null,
           venue_id: null,
           student_id: student_id,
-          groupedTasks: {}
+          groupedTasks: {},
+          skill_progression: []
         }
       });
     }
+
+    // Get skill order (GLOBAL - same for all venues)
+    let skillOrderQuery = `
+      SELECT 
+        so.id as skill_order_id,
+        so.skill_name,
+        so.display_order,
+        so.is_prerequisite,
+        so.course_type
+      FROM skill_order so
+      WHERE 1=1
+    `;
+    const skillOrderParams = [];
+    
+    if (course_type) {
+      skillOrderQuery += ` AND so.course_type = ?`;
+      skillOrderParams.push(course_type);
+    }
+    
+    skillOrderQuery += ` ORDER BY so.course_type, so.display_order ASC`;
+    
+    const [skillOrders] = await db.query(skillOrderQuery, skillOrderParams);
+
+    // Use skills directly (no venue preference needed anymore)
+    const orderedSkills = skillOrders;
 
     // Get student's cleared skills to filter tasks
     const [studentSkills] = await db.query(`
@@ -877,17 +926,100 @@ export const getStudentTasks = async (req, res) => {
       WHERE student_id = ?
     `, [student_id]);
 
-    // Create a set of cleared skills for quick lookup
-    const clearedSkills = new Set(
-      studentSkills
-        .filter(skill => skill.status === 'Cleared')
-        .map(skill => skill.course_name)
-    );
+    // Helper function to normalize skill names for comparison
+    // Removes extra spaces, normalizes slashes, converts to lowercase
+    const normalizeSkillName = (name) => {
+      if (!name) return '';
+      return name
+        .toLowerCase()
+        .trim()
+        .replace(/\s+/g, ' ')           // Replace multiple spaces with single space
+        .replace(/\s*\/\s*/g, '/')      // Remove spaces around slashes: "HTML /CSS" -> "HTML/CSS"
+        .replace(/\s*-\s*/g, '-');      // Remove spaces around dashes
+    };
 
-    console.log('Student cleared skills:', Array.from(clearedSkills));
+    // Create sets for cleared and ongoing skills (normalized)
+    const clearedSkillsSet = new Set();
+    const clearedSkillsMap = new Map();
+    studentSkills.forEach(skill => {
+      const normalizedName = normalizeSkillName(skill.course_name);
+      if (skill.status === 'Cleared') {
+        clearedSkillsSet.add(skill.course_name); // Keep original for logging
+        clearedSkillsMap.set(normalizedName, skill);
+      }
+    });
+
+    console.log('Student cleared skills:', Array.from(clearedSkillsSet));
+    console.log('Normalized cleared skills:', Array.from(clearedSkillsMap.keys()));
+
+    // Build skill progression with unlock status
+    const skillProgression = [];
+    const courseProgress = {}; // Track progress per course type
+    const unlockedSkills = new Set(); // Skills that are unlocked for this student (normalized names)
+    
+    for (const skill of orderedSkills) {
+      const normalizedSkillName = normalizeSkillName(skill.skill_name);
+      const isCleared = clearedSkillsMap.has(normalizedSkillName);
+      
+      // Initialize course progress tracker
+      if (!courseProgress[skill.course_type]) {
+        courseProgress[skill.course_type] = { previousCleared: true, currentUnlocked: null };
+      }
+      
+      const courseTracker = courseProgress[skill.course_type];
+      
+      // A skill is unlocked if:
+      // 1. It's already cleared by the student (regardless of prerequisites), OR
+      // 2. Previous skill in same course is cleared (normal progression)
+      // This allows students who cleared a skill directly to proceed
+      const isUnlockedByClearing = isCleared;
+      const isUnlockedByPrerequisite = !skill.is_prerequisite || courseTracker.previousCleared;
+      const isUnlocked = isUnlockedByClearing || isUnlockedByPrerequisite;
+      const isLocked = !isUnlocked;
+      
+      if (isUnlocked) {
+        unlockedSkills.add(normalizedSkillName); // Use normalized name for consistent matching
+      }
+      
+      // If this skill is cleared, mark the next skill as unlockable
+      // This ensures that clearing any skill unlocks the next one
+      if (isCleared) {
+        courseTracker.previousCleared = true;
+      } else {
+        // Only block next skills if this one is unlocked but not cleared yet
+        if (isUnlocked) {
+          courseTracker.previousCleared = false;
+        }
+      }
+      
+      // Track the first unlocked but not cleared skill as "current"
+      const isCurrent = isUnlocked && !isCleared && !courseTracker.currentUnlocked;
+      if (isCurrent) {
+        courseTracker.currentUnlocked = skill.skill_name;
+      }
+
+      skillProgression.push({
+        skill_order_id: skill.skill_order_id,
+        skill_name: skill.skill_name,
+        course_type: skill.course_type,
+        display_order: skill.display_order,
+        status: isCleared ? 'Cleared' : (isLocked ? 'Locked' : 'Available'),
+        is_cleared: isCleared,
+        is_locked: isLocked,
+        is_current: isCurrent
+      });
+
+      // previousCleared tracking is done above in the if-else block
+    }
+
+    console.log('Skill progression summary:');
+    skillProgression.forEach(s => {
+      console.log(`  ${s.skill_name} (${s.course_type}): ${s.status} - unlocked: ${!s.is_locked}`);
+    });
+    console.log('Unlocked skills set:', Array.from(unlockedSkills));
 
     // Get all tasks for the student's venue
-    const [tasks] = await db.query(`
+    let tasksQuery = `
       SELECT 
         t.task_id,
         t.title,
@@ -916,12 +1048,24 @@ export const getStudentTasks = async (req, res) => {
       LEFT JOIN users u ON f.user_id = u.user_id
       LEFT JOIN task_submissions ts ON t.task_id = ts.task_id AND ts.student_id = ?
       WHERE t.venue_id = ? AND t.status = 'Active'
-      ORDER BY t.day ASC, t.created_at ASC
-    `, [student_id, venue_id]);
+    `;
+    const tasksParams = [student_id, venue_id];
+
+    if (course_type) {
+      tasksQuery += ` AND t.course_type = ?`;
+      tasksParams.push(course_type);
+    }
+
+    tasksQuery += ` ORDER BY t.day ASC, t.created_at ASC`;
+
+    const [tasks] = await db.query(tasksQuery, tasksParams);
 
     console.log(`Found ${tasks.length} tasks for venue_id ${venue_id} before skill filtering`);
+    console.log('Ordered skills from skill_order table:', orderedSkills.map(s => s.skill_name));
+    console.log('Unlocked skills for student:', Array.from(unlockedSkills));
 
-    // Filter tasks based on skill_filter and revision status
+    // Filter tasks based on skill_filter, skill_order, and completion status
+    // HIDE tasks for skills student has already CLEARED
     const filteredTasks = tasks.filter(task => {
       // ALWAYS show tasks that need revision (grade < 50%)
       if (task.submission_status === 'Needs Revision') {
@@ -929,25 +1073,65 @@ export const getStudentTasks = async (req, res) => {
         return true;
       }
       
-      // If no skill_filter is set, show to everyone (unless already graded successfully)
-      if (!task.skill_filter) {
+      // Get the effective skill filter from skill_filter field
+      const effectiveSkillFilter = task.skill_filter;
+      
+      // If no skill_filter is set, show task if not already completed successfully
+      if (!effectiveSkillFilter) {
         // Hide tasks that are already graded successfully (grade >= 50%)
         if (task.submission_status === 'Graded' && task.grade >= 50) {
+          console.log(`Task "${task.title}" - No skill filter, already graded successfully - hiding`);
           return false;
         }
+        console.log(`Task "${task.title}" - No skill filter - showing`);
         return true;
       }
       
-      // If skill_filter is set, only show if student has NOT cleared that skill
-      const hasCleared = clearedSkills.has(task.skill_filter);
-      console.log(`Task "${task.title}" - Skill Filter: ${task.skill_filter}, Student Cleared: ${hasCleared}, Show: ${!hasCleared}`);
+      // Use the same normalization function for consistent matching
+      const normalizedSkillFilter = normalizeSkillName(effectiveSkillFilter);
       
-      // Hide if student has cleared the skill AND task is already graded successfully
-      if (hasCleared && task.submission_status === 'Graded' && task.grade >= 50) {
+      // Check if student has cleared this skill (using normalized names)
+      const hasCleared = clearedSkillsMap.has(normalizedSkillFilter);
+      
+      console.log(`Task "${task.title}" - skill_filter: "${effectiveSkillFilter}" -> normalized: "${normalizedSkillFilter}", hasCleared: ${hasCleared}`);
+      
+      // HIDE task if student has CLEARED this skill (they don't need it anymore)
+      if (hasCleared) {
+        console.log(`Task "${task.title}" - Skill "${effectiveSkillFilter}" CLEARED - hiding from student`);
         return false;
       }
       
-      return !hasCleared;
+      // If no skill order is defined, show all tasks (don't check unlock status)
+      if (orderedSkills.length === 0) {
+        console.log(`Task "${task.title}" - No skill order defined - showing`);
+        return true;
+      }
+      
+      // Check if this skill exists in the skill_order table (using normalized names)
+      const skillExistsInOrder = orderedSkills.some(s => 
+        normalizeSkillName(s.skill_name) === normalizedSkillFilter
+      );
+      
+      // If skill is not in skill_order table, show the task anyway (don't block on unknown skills)
+      if (!skillExistsInOrder) {
+        console.log(`Task "${task.title}" - Skill "${effectiveSkillFilter}" not in skill_order table - showing`);
+        return true;
+      }
+      
+      // Check if the skill is unlocked for this student (based on skill order progression)
+      // Use normalized skill name for matching
+      const isSkillUnlocked = unlockedSkills.has(normalizedSkillFilter);
+      
+      // If skill is locked, don't show the task
+      if (!isSkillUnlocked) {
+        console.log(`Task "${task.title}" - Skill "${effectiveSkillFilter}" is LOCKED - hiding from student`);
+        return false;
+      }
+      
+      console.log(`Task "${task.title}" - Skill Filter: ${effectiveSkillFilter}, Unlocked: ${isSkillUnlocked}, Cleared: ${hasCleared} - SHOWING`);
+      
+      // Show task - skill is unlocked and not yet cleared
+      return true;
     });
 
     console.log(`Showing ${filteredTasks.length} tasks after skill filtering and revision check`);
@@ -1028,7 +1212,8 @@ export const getStudentTasks = async (req, res) => {
         venue_name,
         venue_id,
         student_id,
-        groupedTasks
+        groupedTasks,
+        skill_progression: skillProgression
       }
     });
   } catch (error) {

@@ -44,12 +44,19 @@ const TasksAssignments = () => {
     { id: 'react-native', name: 'React Native', icon: Layout, color: 'pink', desc: 'Mobile Development' },
   ];
 
+  const [skillProgression, setSkillProgression] = useState([]);
+
   // Fetch tasks from backend
   useEffect(() => {
     const fetchTasks = async () => {
       setLoading(true);
       try {
-        const response = await fetch(`${API_URL}/tasks/student`, {
+        // Include course_type filter if a course is selected
+        const url = selectedCourse 
+          ? `${API_URL}/tasks/student?course_type=${selectedCourse}`
+          : `${API_URL}/tasks/student`;
+          
+        const response = await fetch(url, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -58,6 +65,11 @@ const TasksAssignments = () => {
         const data = await response.json();
         
         if (data.success && data.data) {
+          // Store skill progression for UI display
+          if (data.data.skill_progression) {
+            setSkillProgression(data.data.skill_progression);
+          }
+          
           // Transform backend data to match UI format
           const allTasks = [];
           Object.values(data.data.groupedTasks || {}).forEach(group => {
@@ -99,7 +111,7 @@ const TasksAssignments = () => {
     if (token) {
       fetchTasks();
     }
-  }, [token, API_URL]);
+  }, [token, API_URL, selectedCourse]);
 
   const filteredTasks = tasks.filter((t) => {
     // First Filter by Course

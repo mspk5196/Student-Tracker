@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import useAuthStore from '../../../../store/useAuthStore';
-import { encodeIdSimple } from '../../../../utils/idEncoder';
+import { encodeIdSimple, decodeIdSimple } from '../../../../utils/idEncoder';
 import { 
   FolderOpen, 
   Assignment, 
@@ -37,7 +37,8 @@ const useWindowSize = () => {
 
 const ClassDetails = () => {
   const navigate = useNavigate();
-  const { venueId } = useParams();
+  const { venueId: encodedVenueId } = useParams();
+  const venueId = decodeIdSimple(encodedVenueId) || encodedVenueId; // Fallback for non-encoded IDs
   const { width } = useWindowSize();
   const isMobile = width <= 768;
   const token = useAuthStore((state) => state.token);
