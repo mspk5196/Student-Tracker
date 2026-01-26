@@ -24,6 +24,147 @@ const StudentRoadmap = () => {
   const [selectedNodeId, setSelectedNodeId] = useState(null);
   const [selectedCourse, setSelectedCourse] = useState('frontend');
   const [venueName, setVenueName] = useState('');
+  const [unlockSummary, setUnlockSummary] = useState(null);
+
+  const FRONTEND_SEQUENCE = [
+    {
+      key: 'html_css',
+      label: 'HTML/CSS',
+      combined: [['html', 'css']],
+      groups: [['html'], ['css']],
+    },
+    {
+      key: 'git_github',
+      label: 'Git/GitHub',
+      combined: [['git', 'github']],
+      groups: [['git'], ['github']],
+    },
+    {
+      key: 'javascript',
+      label: 'JavaScript',
+      combined: [['javascript']],
+      groups: [['javascript', 'js']],
+    },
+    {
+      key: 'react',
+      label: 'React',
+      combined: [['react']],
+      groups: [['react']],
+    },
+    {
+      key: 'node',
+      label: 'Node.js',
+      combined: [['node', 'nodejs'], ['node.js']],
+      groups: [['node', 'nodejs', 'node.js', 'node js']],
+    },
+  ];
+
+  const normalizeText = (value) =>
+    String(value || '')
+      .toLowerCase()
+      .replace(/[\s/_-]+/g, ' ')
+      .trim();
+
+  const textIncludesAll = (text, tokens) => tokens.every((t) => text.includes(t));
+
+  const isRoadmapSkill = (courseName) => {
+    const name = normalizeText(courseName);
+    if (!name) return false;
+
+    // Only consider the technical roadmap track; ignore aptitude/mechanical/etc.
+    // Use token-ish matching to avoid accidental substring matches.
+    return (
+      name.includes('html') ||
+      name.includes('css') ||
+      name.includes('git') ||
+      name.includes('github') ||
+      name.includes('javascript') ||
+      name.includes(' js') ||
+      name.includes('react') ||
+      name.includes('node')
+    );
+  };
+
+  const isStepCleared = (step, clearedSkills) => {
+    if (!clearedSkills || clearedSkills.length === 0) return false;
+
+    // If any course name contains all tokens of a combined set
+    if (step.combined && step.combined.length > 0) {
+      const combinedHit = clearedSkills.some((s) => {
+        const courseName = normalizeText(s.course_name);
+        return step.combined.some((tokenSet) => textIncludesAll(courseName, tokenSet));
+      });
+      if (combinedHit) return true;
+    }
+
+    // Otherwise require each group to be satisfied by at least one cleared skill
+    return (step.groups || []).every((groupVariants) =>
+      clearedSkills.some((s) => {
+        const courseName = normalizeText(s.course_name);
+        return groupVariants.some((variant) => courseName.includes(variant));
+      })
+    );
+  };
+
+  const getFrontendStepIndexForModule = (moduleTitle) => {
+    const title = normalizeText(moduleTitle);
+    if (!title) return -1;
+
+    if (title.includes('html') || title.includes('css')) return 0;
+    if (title.includes('git') || title.includes('github')) return 1;
+    if (title.includes('javascript') || title.includes(' js ')) return 2;
+    if (title.includes('react')) return 3;
+    if (title.includes('node')) return 4;
+    return -1;
+  };
+
+  const applyFrontendUnlocking = (modules, skills) => {
+    const clearedSkills = (skills || [])
+      .filter((s) => s.status === 'Cleared')
+      .filter((s) => isRoadmapSkill(s.course_name));
+    const stepCleared = FRONTEND_SEQUENCE.map((step) => isStepCleared(step, clearedSkills));
+
+    // maxUnlockedStepIndex: 0 = only HTML/CSS is unlocked, 1 = Git/GitHub unlocked, etc.
+    let maxUnlockedStepIndex = 0;
+    for (let i = 0; i < stepCleared.length; i += 1) {
+      if (stepCleared[i]) maxUnlockedStepIndex = i + 1;
+      else break;
+    }
+    if (maxUnlockedStepIndex > FRONTEND_SEQUENCE.length - 1) {
+      maxUnlockedStepIndex = FRONTEND_SEQUENCE.length - 1;
+    }
+
+    const updated = modules.map((m) => {
+      const stepIndex = getFrontendStepIndexForModule(m.title);
+      const isUnknown = stepIndex === -1;
+      const isLocked = !isUnknown && stepIndex > maxUnlockedStepIndex;
+      const isCompleted = !isUnknown && Boolean(stepCleared[stepIndex]);
+      const lockedReason =
+        isLocked && stepIndex > 0
+          ? `Complete ${FRONTEND_SEQUENCE[stepIndex - 1].label} to unlock`
+          : '';
+
+      return {
+        ...m,
+        is_completed: isCompleted,
+        is_locked: isLocked,
+        locked_reason: lockedReason,
+        progress: isCompleted ? 100 : isLocked ? 0 : 0,
+      };
+    });
+
+    // Choose first unlocked and not completed as "current"
+    const firstActive = updated.find((m) => !m.is_locked && !m.is_completed) || updated.find((m) => !m.is_locked) || updated[0];
+    const selectedId = firstActive?.roadmap_id ?? null;
+
+    setUnlockSummary({
+      course: 'frontend',
+      maxUnlockedStepIndex,
+      stepCleared,
+    });
+
+    return { updated, selectedId };
+  };
 
   useEffect(() => {
     fetchRoadmapData();
@@ -45,8 +186,31 @@ const StudentRoadmap = () => {
       const result = await response.json();
       
       if (result.success && result.data) {
+        const venueId = result.venue?.venue_id;
+        const studentId = result.venue?.student_id;
+
+        let skills = [];
+        if (studentId) {
+          try {
+            const skillsRes = await fetch(
+              `${API_URL}/skill-completion/students/${studentId}${venueId ? `?venueId=${venueId}` : ''}`,
+              {
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                },
+              }
+            );
+            if (skillsRes.ok) {
+              const skillsJson = await skillsRes.json();
+              skills = skillsJson?.data?.skills || [];
+            }
+          } catch (e) {
+            console.warn('Failed to fetch skill progress; roadmap will remain unlocked:', e);
+          }
+        }
+
         // Transform backend data to match UI expectations
-        const transformedData = result.data.map((module, index) => ({
+        const transformedDataBase = result.data.map((module, index) => ({
           roadmap_id: module.roadmap_id,
           title: module.title,
           description: module.description || 'No description available',
@@ -54,7 +218,7 @@ const StudentRoadmap = () => {
           day: module.day,
           course_type: module.course_type || 'frontend',
           status: module.status,
-          is_completed: false, // TODO: Track student progress
+          is_completed: false,
           is_current: index === 0,
           is_locked: false,
           progress: 0,
@@ -62,12 +226,25 @@ const StudentRoadmap = () => {
           tasks: [] // TODO: Integrate tasks if available
         }));
 
-        setRoadmapData(transformedData);
+        // Apply unlocking only for frontend course, leave other courses unchanged for now
+        let finalData = transformedDataBase;
+        let recommendedSelectedId = transformedDataBase[0]?.roadmap_id ?? null;
+        const frontendModules = transformedDataBase.filter((m) => m.course_type === 'frontend');
+        if (frontendModules.length > 0) {
+          const { updated, selectedId } = applyFrontendUnlocking(frontendModules, skills);
+          finalData = transformedDataBase.map((m) => {
+            if (m.course_type !== 'frontend') return m;
+            const patched = updated.find((u) => u.roadmap_id === m.roadmap_id);
+            return patched || m;
+          });
+          recommendedSelectedId = selectedId;
+        }
+
+        setRoadmapData(finalData);
         setVenueName(result.venue?.venue_name || 'Your Venue');
-        
-        // Select the first module by default
-        if (transformedData.length > 0) {
-          setSelectedNodeId(transformedData[0].roadmap_id);
+
+        if (recommendedSelectedId) {
+          setSelectedNodeId(recommendedSelectedId);
         }
       } else {
         setRoadmapData([]);
@@ -98,7 +275,7 @@ const StudentRoadmap = () => {
 
   const downloadResource = async (resource) => {
     try {
-      const response = await fetch(`${API_URL}/roadmap/resources/${resource.resource_id}/download`, {
+      const response = await fetch(`${API_URL}/roadmap/resources/download/${resource.resource_id}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -751,7 +928,7 @@ const StudentRoadmap = () => {
                   onChange={(e) => {
                     setSelectedCourse(e.target.value);
                     // Reset to first module of new course type
-                    const firstModule = roadmapData.find(m => m.course_type === e.target.value);
+                    const firstModule = roadmapData.find(m => m.course_type === e.target.value && !m.is_locked) || roadmapData.find(m => m.course_type === e.target.value);
                     if (firstModule) setSelectedNodeId(firstModule.roadmap_id);
                   }}
                   style={{ paddingRight: '36px' }}
@@ -880,6 +1057,23 @@ const StudentRoadmap = () => {
                        Study materials
                      </h3>
                      <div className="resources-list">
+                        {selectedNode.is_locked && (
+                          <div style={{
+                            marginBottom: '12px',
+                            padding: '10px 12px',
+                            background: '#f1f5f9',
+                            border: '1px solid #e2e8f0',
+                            borderRadius: '10px',
+                            color: '#64748b',
+                            fontSize: '13px',
+                            display: 'flex',
+                            gap: '8px',
+                            alignItems: 'center'
+                          }}>
+                            <Lock size={16} />
+                            {selectedNode.locked_reason || 'Complete the previous skill to unlock this material.'}
+                          </div>
+                        )}
                         {selectedNode.resources && selectedNode.resources.length > 0 ? (
                           selectedNode.resources.map((res) => (
                           <div key={res.resource_id} className="resource-item">
@@ -896,14 +1090,15 @@ const StudentRoadmap = () => {
                             </div>
                             {res.resource_type === 'pdf' && res.file_path ? (
                               <button
-                                onClick={() => downloadResource(res)}
+                                onClick={() => !selectedNode.is_locked && downloadResource(res)}
+                                disabled={selectedNode.is_locked}
                                 style={{
                                   padding: '6px 12px',
-                                  background: '#3b82f6',
+                                  background: selectedNode.is_locked ? '#cbd5e1' : '#3b82f6',
                                   color: 'white',
                                   border: 'none',
                                   borderRadius: '6px',
-                                  cursor: 'pointer',
+                                  cursor: selectedNode.is_locked ? 'not-allowed' : 'pointer',
                                   fontSize: '12px',
                                   display: 'flex',
                                   alignItems: 'center',
@@ -912,31 +1107,53 @@ const StudentRoadmap = () => {
                                 }}
                               >
                                 <Download size={14} />
-                                Download
+                                {selectedNode.is_locked ? 'Locked' : 'Download'}
                               </button>
                             ) : res.resource_url ? (
-                              <a
-                                href={res.resource_url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                style={{
-                                  padding: '6px 12px',
-                                  background: '#10b981',
-                                  color: 'white',
-                                  border: 'none',
-                                  borderRadius: '6px',
-                                  cursor: 'pointer',
-                                  fontSize: '12px',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  gap: '4px',
-                                  textDecoration: 'none',
-                                  fontWeight: '500'
-                                }}
-                              >
-                                <ExternalLink size={14} />
-                                Open
-                              </a>
+                              selectedNode.is_locked ? (
+                                <button
+                                  disabled
+                                  style={{
+                                    padding: '6px 12px',
+                                    background: '#cbd5e1',
+                                    color: 'white',
+                                    border: 'none',
+                                    borderRadius: '6px',
+                                    cursor: 'not-allowed',
+                                    fontSize: '12px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '4px',
+                                    fontWeight: '500'
+                                  }}
+                                >
+                                  <Lock size={14} />
+                                  Locked
+                                </button>
+                              ) : (
+                                <a
+                                  href={res.resource_url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  style={{
+                                    padding: '6px 12px',
+                                    background: '#10b981',
+                                    color: 'white',
+                                    border: 'none',
+                                    borderRadius: '6px',
+                                    cursor: 'pointer',
+                                    fontSize: '12px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '4px',
+                                    textDecoration: 'none',
+                                    fontWeight: '500'
+                                  }}
+                                >
+                                  <ExternalLink size={14} />
+                                  Open
+                                </a>
+                              )
                             ) : null}
                           </div>
                         ))

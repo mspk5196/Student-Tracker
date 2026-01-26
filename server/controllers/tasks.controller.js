@@ -269,15 +269,9 @@ export const createTask = async (req, res) => {
         console.log(`Total students in venue: ${students.length}, Eligible students: ${eligibleStudents.length}`);
       }
 
-      // Create submission records for eligible students only
-      if (eligibleStudents.length > 0) {
-        const submissionValues = eligibleStudents.map(s => `(${taskId}, ${s.student_id}, 'Pending Review', NOW())`).join(',');
-        await connection.query(`
-          INSERT INTO task_submissions (task_id, student_id, status, submitted_at)
-          VALUES ${submissionValues}
-        `);
-        totalStudents += eligibleStudents.length;
-      }
+      // Do not pre-create placeholder submissions.
+      // Student/Faculty views use LEFT JOIN and treat missing submissions as "Not Submitted".
+      totalStudents += eligibleStudents.length;
     }
 
     await connection.commit();
@@ -911,6 +905,7 @@ export const getStudentTasks = async (req, res) => {
         ts.submission_id,
         ts.file_name,
         ts.file_path,
+        ts.link_url,
         ts.submitted_at,
         ts.grade,
         ts.feedback,
@@ -1007,6 +1002,7 @@ export const getStudentTasks = async (req, res) => {
         isLate: task.is_late,
         fileName: task.file_name,
         filePath: task.file_path,
+        link_url: task.link_url,
         submissionStatus: task.submission_status,
         materials: materials
       };
@@ -1220,88 +1216,24 @@ export const syncTaskSubmissions = async (req, res) => {
   const connection = await db.getConnection();
   
   try {
-    await connection.beginTransaction();
-    
+    // No-op: submissions are created only when a student actually submits.
+    // This endpoint remains for backward compatibility (e.g., UI button clicks).
     const { venue_id } = req.params;
-    
-    // Get all tasks for this venue
-    const [tasks] = await connection.query(`
-      SELECT task_id, skill_filter 
-      FROM tasks 
-      WHERE venue_id = ? AND status = 'active'
-    `, [venue_id]);
-    
-    let totalSubmissionsCreated = 0;
-    
-    for (const task of tasks) {
-      // Get all students in this venue
-      const [students] = await connection.query(`
-        SELECT DISTINCT s.student_id 
-        FROM students s
-        INNER JOIN student_venue sv ON s.student_id = sv.student_id
-        WHERE sv.venue_id = ? AND s.status = 'active'
-      `, [venue_id]);
-      
-      // Filter students based on skill_filter
-      let eligibleStudents = students;
-      
-      if (task.skill_filter && task.skill_filter.trim()) {
-        const [clearedStudents] = await connection.query(`
-          SELECT DISTINCT student_id 
-          FROM student_skills
-          WHERE course_name = ? AND status = 'Cleared'
-        `, [task.skill_filter.trim()]);
-        
-        const clearedStudentIds = new Set(clearedStudents.map(s => s.student_id));
-        eligibleStudents = students.filter(s => !clearedStudentIds.has(s.student_id));
-      }
-      
-      // Check which students don't have submissions yet
-      if (eligibleStudents.length > 0) {
-        const studentIds = eligibleStudents.map(s => s.student_id);
-        
-        const [existingSubmissions] = await connection.query(`
-          SELECT student_id 
-          FROM task_submissions 
-          WHERE task_id = ? AND student_id IN (${studentIds.map(() => '?').join(',')})
-        `, [task.task_id, ...studentIds]);
-        
-        const existingStudentIds = new Set(existingSubmissions.map(s => s.student_id));
-        const newStudents = eligibleStudents.filter(s => !existingStudentIds.has(s.student_id));
-        
-        // Create submissions for new students
-        if (newStudents.length > 0) {
-          const submissionValues = newStudents.map(student => 
-            [task.task_id, student.student_id, 'Pending Review', null, null, null, null, null]
-          );
-          
-          for (const values of submissionValues) {
-            await connection.query(`
-              INSERT INTO task_submissions 
-              (task_id, student_id, status, file_path, submission_type, submitted_at, grade, feedback)
-              VALUES (?, ?, ?, ?, ?, NOW(), ?, ?)
-            `, values);
-          }
-          
-          totalSubmissionsCreated += newStudents.length;
-          console.log(`Created ${newStudents.length} submissions for task ${task.task_id}`);
-        }
-      }
-    }
-    
-    await connection.commit();
-    
+    const [tasks] = await connection.query(
+      `SELECT COUNT(*) as cnt FROM tasks WHERE venue_id = ? AND status = 'Active'`,
+      [venue_id]
+    );
+
     res.json({
       success: true,
-      message: `Successfully synced task submissions. Created ${totalSubmissionsCreated} new submissions.`,
+      message: 'Sync not required (submissions are created on submit).',
       data: {
-        tasksProcessed: tasks.length,
-        submissionsCreated: totalSubmissionsCreated
+        tasksProcessed: tasks[0]?.cnt ?? 0,
+        submissionsCreated: 0
       }
     });
     
   } catch (error) {
-    await connection.rollback();
     console.error('Error syncing task submissions:', error);
     res.status(500).json({
       success: false,
