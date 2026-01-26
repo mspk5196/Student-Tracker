@@ -168,14 +168,15 @@ const StudentRoadmap = () => {
 
   useEffect(() => {
     fetchRoadmapData();
-  }, []);
+  }, [selectedCourse]);
 
   const fetchRoadmapData = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`${API_URL}/roadmap/student`, {
+      const response = await fetch(`${API_URL}/roadmap/student?course_type=${selectedCourse}`, {
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${token}`,
+          'Cache-Control': 'no-cache'
         }
       });
 
@@ -185,32 +186,21 @@ const StudentRoadmap = () => {
 
       const result = await response.json();
       
-      if (result.success && result.data) {
+      // Handle venue display first - whether data exists or not
+      if (result.venue && result.venue.venue_name) {
+        setVenueName(result.venue.venue_name);
+      } else {
+        setVenueName('No Venue Assigned');
+      }
+      
+      if (result.success && result.data && result.data.length > 0) {
         const venueId = result.venue?.venue_id;
         const studentId = result.venue?.student_id;
-
-        let skills = [];
-        if (studentId) {
-          try {
-            const skillsRes = await fetch(
-              `${API_URL}/skill-completion/students/${studentId}${venueId ? `?venueId=${venueId}` : ''}`,
-              {
-                headers: {
-                  Authorization: `Bearer ${token}`,
-                },
-              }
-            );
-            if (skillsRes.ok) {
-              const skillsJson = await skillsRes.json();
-              skills = skillsJson?.data?.skills || [];
-            }
-          } catch (e) {
-            console.warn('Failed to fetch skill progress; roadmap will remain unlocked:', e);
-          }
-        }
+        const backendSkillProgression = result.skill_progression || [];
 
         // Transform backend data to match UI expectations
-        const transformedDataBase = result.data.map((module, index) => ({
+        // Use is_locked, is_completed, is_current from backend response
+        const transformedData = result.data.map((module, index) => ({
           roadmap_id: module.roadmap_id,
           title: module.title,
           description: module.description || 'No description available',
@@ -218,37 +208,82 @@ const StudentRoadmap = () => {
           day: module.day,
           course_type: module.course_type || 'frontend',
           status: module.status,
-          is_completed: false,
-          is_current: index === 0,
-          is_locked: false,
-          progress: 0,
+          is_completed: module.is_completed || false,
+          is_current: module.is_current || false,
+          is_locked: module.is_locked || false,
+          locked_reason: module.locked_reason || '',
+          skill_status: module.skill_status || 'Available',
+          progress: module.is_completed ? 100 : 0,
           resources: module.resources || [],
           tasks: [] // TODO: Integrate tasks if available
         }));
 
-        // Apply unlocking only for frontend course, leave other courses unchanged for now
-        let finalData = transformedDataBase;
-        let recommendedSelectedId = transformedDataBase[0]?.roadmap_id ?? null;
-        const frontendModules = transformedDataBase.filter((m) => m.course_type === 'frontend');
-        if (frontendModules.length > 0) {
-          const { updated, selectedId } = applyFrontendUnlocking(frontendModules, skills);
-          finalData = transformedDataBase.map((m) => {
-            if (m.course_type !== 'frontend') return m;
-            const patched = updated.find((u) => u.roadmap_id === m.roadmap_id);
-            return patched || m;
+        // If backend didn't provide progression info, fall back to old frontend logic
+        const hasBackendProgression = transformedData.some(m => m.is_locked || m.is_completed);
+        
+        let finalData = transformedData;
+        let recommendedSelectedId = transformedData[0]?.roadmap_id ?? null;
+
+        if (!hasBackendProgression) {
+          // Fallback: fetch skills and apply frontend unlocking
+          let skills = [];
+          if (studentId) {
+            try {
+              const skillsRes = await fetch(
+                `${API_URL}/skill-completion/students/${studentId}${venueId ? `?venueId=${venueId}` : ''}`,
+                {
+                  headers: {
+                    Authorization: `Bearer ${token}`,
+                  },
+                }
+              );
+              if (skillsRes.ok) {
+                const skillsJson = await skillsRes.json();
+                skills = skillsJson?.data?.skills || [];
+              }
+            } catch (e) {
+              console.warn('Failed to fetch skill progress; roadmap will remain unlocked:', e);
+            }
+          }
+
+          const frontendModules = transformedData.filter((m) => m.course_type === 'frontend');
+          if (frontendModules.length > 0) {
+            const { updated, selectedId } = applyFrontendUnlocking(frontendModules, skills);
+            finalData = transformedData.map((m) => {
+              if (m.course_type !== 'frontend') return m;
+              const patched = updated.find((u) => u.roadmap_id === m.roadmap_id);
+              return patched || m;
+            });
+            recommendedSelectedId = selectedId;
+          }
+        } else {
+          // Use backend-provided progression
+          const firstActive = transformedData.find((m) => m.is_current) || 
+                             transformedData.find((m) => !m.is_locked && !m.is_completed) || 
+                             transformedData[0];
+          recommendedSelectedId = firstActive?.roadmap_id ?? null;
+        }
+
+        // Store skill progression summary for UI
+        if (backendSkillProgression.length > 0) {
+          const courseSkills = backendSkillProgression.filter(s => s.course_type === selectedCourse);
+          const clearedCount = courseSkills.filter(s => s.is_cleared).length;
+          const currentSkill = courseSkills.find(s => s.is_current);
+          setUnlockSummary({
+            course: selectedCourse,
+            maxUnlockedStepIndex: clearedCount,
+            stepCleared: courseSkills.map(s => s.is_cleared),
+            currentSkill: currentSkill?.skill_name || null
           });
-          recommendedSelectedId = selectedId;
         }
 
         setRoadmapData(finalData);
-        setVenueName(result.venue?.venue_name || 'Your Venue');
 
         if (recommendedSelectedId) {
           setSelectedNodeId(recommendedSelectedId);
         }
       } else {
         setRoadmapData([]);
-        setVenueName('No Venue Assigned');
       }
     } catch (err) {
       console.error("Error fetching roadmap:", err);

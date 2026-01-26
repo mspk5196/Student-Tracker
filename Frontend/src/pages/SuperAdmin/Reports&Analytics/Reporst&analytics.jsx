@@ -40,11 +40,12 @@ const ReportsAnalytics = () => {
   const [loading, setLoading] = useState(false);
   const [venuesLoading, setVenuesLoading] = useState(false);
   const [tasksLoading, setTasksLoading] = useState(false);
+  const [paginationData, setPaginationData] = useState({ total: 0, page: 1, limit: 10, totalPages: 0 });
 
   // Menu States
   const [anchorElStatus, setAnchorElStatus] = useState(null);
 
-  const itemsPerPage = 5;
+  const itemsPerPage = 10;
 
   // Fetch venues on mount
   useEffect(() => {
@@ -171,6 +172,10 @@ const ReportsAnalytics = () => {
           });
 
           setSubmissions(transformed);
+          // Store pagination data from backend
+          if (data.pagination) {
+            setPaginationData(data.pagination);
+          }
         }
       } catch (err) {
         console.error("Error fetching submissions:", err);
@@ -224,30 +229,15 @@ const ReportsAnalytics = () => {
     return { total, pending, late, avgScore, notSubmitted };
   }, [submissions]);
 
-  // --- Filtering Logic ---
-  const filteredSubmissions = useMemo(() => {
-    return submissions.filter((item) => {
-      const matchesSearch =
-        item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.id.includes(searchTerm);
-      const matchesStatus =
-        filters.status === "All Statuses" ||
-        (filters.status === "Not Submitted"
-          ? !item.hasSubmitted
-          : item.status === filters.status);
-
-      return matchesSearch && matchesStatus;
-    });
-  }, [searchTerm, submissions, filters]);
-
   // --- Pagination Logic ---
-  const totalPages = Math.ceil(filteredSubmissions.length / itemsPerPage);
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = filteredSubmissions.slice(
-    indexOfFirstItem,
-    indexOfLastItem,
-  );
+  // Backend handles filtering, just use submissions directly
+  const totalPages = paginationData.totalPages || 1;
+  const currentItems = submissions; // Backend already returns paginated data
+  
+  // Calculate display indices based on current page
+  const indexOfFirstItem = (currentPage - 1) * itemsPerPage;
+  const indexOfLastItem = indexOfFirstItem + currentItems.length;
+  const totalItems = paginationData.total || currentItems.length;
 
   // --- Handlers ---
   const handleVenueChange = (e) => {
@@ -987,9 +977,9 @@ const ReportsAnalytics = () => {
                   Showing{" "}
                   <b>
                     {currentItems.length > 0 ? indexOfFirstItem + 1 : 0}-
-                    {Math.min(indexOfLastItem, filteredSubmissions.length)}
+                    {indexOfLastItem}
                   </b>{" "}
-                  of <b>{filteredSubmissions.length}</b> submissions
+                  of <b>{totalItems}</b> submissions
                 </div>
                 <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
                   <button

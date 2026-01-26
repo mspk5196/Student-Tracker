@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import AssignmentDashboard from './Task-Assignment-page/Task&assignments';
 import StudyRoadmap from './Study-Road-Map/RoadMap';
+import SkillOrderManager from './Study-Road-Map/SkillOrderManager';
 import useAuthStore from '../../../../store/useAuthStore'; // FIXED PATH - 3 levels up
 
 const TaskHeader = () => {
@@ -46,12 +47,12 @@ useEffect(() => {
       
       const data = await response.json();
       
-      if (data.success && data.data. length > 0) {
+      if (data.success && data.data.length > 0) {
         
-        setVenues(data. data);
-        setSelectedVenueId(data.data[0].venue_id. toString());
+        setVenues(data.data);
+        setSelectedVenueId(data.data[0].venue_id.toString());
       } else if (data.success && data.data.length === 0) {
-        setError('No venues available.  Please contact admin.');
+        setError('No venues available. Please contact admin.');
        
       } else {
         setError(data.message || 'Failed to load venues');
@@ -88,8 +89,8 @@ useEffect(() => {
   };
 
   const getCurrentVenueName = () => {
-    const venue = venues.find(v => v.venue_id. toString() === selectedVenueId);
-    return venue ? venue. venue_name : '';
+    const venue = venues.find(v => v.venue_id.toString() === selectedVenueId);
+    return venue ? venue.venue_name : '';
   };
 
   return (
@@ -102,7 +103,7 @@ useEffect(() => {
                 onClick={() => setActiveTab('assignments')}
                 style={{
                   ...styles.tab,
-                  ...(activeTab === 'assignments' ?  styles.activeTab : styles.inactiveTab)
+                  ...(activeTab === 'assignments' ? styles.activeTab : styles.inactiveTab)
                 }}
               >
                 Assignments
@@ -115,6 +116,15 @@ useEffect(() => {
                 }}
               >
                 Study Roadmap
+              </button>
+              <button 
+                onClick={() => setActiveTab('skillorder')}
+                style={{
+                  ...styles.tab,
+                  ...(activeTab === 'skillorder' ? styles.activeTab : styles.inactiveTab)
+                }}
+              >
+                Skill Order
               </button>
             </div>
 
@@ -144,20 +154,20 @@ useEffect(() => {
                     onChange={handleVenueChange}
                     style={styles.dropdownSelect}
                   >
-                    <option value="all" style={{ fontWeight: 'bold', color: '#3b82f6' }}> All Venues</option>
+                    <option value="all" style={{ fontWeight: 'bold', color: '#3b82f6' }}>All Venues</option>
                     {venues.map(venue => (
-                      <option key={venue. venue_id} value={venue. venue_id}>
+                      <option key={venue.venue_id} value={venue.venue_id}>
                         {venue.venue_name} ({venue.student_count} students)
                       </option>
                     ))}
                   </select>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ position: 'absolute', right:  '12px', pointerEvents:  'none' }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ position: 'absolute', right: '12px', pointerEvents: 'none' }}>
                     <polyline points="6 9 12 15 18 9"></polyline>
                   </svg>
                 </>
               ) : (
                 <>
-                  <select style={styles. dropdownSelect} disabled>
+                  <select style={styles.dropdownSelect} disabled>
                     <option>No venues available</option>
                   </select>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ position: 'absolute', right: '12px', pointerEvents: 'none' }}>
@@ -195,7 +205,7 @@ useEffect(() => {
 
       <div style={styles.contentArea}>
         <div style={styles.contentPlaceholder}>
-          {! loading && selectedVenueId && (
+          {!loading && selectedVenueId && (
             activeTab === 'assignments' ? (
               <AssignmentDashboard 
                 selectedVenueId={selectedVenueId}
@@ -203,7 +213,7 @@ useEffect(() => {
                 venues={venues}
                 selectedCourseType={selectedCourse}
               />
-            ) : (
+            ) : activeTab === 'roadmap' ? (
               <StudyRoadmap 
                 selectedVenueId={selectedVenueId}
                 venueName={getCurrentVenueName()}
@@ -213,10 +223,14 @@ useEffect(() => {
                 selectedCourseType={selectedCourse}
                 key={`${selectedVenueId}-${addDayTrigger}`}
               />
+            ) : (
+              <SkillOrderManager 
+                selectedCourseType={selectedCourse}
+              />
             )
           )}
           
-          {! loading && ! selectedVenueId && ! error && (
+          {!loading && !selectedVenueId && !error && (
             <div style={styles.emptyState}>
               <h3>Select a venue to get started</h3>
             </div>
@@ -233,7 +247,7 @@ const styles = {
     backgroundColor: '#f8fafc',
     minHeight: '100vh',
   },
-  stickyHeader:  {
+  stickyHeader: {
     position: 'sticky',
     top: 0,
     zIndex: 1000,
@@ -248,7 +262,7 @@ const styles = {
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  leftSection:  {
+  leftSection: {
     display: 'flex',
     alignItems: 'center',
     gap: '20px',
@@ -299,8 +313,8 @@ const styles = {
   },
   rightSection: {
     display: 'flex',
-    alignItems:  'center',
-    gap:  '12px',
+    alignItems: 'center',
+    gap: '12px',
   },
   outlineBtn: {
     display: 'flex',

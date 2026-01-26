@@ -1,58 +1,163 @@
-import React, { useState, useEffect } from 'react';
-import { CheckCircle, XCircle, Clock, TrendingUp, Award, Target, Plus, X } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { CheckCircle, XCircle, Clock, TrendingUp, Award, Target, Plus, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import axios from 'axios';
+import useAuthStore from '../../../../store/useAuthStore';
 
 const API_URL = import.meta.env.VITE_API_URL;
 
 const SkillProficiencyView = ({ selectedVenue, selectedVenueName, facultyName, initialSkill = '' }) => {
+  const { token } = useAuthStore();
   
   // Selected skill (single dropdown selection)
   const [selectedSkill, setSelectedSkill] = useState(initialSkill);
   const [statusFilter, setStatusFilter] = useState('All Status');
   const [studentSearch, setStudentSearch] = useState('');
   
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(25);
+  const [totalRecords, setTotalRecords] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  
   // Backend data states
   const [skillReports, setSkillReports] = useState([]);
-  const [venueStudents, setVenueStudents] = useState([]); // All students in the venue
+  const [venueStudents, setVenueStudents] = useState([]); // All students in venue for "Not Attempted"
+  const [availableSkills, setAvailableSkills] = useState([]); // Skills list from API
+  const [skillStats, setSkillStats] = useState({
+    totalStudents: 0,
+    cleared: 0,
+    notCleared: 0,
+    ongoing: 0,
+    notAttempted: 0,
+    avgBestScore: 0
+  });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // Fetch skill reports when venue is selected (passed from parent)
+  // Debounce search to avoid too many API calls
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  
   useEffect(() => {
-    const fetchSkillReports = async () => {
-      if (!selectedVenue) {
-        setSkillReports([]);
-        setVenueStudents([]);
-        return;
-      }
+    const timer = setTimeout(() => {
+      setDebouncedSearch(studentSearch);
+      setCurrentPage(1); // Reset to first page on search
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [studentSearch]);
 
-      setLoading(true);
-      setError('');
+  // Fetch skill reports with server-side filtering and pagination
+  const fetchSkillReports = useCallback(async () => {
+    if (!selectedVenue) {
+      setSkillReports([]);
+      setVenueStudents([]);
+      setAvailableSkills([]);
+      return;
+    }
+
+    // Only fetch detailed reports when a skill is selected
+    if (!selectedSkill) {
+      // Just fetch to get available skills
       try {
-        const token = localStorage.getItem('token');
         const response = await axios.post(
           `${API_URL}/skill-reports/faculty/venue/reports`,
           {
             venueId: selectedVenue,
             page: 1,
-            limit: 1000, // Get all records for this view
+            limit: 1, // Minimal fetch just to get available skills
             sortBy: 'last_slot_date',
             sortOrder: 'DESC',
           },
           { headers: { Authorization: `Bearer ${token}` } }
         );
-        setSkillReports(response.data.reports || []);
-        setVenueStudents(response.data.venueStudents || []); // Get all venue students
+        
+        // Set available skills from API response
+        if (response.data.availableSkills) {
+          setAvailableSkills(response.data.availableSkills.map((name, idx) => ({ id: idx + 1, name })));
+        }
+        // Store venue students for "Not Attempted" calculation
+        if (response.data.venueStudents) {
+          setVenueStudents(response.data.venueStudents);
+        }
+        setSkillReports([]);
+        setTotalRecords(0);
+        setTotalPages(1);
       } catch (err) {
-        console.error('Error fetching skill reports:', err);
-        setError('Failed to load skill reports');
-      } finally {
-        setLoading(false);
+        console.error('Error fetching available skills:', err);
       }
-    };
+      return;
+    }
 
+    setLoading(true);
+    setError('');
+    try {
+      // Map status filter to API format
+      let statusParam = null;
+      if (statusFilter === 'Cleared') statusParam = 'Cleared';
+      else if (statusFilter === 'Not Cleared') statusParam = 'Not Cleared';
+      else if (statusFilter === 'Ongoing') statusParam = 'Ongoing';
+      
+      const response = await axios.post(
+        `${API_URL}/skill-reports/faculty/venue/reports`,
+        {
+          venueId: selectedVenue,
+          page: currentPage,
+          limit: itemsPerPage,
+          sortBy: 'last_slot_date',
+          sortOrder: 'DESC',
+          skill: selectedSkill, // Pass selected skill for server-side filtering
+          status: statusParam,
+          search: debouncedSearch || undefined,
+        },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      
+      setSkillReports(response.data.reports || []);
+      setTotalRecords(response.data.pagination?.total || 0);
+      setTotalPages(response.data.pagination?.totalPages || 1);
+      
+      // Set available skills from API response
+      if (response.data.availableSkills) {
+        setAvailableSkills(response.data.availableSkills.map((name, idx) => ({ id: idx + 1, name })));
+      }
+      
+      // Store venue students for "Not Attempted" calculation
+      if (response.data.venueStudents) {
+        setVenueStudents(response.data.venueStudents);
+      }
+      
+      // Set stats from API response (backend returns 'statistics')
+      if (response.data.statistics) {
+        // Calculate not attempted count
+        const attemptedStudentIds = new Set((response.data.reports || []).map(r => r.student_id));
+        const totalVenueStudents = response.data.venueStudents?.length || 0;
+        const notAttemptedCount = Math.max(0, totalVenueStudents - attemptedStudentIds.size);
+        
+        setSkillStats({
+          totalStudents: totalVenueStudents, // Total students in venue
+          cleared: response.data.statistics.cleared || 0,
+          notCleared: response.data.statistics.not_cleared || 0,
+          ongoing: response.data.statistics.ongoing || 0,
+          notAttempted: notAttemptedCount,
+          avgBestScore: response.data.statistics.avg_best_score || 0
+        });
+      }
+    } catch (err) {
+      console.error('Error fetching skill reports:', err);
+      setError('Failed to load skill reports');
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedVenue, selectedSkill, currentPage, itemsPerPage, statusFilter, debouncedSearch, token]);
+
+  // Fetch data when dependencies change
+  useEffect(() => {
     fetchSkillReports();
-  }, [selectedVenue]);
+  }, [fetchSkillReports]);
+
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedVenue, selectedSkill, statusFilter]);
 
   // Update selectedSkill when initialSkill changes
   useEffect(() => {
@@ -61,35 +166,38 @@ const SkillProficiencyView = ({ selectedVenue, selectedVenueName, facultyName, i
     }
   }, [initialSkill]);
 
-  // Extract unique skills from reports
-  const availableSkills = Array.from(
-    new Set(skillReports.map(report => report.course_name))
-  ).map((courseName, index) => ({
-    id: index + 1,
-    name: courseName
-  }));
+  // Memoize the "Not Attempted" students list
+  const notAttemptedStudents = useMemo(() => {
+    if (!selectedSkill) return [];
+    const attemptedStudentIds = new Set(skillReports.map(r => r.student_id));
+    return venueStudents
+      .filter(vs => !attemptedStudentIds.has(vs.student_id))
+      .map(vs => ({
+        rollNumber: vs.roll_number,
+        studentId: vs.student_id,
+        name: vs.student_name,
+        year: vs.year || 'N/A',
+        courseName: selectedSkill,
+        venue: selectedVenueName || 'N/A',
+        attempt: 0,
+        status: 'Not Attempted',
+        score: '-',
+        attendance: '-',
+        slotDate: '-',
+        startTime: '-',
+        endTime: '-'
+      }));
+  }, [skillReports, venueStudents, selectedSkill, selectedVenueName]);
 
-  // Transform backend data to frontend structure
-  // Group reports by student and course to show all attempts
-  const transformedData = skillReports.reduce((acc, report) => {
-    const key = `${report.roll_number}-${report.course_name}`;
-    
-    if (!acc[key]) {
-      acc[key] = {
-        rollNumber: report.roll_number,
-        studentId: report.student_id,
-        userId: report.roll_number,
-        name: report.student_name,
-        year: report.year || 'N/A',
-        courseName: report.course_name,
-        venue: report.student_current_venue || report.excel_venue_name || 'N/A',
-        skillAttempts: [],
-        latestStatus: report.status
-      };
-    }
-
-    // Add attempt - always add since all records have total_attempts >= 1
-    acc[key].skillAttempts.push({
+  // Transform skill reports to display format
+  const attemptedStudents = useMemo(() => {
+    return skillReports.map(report => ({
+      rollNumber: report.roll_number,
+      studentId: report.student_id,
+      name: report.student_name,
+      year: report.year || 'N/A',
+      courseName: report.course_name,
+      venue: report.student_current_venue || report.excel_venue_name || 'N/A',
       attempt: report.total_attempts || 1,
       status: report.status,
       score: report.latest_score ?? report.best_score ?? 0,
@@ -97,97 +205,53 @@ const SkillProficiencyView = ({ selectedVenue, selectedVenueName, facultyName, i
       slotDate: report.last_slot_date ? new Date(report.last_slot_date).toISOString().split('T')[0] : 'N/A',
       startTime: report.last_start_time || 'N/A',
       endTime: report.last_end_time || 'N/A'
-    });
+    }));
+  }, [skillReports]);
 
-    return acc;
-  }, {});
-
-  // Get students who have attempted the selected skill
-  const studentsWithSkillData = Object.values(transformedData);
-
-  // Build complete student list including "Not Attempted" students
-  // Only calculate this when a skill is selected
-  const getCompleteStudentList = () => {
+  // Combine all students for "All Status" view
+  const allStudents = useMemo(() => {
     if (!selectedSkill) return [];
+    return [...attemptedStudents, ...notAttemptedStudents];
+  }, [attemptedStudents, notAttemptedStudents, selectedSkill]);
+
+  // Memoize the transformed data to avoid expensive recalculations
+  const displayData = useMemo(() => {
+    // If "Not Attempted" filter is selected, show paginated not attempted students
+    if (statusFilter === 'Not Attempted' && selectedSkill) {
+      const startIndex = (currentPage - 1) * itemsPerPage;
+      const endIndex = startIndex + itemsPerPage;
+      return notAttemptedStudents.slice(startIndex, endIndex);
+    }
     
-    // Get students who have attempted this specific skill
-    const studentsWithThisSkill = studentsWithSkillData.filter(s => s.courseName === selectedSkill);
-    const attemptedStudentIds = new Set(studentsWithThisSkill.map(s => s.rollNumber));
+    // If "All Status" is selected, combine attempted and not attempted with pagination
+    if (statusFilter === 'All Status' && selectedSkill) {
+      const startIndex = (currentPage - 1) * itemsPerPage;
+      const endIndex = startIndex + itemsPerPage;
+      return allStudents.slice(startIndex, endIndex);
+    }
     
-    // Get students who haven't attempted this skill (from venueStudents)
-    const notAttemptedStudents = venueStudents
-      .filter(vs => !attemptedStudentIds.has(vs.roll_number))
-      .map(vs => ({
-        rollNumber: vs.roll_number,
-        studentId: vs.student_id,
-        userId: vs.roll_number,
-        name: vs.student_name,
-        year: vs.year || 'N/A',
-        courseName: selectedSkill,
-        venue: selectedVenueName || 'N/A',
-        skillAttempts: [], // Empty = Not Attempted
-        latestStatus: 'Not Attempted'
-      }));
-    
-    // Combine both lists
-    return [...studentsWithThisSkill, ...notAttemptedStudents];
-  };
+    // For other status filters (Cleared, Not Cleared, Ongoing), use server-paginated data
+    return attemptedStudents;
+  }, [attemptedStudents, notAttemptedStudents, allStudents, statusFilter, selectedSkill, currentPage, itemsPerPage]);
 
-  const allStudentsForSkill = getCompleteStudentList();
-
-  // Apply status filter
-  let filteredStudentData = allStudentsForSkill;
-  
-  if (statusFilter !== 'All Status') {
-    filteredStudentData = allStudentsForSkill.filter(student => {
-      if (statusFilter === 'Not Attempted') {
-        return student.skillAttempts.length === 0;
-      } else if (statusFilter === 'Cleared') {
-        return student.skillAttempts.some(a => a.status === 'Cleared');
-      } else if (statusFilter === 'Not Cleared') {
-        return student.skillAttempts.some(a => a.status === 'Not Cleared') && 
-               !student.skillAttempts.some(a => a.status === 'Cleared');
-      } else if (statusFilter === 'Ongoing') {
-        return student.skillAttempts.some(a => a.status === 'Ongoing');
-      }
-      return true;
-    });
-  }
-
-  // Apply student search filter (by roll number or name)
-  const studentSearchTrimmed = studentSearch.trim().toLowerCase();
-  if (studentSearchTrimmed) {
-    filteredStudentData = filteredStudentData.filter((student) => {
-      const roll = (student.rollNumber ?? '').toString().toLowerCase();
-      const name = (student.name ?? '').toString().toLowerCase();
-      return roll.includes(studentSearchTrimmed) || name.includes(studentSearchTrimmed);
-    });
-  }
-
-  // Calculate skill stats from complete student list (before status filter)
-  const skillStats = {
-    totalStudents: allStudentsForSkill.length,
-    cleared: allStudentsForSkill.filter(s => 
-      s.skillAttempts.some(a => a.status === 'Cleared')
-    ).length,
-    notCleared: allStudentsForSkill.filter(s => 
-      s.skillAttempts.some(a => a.status === 'Not Cleared') &&
-      !s.skillAttempts.some(a => a.status === 'Cleared')
-    ).length,
-    ongoing: allStudentsForSkill.filter(s => 
-      s.skillAttempts.some(a => a.status === 'Ongoing')
-    ).length,
-    notAttempted: allStudentsForSkill.filter(s => s.skillAttempts.length === 0).length,
-    avgBestScore: filteredStudentData.filter(s => s.skillAttempts.length > 0).length > 0
-      ? (filteredStudentData
-          .filter(s => s.skillAttempts.length > 0)
-          .reduce((acc, s) => {
-            const bestScore = Math.max(...s.skillAttempts.map(a => a.score));
-            return acc + bestScore;
-          }, 0) / filteredStudentData.filter(s => s.skillAttempts.length > 0).length
-        ).toFixed(1)
-      : 0
-  };
+  // Get correct pagination values based on filter
+  const paginationInfo = useMemo(() => {
+    if (statusFilter === 'Not Attempted' && selectedSkill) {
+      const total = notAttemptedStudents.length;
+      return {
+        totalRecords: total,
+        totalPages: Math.ceil(total / itemsPerPage) || 1
+      };
+    }
+    if (statusFilter === 'All Status' && selectedSkill) {
+      const total = allStudents.length;
+      return {
+        totalRecords: total,
+        totalPages: Math.ceil(total / itemsPerPage) || 1
+      };
+    }
+    return { totalRecords, totalPages };
+  }, [statusFilter, selectedSkill, notAttemptedStudents, allStudents, totalRecords, totalPages, itemsPerPage]);
 
   const getStatusBadge = (status) => {
     switch (status) {
@@ -211,6 +275,13 @@ const SkillProficiencyView = ({ selectedVenue, selectedVenueName, facultyName, i
           bg: '#fef3c7', 
           text: '#92400e',
           label: 'Ongoing'
+        };
+      case 'Not Attempted':
+        return { 
+          icon: <Target size={16} />, 
+          bg: '#f3f4f6', 
+          text: '#6b7280',
+          label: 'Not Attempted'
         };
       default:
         return { 
@@ -417,90 +488,138 @@ const SkillProficiencyView = ({ selectedVenue, selectedVenueName, facultyName, i
               </tr>
             </thead>
             <tbody>
-              {filteredStudentData.length === 0 ? (
+              {displayData.length === 0 ? (
                 <tr>
                   <td colSpan="11" style={{...styles.td, textAlign: 'center', padding: '40px', color: '#9ca3af'}}>
                     {!selectedSkill 
                       ? 'Please select a skill to view student data'
-                      : 'No student data found for the selected skill'}
+                      : loading ? 'Loading...' : 'No student data found for the selected skill'}
                   </td>
                 </tr>
               ) : (
-                filteredStudentData.map((student) => 
-                student.skillAttempts.length > 0 ? (
-                  student.skillAttempts.map((attempt, attemptIdx) => {
-                    const statusInfo = getStatusBadge(attempt.status);
-                    return (
-                      <tr key={`${student.rollNumber}-${attemptIdx}`} style={styles.tr}>
-                        <td style={styles.td}>{student.rollNumber}</td>
-                        <td style={styles.td}>{student.name}</td>
-                        <td style={styles.td}>{student.year}</td>
-                        <td style={styles.td}>{student.courseName}</td>
-                        <td style={styles.td}>{student.venue}</td>
-                        <td style={styles.td}>
-                          <span style={{ 
-                            fontWeight: '600',
-                            backgroundColor: '#f3f4f6',
-                            padding: '4px 8px',
-                            borderRadius: '4px'
-                          }}>
-                            {attempt.attempt}
-                          </span>
-                        </td>
-                        <td style={styles.td}>
-                          <span style={{ 
-                            fontWeight: '600',
-                            color: getScoreColor(attempt.score)
-                          }}>
-                            {attempt.score}
-                          </span>
-                        </td>
-                        <td style={styles.td}>
-                          <span style={{ 
-                            ...styles.statusBadge, 
-                            backgroundColor: statusInfo.bg, 
-                            color: statusInfo.text,
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '6px',
-                            width: 'fit-content'
-                          }}>
-                            {statusInfo.icon}
-                            {statusInfo.label}
-                          </span>
-                        </td>
-                        <td style={styles.td}>
-                          <span style={{ 
-                            color: attempt.attendance === 'Present' ? '#166534' : '#991b1b'
-                          }}>
-                            {attempt.attendance}
-                          </span>
-                        </td>
-                        <td style={styles.td}>{attempt.slotDate}</td>
-                        <td style={styles.td}>
-                          {attempt.startTime} - {attempt.endTime}
-                        </td>
-                      </tr>
-                    );
-                  })
-                ) : (
-                  <tr key={student.rollNumber} style={styles.tr}>
-                    <td style={styles.td}>{student.rollNumber}</td>
-                    <td style={styles.td}>{student.name}</td>
-                    <td style={styles.td}>{student.year}</td>
-                    <td style={styles.td}>{student.courseName}</td>
-                    <td style={styles.td}>{student.venue}</td>
-                    <td style={styles.td} colSpan="6">
-                      <span style={{ color: '#9ca3af', fontStyle: 'italic' }}>
-                        No attempts recorded yet
-                      </span>
-                    </td>
-                  </tr>
-                )
-              ))}
+                displayData.map((student, idx) => {
+                  const statusInfo = getStatusBadge(student.status);
+                  return (
+                    <tr key={`${student.rollNumber}-${idx}`} style={styles.tr}>
+                      <td style={styles.td}>{student.rollNumber}</td>
+                      <td style={styles.td}>{student.name}</td>
+                      <td style={styles.td}>{student.year}</td>
+                      <td style={styles.td}>{student.courseName}</td>
+                      <td style={styles.td}>{student.venue}</td>
+                      <td style={styles.td}>
+                        <span style={{ 
+                          fontWeight: '600',
+                          backgroundColor: '#f3f4f6',
+                          padding: '4px 8px',
+                          borderRadius: '4px'
+                        }}>
+                          {student.attempt}
+                        </span>
+                      </td>
+                      <td style={styles.td}>
+                        <span style={{ 
+                          fontWeight: '600',
+                          color: getScoreColor(student.score)
+                        }}>
+                          {student.score}
+                        </span>
+                      </td>
+                      <td style={styles.td}>
+                        <span style={{ 
+                          ...styles.statusBadge, 
+                          backgroundColor: statusInfo.bg, 
+                          color: statusInfo.text,
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          width: 'fit-content'
+                        }}>
+                          {statusInfo.icon}
+                          {statusInfo.label}
+                        </span>
+                      </td>
+                      <td style={styles.td}>
+                        <span style={{ 
+                          color: student.attendance === 'Present' ? '#166534' : '#991b1b'
+                        }}>
+                          {student.attendance}
+                        </span>
+                      </td>
+                      <td style={styles.td}>{student.slotDate}</td>
+                      <td style={styles.td}>
+                        {student.startTime} - {student.endTime}
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
             </tbody>
           </table>
         </div>
+
+        {/* Pagination Controls */}
+        {paginationInfo.totalPages > 0 && (
+          <div style={styles.pagination}>
+            <div style={styles.paginationInfo}>
+              Showing {paginationInfo.totalRecords > 0 ? ((currentPage - 1) * itemsPerPage) + 1 : 0} - {Math.min(currentPage * itemsPerPage, paginationInfo.totalRecords)} of {paginationInfo.totalRecords} records
+            </div>
+            <div style={styles.paginationControls}>
+              <button
+                style={{
+                  ...styles.paginationButton,
+                  ...(currentPage === 1 ? styles.paginationButtonDisabled : {})
+                }}
+                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                disabled={currentPage === 1}
+              >
+                <ChevronLeft size={16} />
+                Previous
+              </button>
+              
+              {paginationInfo.totalPages > 1 && (
+                <div style={styles.pageNumbers}>
+                  {[...Array(Math.min(5, paginationInfo.totalPages))].map((_, idx) => {
+                    let pageNum;
+                    if (paginationInfo.totalPages <= 5) {
+                      pageNum = idx + 1;
+                    } else if (currentPage <= 3) {
+                      pageNum = idx + 1;
+                    } else if (currentPage >= paginationInfo.totalPages - 2) {
+                      pageNum = paginationInfo.totalPages - 4 + idx;
+                    } else {
+                      pageNum = currentPage - 2 + idx;
+                    }
+                    
+                    return (
+                      <button
+                        key={pageNum}
+                        style={{
+                          ...styles.pageNumberButton,
+                          ...(currentPage === pageNum ? styles.pageNumberButtonActive : {})
+                        }}
+                        onClick={() => setCurrentPage(pageNum)}
+                      >
+                        {pageNum}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+              
+              <button
+                style={{
+                  ...styles.paginationButton,
+                  ...(currentPage === paginationInfo.totalPages ? styles.paginationButtonDisabled : {})
+                }}
+                onClick={() => setCurrentPage(prev => Math.min(paginationInfo.totalPages, prev + 1))}
+                disabled={currentPage === paginationInfo.totalPages}
+              >
+                Next
+                <ChevronRight size={16} />
+              </button>
+            </div>
+          </div>
+        )}
         </>
         )}
       </div>
@@ -780,6 +899,63 @@ const styles = {
     cursor: 'pointer',
     transition: 'all 0.2s',
     textAlign: 'left',
+  },
+  pagination: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: '20px',
+    padding: '16px',
+    backgroundColor: '#f9fafb',
+    borderRadius: '8px',
+    flexWrap: 'wrap',
+    gap: '12px',
+  },
+  paginationInfo: {
+    fontSize: '14px',
+    color: '#6b7280',
+  },
+  paginationControls: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+  },
+  paginationButton: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '4px',
+    padding: '8px 12px',
+    backgroundColor: '#fff',
+    border: '1px solid #e5e7eb',
+    borderRadius: '6px',
+    fontSize: '14px',
+    color: '#374151',
+    cursor: 'pointer',
+    transition: 'all 0.2s',
+  },
+  paginationButtonDisabled: {
+    opacity: 0.5,
+    cursor: 'not-allowed',
+  },
+  pageNumbers: {
+    display: 'flex',
+    gap: '4px',
+  },
+  pageNumberButton: {
+    padding: '8px 12px',
+    backgroundColor: '#fff',
+    border: '1px solid #e5e7eb',
+    borderRadius: '6px',
+    fontSize: '14px',
+    color: '#374151',
+    cursor: 'pointer',
+    minWidth: '36px',
+    textAlign: 'center',
+  },
+  pageNumberButtonActive: {
+    backgroundColor: '#3b82f6',
+    color: '#fff',
+    borderColor: '#3b82f6',
   },
 };
 

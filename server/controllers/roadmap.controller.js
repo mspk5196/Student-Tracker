@@ -954,10 +954,11 @@ export const deleteResourceFromModule = async (req, res) => {
   }
 };
 
-// Get roadmap for students (by their venue)
+// Get roadmap for students (by their venue) with skill-based progression
 export const getStudentRoadmap = async (req, res) => {
   try {
     const user_id = req.user.user_id;
+    const { course_type } = req.query;
 
     console.log('Fetching roadmap for student user:', user_id);
 
@@ -985,6 +986,7 @@ export const getStudentRoadmap = async (req, res) => {
       });
     }
 
+    const student_id = student[0].student_id;
     const venue_id = student[0].venue_id;
 
     if (!venue_id) {
@@ -992,12 +994,106 @@ export const getStudentRoadmap = async (req, res) => {
         success: true,
         message: 'No venue assigned yet',
         data: [],
-        venue: null
+        venue: null,
+        skill_progression: []
       });
     }
 
+    // Get skill order (GLOBAL - same for all venues)
+    let skillOrderQuery = `
+      SELECT 
+        so.id as skill_order_id,
+        so.skill_name,
+        so.display_order,
+        so.is_prerequisite,
+        so.description as skill_description,
+        so.course_type
+      FROM skill_order so
+      WHERE 1=1
+    `;
+    const skillOrderParams = [];
+    
+    if (course_type) {
+      skillOrderQuery += ` AND so.course_type = ?`;
+      skillOrderParams.push(course_type);
+    }
+    
+    skillOrderQuery += ` ORDER BY so.course_type, so.display_order ASC`;
+    
+    const [skillOrders] = await db.query(skillOrderQuery, skillOrderParams);
+
+    // Use skills directly (no venue preference needed anymore)
+    const orderedSkills = skillOrders;
+
+    // Get student's skill status
+    const [studentSkills] = await db.query(`
+      SELECT 
+        ss.course_name,
+        ss.status,
+        ss.best_score,
+        ss.latest_score,
+        ss.proficiency_level
+      FROM student_skills ss
+      WHERE ss.student_id = ?
+    `, [student_id]);
+
+    // Create a map of student's cleared skills (normalize to lowercase)
+    const clearedSkillsMap = new Map();
+    const ongoingSkillsMap = new Map();
+    studentSkills.forEach(skill => {
+      const normalizedName = skill.course_name.toLowerCase().trim();
+      if (skill.status === 'Cleared') {
+        clearedSkillsMap.set(normalizedName, skill);
+      } else if (skill.status === 'Ongoing' || skill.status === 'Not Cleared') {
+        ongoingSkillsMap.set(normalizedName, skill);
+      }
+    });
+
+    // Build skill progression with unlock status
+    const skillProgression = [];
+    const courseProgress = {}; // Track progress per course type
+    
+    for (const skill of orderedSkills) {
+      const skillNameLower = skill.skill_name.toLowerCase().trim();
+      const isCleared = clearedSkillsMap.has(skillNameLower);
+      const isOngoing = ongoingSkillsMap.has(skillNameLower);
+      
+      // Initialize course progress tracker
+      if (!courseProgress[skill.course_type]) {
+        courseProgress[skill.course_type] = { previousCleared: true, currentUnlocked: null };
+      }
+      
+      const courseTracker = courseProgress[skill.course_type];
+      
+      // A skill is locked if it requires prerequisite and previous skill in same course is not cleared
+      const isLocked = skill.is_prerequisite && !courseTracker.previousCleared;
+      const isUnlocked = !isLocked;
+      
+      // Track the first unlocked but not cleared skill as "current"
+      const isCurrent = isUnlocked && !isCleared && !courseTracker.currentUnlocked;
+      if (isCurrent) {
+        courseTracker.currentUnlocked = skill.skill_name;
+      }
+
+      skillProgression.push({
+        skill_order_id: skill.skill_order_id,
+        skill_name: skill.skill_name,
+        course_type: skill.course_type,
+        display_order: skill.display_order,
+        description: skill.skill_description,
+        status: isCleared ? 'Cleared' : (isLocked ? 'Locked' : (isOngoing ? 'In Progress' : 'Available')),
+        is_cleared: isCleared,
+        is_locked: isLocked,
+        is_current: isCurrent,
+        best_score: clearedSkillsMap.get(skillNameLower)?.best_score || ongoingSkillsMap.get(skillNameLower)?.best_score || null
+      });
+
+      // Update tracker for next iteration
+      courseTracker.previousCleared = isCleared;
+    }
+
     // Get all roadmap modules for the student's venue
-    const [modules] = await db.query(`
+    let modulesQuery = `
       SELECT 
         r.roadmap_id,
         r.day,
@@ -1018,13 +1114,23 @@ export const getStudentRoadmap = async (req, res) => {
       LEFT JOIN users u ON f.user_id = u.user_id
       LEFT JOIN venue v ON r.venue_id = v.venue_id
       WHERE r.venue_id = ?
-      ORDER BY r.course_type, r.module_order ASC
-    `, [venue_id]);
+    `;
+    const modulesParams = [venue_id];
+
+    if (course_type) {
+      modulesQuery += ` AND r.course_type = ?`;
+      modulesParams.push(course_type);
+    }
+
+    modulesQuery += ` ORDER BY r.course_type, COALESCE(r.module_order, r.day) ASC`;
+
+    const [modules] = await db.query(modulesQuery, modulesParams);
 
     console.log('Found modules for student:', modules.length);
 
-    // Get resources for each module
+    // Determine unlock status for each module based on skill progression
     for (let module of modules) {
+      // Get resources for each module
       const [resources] = await db.query(`
         SELECT 
           resource_id,
@@ -1040,16 +1146,43 @@ export const getStudentRoadmap = async (req, res) => {
       `, [module.roadmap_id]);
 
       module.resources = resources || [];
+
+      // Determine if module is locked based on title matching with skill order
+      let moduleSkillName = null;
+      
+      // Try to match by title with skill order
+      const titleLower = module.title.toLowerCase();
+      for (const skill of skillProgression) {
+        if (skill.course_type === module.course_type && 
+            titleLower.includes(skill.skill_name.toLowerCase())) {
+          moduleSkillName = skill.skill_name;
+          break;
+        }
+      }
+
+      // Find the skill progression entry for this module
+      const skillEntry = skillProgression.find(s => 
+        s.skill_name.toLowerCase() === (moduleSkillName || '').toLowerCase() &&
+        s.course_type === module.course_type
+      );
+
+      module.is_locked = skillEntry ? skillEntry.is_locked : false;
+      module.is_completed = skillEntry ? skillEntry.is_cleared : false;
+      module.is_current = skillEntry ? skillEntry.is_current : false;
+      module.skill_status = skillEntry ? skillEntry.status : 'Available';
+      module.locked_reason = module.is_locked ? 
+        `Complete previous skill to unlock` : '';
     }
 
     res.status(200).json({
       success: true,
       data: modules,
       venue: {
-        student_id: student[0].student_id,
+        student_id: student_id,
         venue_id: venue_id,
         venue_name: student[0].venue_name
-      }
+      },
+      skill_progression: skillProgression
     });
   } catch (error) {
     console.error('Error fetching student roadmap:', error);

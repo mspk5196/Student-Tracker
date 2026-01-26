@@ -18,6 +18,7 @@ import {
   Error as ErrorIcon,
 } from "@mui/icons-material";
 import useAuthStore from "../../../store/useAuthStore";
+import { encodeIdSimple } from "../../../utils/idEncoder";
 
 const GroupsClasses = () => {
   const navigate = useNavigate();
@@ -601,7 +602,7 @@ const GroupsClasses = () => {
   };
 
   const handleGroupClick = (venueId) => {
-    navigate(`/classes/${venueId}`);
+    navigate(`/classes/${encodeIdSimple(venueId)}`);
   };
 
   return (
