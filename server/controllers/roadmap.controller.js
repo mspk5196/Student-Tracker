@@ -1037,11 +1037,21 @@ export const getStudentRoadmap = async (req, res) => {
       WHERE ss.student_id = ?
     `, [student_id]);
 
+    // Helper function to normalize skill names for comparison
+    const normalizeSkillName = (name) => {
+      if (!name) return '';
+      return name
+        .toLowerCase()
+        .trim()
+        .replace(/\s+/g, '')           // Remove all spaces
+        .replace(/[\/\-_]/g, '');      // Remove slashes, dashes, underscores
+    };
+
     // Create a map of student's cleared skills (normalize to lowercase)
     const clearedSkillsMap = new Map();
     const ongoingSkillsMap = new Map();
     studentSkills.forEach(skill => {
-      const normalizedName = skill.course_name.toLowerCase().trim();
+      const normalizedName = normalizeSkillName(skill.course_name);
       if (skill.status === 'Cleared') {
         clearedSkillsMap.set(normalizedName, skill);
       } else if (skill.status === 'Ongoing' || skill.status === 'Not Cleared') {
@@ -1049,14 +1059,19 @@ export const getStudentRoadmap = async (req, res) => {
       }
     });
 
+    console.log('Student skills from DB:', studentSkills.map(s => ({ name: s.course_name, status: s.status })));
+    console.log('Cleared skills (normalized):', Array.from(clearedSkillsMap.keys()));
+
     // Build skill progression with unlock status
     const skillProgression = [];
     const courseProgress = {}; // Track progress per course type
     
     for (const skill of orderedSkills) {
-      const skillNameLower = skill.skill_name.toLowerCase().trim();
-      const isCleared = clearedSkillsMap.has(skillNameLower);
-      const isOngoing = ongoingSkillsMap.has(skillNameLower);
+      const skillNameNormalized = normalizeSkillName(skill.skill_name);
+      const isCleared = clearedSkillsMap.has(skillNameNormalized);
+      const isOngoing = ongoingSkillsMap.has(skillNameNormalized);
+      
+      console.log(`Skill "${skill.skill_name}" -> normalized: "${skillNameNormalized}", isCleared: ${isCleared}`);
       
       // Initialize course progress tracker
       if (!courseProgress[skill.course_type]) {
@@ -1085,12 +1100,14 @@ export const getStudentRoadmap = async (req, res) => {
         is_cleared: isCleared,
         is_locked: isLocked,
         is_current: isCurrent,
-        best_score: clearedSkillsMap.get(skillNameLower)?.best_score || ongoingSkillsMap.get(skillNameLower)?.best_score || null
+        best_score: clearedSkillsMap.get(skillNameNormalized)?.best_score || ongoingSkillsMap.get(skillNameNormalized)?.best_score || null
       });
 
       // Update tracker for next iteration
       courseTracker.previousCleared = isCleared;
     }
+
+    console.log('Skill progression:', skillProgression.map(s => ({ name: s.skill_name, cleared: s.is_cleared, locked: s.is_locked })));
 
     // Get all roadmap modules for the student's venue
     let modulesQuery = `
@@ -1128,19 +1145,21 @@ export const getStudentRoadmap = async (req, res) => {
 
     console.log('Found modules for student:', modules.length);
 
-    // Group modules by course type for sequential progression
-    const modulesByCourse = {};
-    for (const module of modules) {
-      if (!modulesByCourse[module.course_type]) {
-        modulesByCourse[module.course_type] = [];
+    // Create a map of cleared skills for quick lookup (using normalized names)
+    const clearedSkillsNormalized = new Set();
+    studentSkills.forEach(skill => {
+      if (skill.status === 'Cleared') {
+        clearedSkillsNormalized.add(normalizeSkillName(skill.course_name));
       }
-      modulesByCourse[module.course_type].push(module);
-    }
+    });
 
-    // Track previous module completion for each course type
-    const previousModuleCompleted = {};
+    console.log('Cleared skills (for module matching):', Array.from(clearedSkillsNormalized));
 
-    // Determine unlock status for each module based on sequential progression
+    // Track module index per course type for sequential unlocking
+    const moduleIndexByCourse = {};
+    const firstUnlockedModuleByCourse = {};
+
+    // First pass: determine completion status for all modules
     for (let module of modules) {
       // Get resources for each module
       const [resources] = await db.query(`
@@ -1159,12 +1178,14 @@ export const getStudentRoadmap = async (req, res) => {
 
       module.resources = resources || [];
 
-      // Try to match by title with skill order
+      // Try to match module title with skill progression
       let moduleSkillName = null;
-      const titleLower = module.title.toLowerCase();
+      const titleNormalized = normalizeSkillName(module.title);
+      
       for (const skill of skillProgression) {
+        const skillNormalized = normalizeSkillName(skill.skill_name);
         if (skill.course_type === module.course_type && 
-            titleLower.includes(skill.skill_name.toLowerCase())) {
+            (titleNormalized.includes(skillNormalized) || skillNormalized.includes(titleNormalized))) {
           moduleSkillName = skill.skill_name;
           break;
         }
@@ -1172,46 +1193,75 @@ export const getStudentRoadmap = async (req, res) => {
 
       // Find the skill progression entry for this module
       const skillEntry = skillProgression.find(s => 
-        s.skill_name.toLowerCase() === (moduleSkillName || '').toLowerCase() &&
+        normalizeSkillName(s.skill_name) === normalizeSkillName(moduleSkillName || '') &&
         s.course_type === module.course_type
       );
 
-      // Initialize course tracker if not exists
-      if (previousModuleCompleted[module.course_type] === undefined) {
-        // First module of this course type - always unlocked
-        previousModuleCompleted[module.course_type] = true;
-      }
-
-      // Determine if module is locked based on previous module completion
-      // A module is locked if the previous module in the same course is not completed
-      const isPreviousCompleted = previousModuleCompleted[module.course_type];
-      
-      // If we have a skill entry, use its completion status
+      // Determine if this module/skill is completed
       if (skillEntry) {
         module.is_completed = skillEntry.is_cleared;
-        module.is_locked = !isPreviousCompleted;
-        module.is_current = !module.is_locked && !module.is_completed;
-        module.skill_status = skillEntry.status;
+        module.matched_skill = skillEntry.skill_name;
+        console.log(`Module "${module.title}" matched skill "${skillEntry.skill_name}", is_completed: ${module.is_completed}`);
       } else {
-        // For modules without skill matching, use sequential order
-        // The module is completed only if student has cleared it (check student_skills)
-        const courseNameFromTitle = module.title.toLowerCase().trim();
-        const matchingSkill = studentSkills.find(s => 
-          courseNameFromTitle.includes(s.course_name.toLowerCase().trim()) ||
-          s.course_name.toLowerCase().trim().includes(courseNameFromTitle.substring(0, 10))
+        // Check if any cleared skill matches the module title
+        const isCleared = Array.from(clearedSkillsNormalized).some(skillName => 
+          titleNormalized.includes(skillName) || skillName.includes(titleNormalized.substring(0, 6))
         );
-        
-        module.is_completed = matchingSkill?.status === 'Cleared';
-        module.is_locked = !isPreviousCompleted;
-        module.is_current = !module.is_locked && !module.is_completed;
-        module.skill_status = module.is_completed ? 'Cleared' : (module.is_locked ? 'Locked' : 'Available');
+        module.is_completed = isCleared;
+        module.matched_skill = null;
+        console.log(`Module "${module.title}" no skill match, checking cleared skills, is_completed: ${isCleared}`);
+      }
+    }
+
+    // Second pass: determine lock status based on sequential order
+    for (let module of modules) {
+      const courseType = module.course_type;
+      
+      // Initialize course index tracker
+      if (moduleIndexByCourse[courseType] === undefined) {
+        moduleIndexByCourse[courseType] = 0;
+      }
+      
+      const moduleIndex = moduleIndexByCourse[courseType];
+      
+      // Get all modules of this course type to check previous completion
+      const courseModules = modules.filter(m => m.course_type === courseType);
+      
+      if (moduleIndex === 0) {
+        // First module is always unlocked
+        module.is_locked = false;
+      } else {
+        // Check if ALL previous modules are completed
+        const previousModules = courseModules.slice(0, moduleIndex);
+        const allPreviousCompleted = previousModules.every(m => m.is_completed);
+        module.is_locked = !allPreviousCompleted;
+      }
+
+      // Set current status
+      module.is_current = !module.is_locked && !module.is_completed;
+      
+      // Track first unlocked incomplete module
+      if (!module.is_locked && !module.is_completed && !firstUnlockedModuleByCourse[courseType]) {
+        firstUnlockedModuleByCourse[courseType] = module.roadmap_id;
+        module.is_current = true;
+      }
+
+      // Set skill status
+      if (module.is_completed) {
+        module.skill_status = 'Cleared';
+      } else if (module.is_locked) {
+        module.skill_status = 'Locked';
+      } else {
+        module.skill_status = 'Available';
       }
 
       module.locked_reason = module.is_locked ? 
         `Complete previous skill to unlock` : '';
 
-      // Update tracker for next module - previous is completed only if current is completed
-      previousModuleCompleted[module.course_type] = module.is_completed;
+      // Increment course index
+      moduleIndexByCourse[courseType]++;
+
+      console.log(`Module "${module.title}": completed=${module.is_completed}, locked=${module.is_locked}, current=${module.is_current}`);
     }
 
     res.status(200).json({
