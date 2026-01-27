@@ -496,6 +496,10 @@ export const getTaskSubmissions = async (req, res) => {
   try {
     const { task_id } = req.params;
     const { status, search, page = 1, limit = 10 } = req.query;
+    
+    // Decode status if it's URL encoded
+    const decodedStatus = status ? decodeURIComponent(status) : null;
+    const decodedSearch = search ? decodeURIComponent(search) : '';
 
     const offset = (parseInt(page) - 1) * parseInt(limit);
 
@@ -510,9 +514,9 @@ export const getTaskSubmissions = async (req, res) => {
         .replace(/\s*-\s*/g, '-');
     };
 
-    // First, get the venue_id and skill_filter for this task
+    // First, get the venue_id, skill_filter, and title for this task
     const [taskInfo] = await db.query(`
-      SELECT venue_id, skill_filter FROM tasks WHERE task_id = ?
+      SELECT venue_id, skill_filter, title FROM tasks WHERE task_id = ?
     `, [task_id]);
 
     if (taskInfo.length === 0) {
@@ -524,10 +528,10 @@ export const getTaskSubmissions = async (req, res) => {
 
     const venue_id = taskInfo[0].venue_id;
     const skill_filter = taskInfo[0].skill_filter;
+    const task_title = taskInfo[0].title;
     const normalizedSkillFilter = normalizeSkillName(skill_filter);
 
     // Get students who have CLEARED the skill (if skill_filter exists)
-    // Use normalized matching to handle "HTML/CSS" vs "HTML /CSS"
     let clearedStudentIds = new Set();
     if (skill_filter && skill_filter.trim()) {
       const [allClearedStudents] = await db.query(`
@@ -536,59 +540,57 @@ export const getTaskSubmissions = async (req, res) => {
         WHERE status = 'Cleared'
       `);
       
-      // Filter using normalized comparison
       allClearedStudents.forEach(s => {
         if (normalizeSkillName(s.course_name) === normalizedSkillFilter) {
           clearedStudentIds.add(s.student_id);
         }
       });
-      
-      console.log(`Task skill_filter: "${skill_filter}" -> normalized: "${normalizedSkillFilter}"`);
-      console.log(`Students who cleared this skill: ${clearedStudentIds.size}`);
     }
 
-    // Build WHERE conditions for filtering
-    let whereConditions = ['1=1'];
-    let params = [task_id, venue_id];
-
-    // Exclude students who have cleared the skill
-    if (clearedStudentIds.size > 0) {
-      whereConditions.push(`s.student_id NOT IN (${[...clearedStudentIds].join(',')})`);
-    }
-
-    // Status filter - handle 'Not Submitted' specially
-    if (status && status !== 'All Statuses') {
-      if (status === 'Not Submitted') {
-        whereConditions.push('ts.submission_id IS NULL');
+    // Build base conditions for both current venue students AND students who submitted this task
+    let statusCondition = '';
+    let statusParams = [];
+    
+    if (decodedStatus && decodedStatus !== 'All Statuses') {
+      if (decodedStatus === 'Not Submitted') {
+        statusCondition = 'AND ts.submission_id IS NULL';
       } else {
-        whereConditions.push('ts.status = ?');
-        params.push(status);
+        statusCondition = 'AND ts.status = ?';
+        statusParams.push(decodedStatus);
       }
     }
 
-    // Search filter (searches in name and roll number)
-    if (search && search.trim() !== '') {
-      whereConditions.push('(u.name LIKE ? OR u.ID LIKE ?)');
-      params.push(`%${search}%`, `%${search}%`);
+    let searchCondition = '';
+    let searchParams = [];
+    if (decodedSearch && decodedSearch.trim() !== '') {
+      searchCondition = 'AND (u.name LIKE ? OR u.ID LIKE ?)';
+      searchParams.push(`%${decodedSearch}%`, `%${decodedSearch}%`);
     }
 
-    const whereClause = whereConditions.join(' AND ');
+    let clearedCondition = '';
+    if (clearedStudentIds.size > 0) {
+      clearedCondition = `AND s.student_id NOT IN (${[...clearedStudentIds].join(',')})`;
+    }
 
-    // Get total count - all students in the venue for this task (excluding cleared skill students)
-    const [countResult] = await db.query(`
+    // Simple query: Get all students currently in this venue with their task submissions
+    // Match by task title to include submissions from same task in different venues
+    const countQuery = `
       SELECT COUNT(DISTINCT s.student_id) as total
       FROM students s
       INNER JOIN users u ON s.user_id = u.user_id
       INNER JOIN group_students gs ON s.student_id = gs.student_id AND gs.status = 'Active'
       INNER JOIN \`groups\` g ON gs.group_id = g.group_id
-      LEFT JOIN task_submissions ts ON s.student_id = ts.student_id AND ts.task_id = ?
-      WHERE g.venue_id = ? AND ${whereClause}
-    `, params);
+      LEFT JOIN task_submissions ts ON s.student_id = ts.student_id 
+        AND ts.task_id IN (SELECT t.task_id FROM tasks t WHERE t.title = ?)
+      WHERE g.venue_id = ? ${clearedCondition} ${statusCondition} ${searchCondition}
+    `;
 
+    const countParams = [task_title, venue_id, ...statusParams, ...searchParams];
+    const [countResult] = await db.query(countQuery, countParams);
     const total = countResult[0].total;
 
-    // Get paginated data - all students with LEFT JOIN to submissions
-    const query = `
+    // Main query: Students in current venue with their submissions (from any venue with same task title)
+    const mainQuery = `
       SELECT 
         ts.submission_id,
         ts.submitted_at,
@@ -608,13 +610,16 @@ export const getTaskSubmissions = async (req, res) => {
       INNER JOIN users u ON s.user_id = u.user_id
       INNER JOIN group_students gs ON s.student_id = gs.student_id AND gs.status = 'Active'
       INNER JOIN \`groups\` g ON gs.group_id = g.group_id
-      LEFT JOIN task_submissions ts ON s.student_id = ts.student_id AND ts.task_id = ?
-      WHERE g.venue_id = ? AND ${whereClause}
+      LEFT JOIN task_submissions ts ON s.student_id = ts.student_id 
+        AND ts.task_id IN (SELECT t.task_id FROM tasks t WHERE t.title = ?)
+      WHERE g.venue_id = ? ${clearedCondition} ${statusCondition} ${searchCondition}
       ORDER BY ts.submitted_at IS NULL, ts.submitted_at DESC, u.name ASC
       LIMIT ? OFFSET ?
     `;
 
-    const [submissions] = await db.query(query, [...params, parseInt(limit), parseInt(offset)]);
+    const mainParams = [task_title, venue_id, ...statusParams, ...searchParams, parseInt(limit), parseInt(offset)];
+    
+    const [submissions] = await db.query(mainQuery, mainParams);
 
     res.status(200).json({
       success: true,

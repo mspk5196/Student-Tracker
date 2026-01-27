@@ -126,8 +126,10 @@ const ReportsAnalytics = () => {
       setLoading(true);
 
       try {
+        const statusParam = encodeURIComponent(filters.status);
+        const searchParam = encodeURIComponent(searchTerm);
         const response = await fetch(
-          `${API_URL}/tasks/submissions/${selectedTaskId}?status=${filters.status}&search=${searchTerm}&page=${currentPage}&limit=${itemsPerPage}`,
+          `${API_URL}/tasks/submissions/${selectedTaskId}?status=${statusParam}&search=${searchParam}&page=${currentPage}&limit=${itemsPerPage}`,
           {
             headers: {
               Authorization: `Bearer ${token}`,
@@ -322,10 +324,10 @@ const ReportsAnalytics = () => {
     const csvContent =
       "data:text/csv;charset=utf-8," +
       "ID,Name,Date,File,Link,Status,Grade\n" +
-      filteredSubmissions
+      submissions
         .map(
           (e) =>
-            `${e.id},${e.name},${e.date},${e.file || "N/A"},${e.link || "N/A"},${e.status},${e.grade}`,
+            `${e.id},${e.name},${e.date},${e.file || "N/A"},${e.link || "N/A"},${e.hasSubmitted ? e.status : "Not Submitted"},${e.grade}`,
         )
         .join("\n");
     const encodedUri = encodeURI(csvContent);
@@ -721,6 +723,7 @@ const ReportsAnalytics = () => {
                   <MenuItem
                     onClick={() => {
                       setFilters({ ...filters, status: "All Statuses" });
+                      setCurrentPage(1);
                       setAnchorElStatus(null);
                     }}
                   >
@@ -729,6 +732,7 @@ const ReportsAnalytics = () => {
                   <MenuItem
                     onClick={() => {
                       setFilters({ ...filters, status: "Pending Review" });
+                      setCurrentPage(1);
                       setAnchorElStatus(null);
                     }}
                   >
@@ -737,6 +741,7 @@ const ReportsAnalytics = () => {
                   <MenuItem
                     onClick={() => {
                       setFilters({ ...filters, status: "Graded" });
+                      setCurrentPage(1);
                       setAnchorElStatus(null);
                     }}
                   >
@@ -745,6 +750,7 @@ const ReportsAnalytics = () => {
                   <MenuItem
                     onClick={() => {
                       setFilters({ ...filters, status: "Needs Revision" });
+                      setCurrentPage(1);
                       setAnchorElStatus(null);
                     }}
                   >
@@ -753,6 +759,7 @@ const ReportsAnalytics = () => {
                   <MenuItem
                     onClick={() => {
                       setFilters({ ...filters, status: "Not Submitted" });
+                      setCurrentPage(1);
                       setAnchorElStatus(null);
                     }}
                   >
@@ -774,7 +781,10 @@ const ReportsAnalytics = () => {
                     type="text"
                     placeholder="Search student or ID..."
                     value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
+                    onChange={(e) => {
+                      setSearchTerm(e.target.value);
+                      setCurrentPage(1);
+                    }}
                   />
                 </div>
               </div>
