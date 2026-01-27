@@ -387,6 +387,54 @@ export const lookupStudentByRollNumber = async (req, res) => {
 // Get all venues (only Active venues)
 export const getAllVenues = async (req, res) => {
   try {
+    console.log(`[GET ALL VENUES] user_id: ${req.user.user_id}, role: ${req.user.role}`);
+    
+    // Admin sees all venues
+    if (req.user.role === 'admin') {
+      const [venues] = await db.query(`
+        SELECT 
+          v.venue_id,
+          v.venue_name,
+          v.capacity,
+          v.location,
+          v.status,
+          v.created_at,
+          f.faculty_id,
+          u.name as faculty_name,
+          u.email as faculty_email,
+          u.department as faculty_department,
+          COUNT(DISTINCT gs.student_id) as current_students
+        FROM venue v
+        LEFT JOIN faculties f ON v.assigned_faculty_id = f.faculty_id
+        LEFT JOIN users u ON f.user_id = u.user_id
+        LEFT JOIN \`groups\` g ON v.venue_id = g.venue_id
+        LEFT JOIN group_students gs ON g.group_id = gs.group_id AND gs.status = 'Active'
+        WHERE v.status = 'Active'
+        GROUP BY v.venue_id
+        ORDER BY v.venue_name
+      `);
+      
+      console.log(`[GET ALL VENUES] Admin - found ${venues.length} venue(s)`);
+      return res.status(200).json({ success: true, data: venues });
+    }
+    
+    // Faculty sees only their assigned venues
+    const [faculty] = await db.query(
+      'SELECT faculty_id FROM faculties WHERE user_id = ?',
+      [req.user.user_id]
+    );
+    
+    console.log(`[GET ALL VENUES] Faculty lookup - user_id: ${req.user.user_id}, found: ${faculty.length > 0}, faculty_id: ${faculty.length > 0 ? faculty[0].faculty_id : 'NONE'}`);
+    
+    if (faculty.length === 0) {
+      return res.status(403).json({
+        success: false,
+        message: 'Faculty record not found'
+      });
+    }
+    
+    const facultyId = faculty[0].faculty_id;
+    
     const [venues] = await db.query(`
       SELECT 
         v.venue_id,
@@ -406,10 +454,12 @@ export const getAllVenues = async (req, res) => {
       LEFT JOIN \`groups\` g ON v.venue_id = g.venue_id
       LEFT JOIN group_students gs ON g.group_id = gs.group_id AND gs.status = 'Active'
       WHERE v.status = 'Active'
+        AND v.assigned_faculty_id = ?
       GROUP BY v.venue_id
       ORDER BY v.venue_name
-    `);
-
+    `, [facultyId]);
+    
+    console.log(`[GET ALL VENUES] Faculty ${facultyId} - found ${venues.length} venue(s)`);
     res.status(200).json({ success: true, data: venues });
   } catch (error) {
     console.error('Error fetching venues:', error);
@@ -504,12 +554,77 @@ export const createVenue = async (req, res) => {
       VALUES (?, ?, ?, ?, 'Mon-Fri', '09:00-17:00', ?, 'General', 'Active', NOW())
     `, [groupCode, groupName, venueId, assigned_faculty_id || null, capacity || 50]);
 
+    // Copy existing roadmap modules from other venues to this new venue
+    console.log(`[CREATE VENUE] Copying existing roadmaps to new venue ${venueId}`);
+    
+    // Get all unique roadmap modules (by day and course_type) from existing venues
+    const [existingRoadmaps] = await connection.query(`
+      SELECT DISTINCT
+        day,
+        title,
+        description,
+        course_type,
+        learning_objectives,
+        module_order,
+        status
+      FROM roadmap
+      WHERE is_template = 0
+      GROUP BY day, course_type
+      ORDER BY day, course_type
+    `);
+
+    if (existingRoadmaps.length > 0) {
+      console.log(`[CREATE VENUE] Found ${existingRoadmaps.length} unique roadmap module(s) to copy`);
+      
+      // Use the assigned faculty for this venue, or null if none
+      const roadmapFacultyId = assigned_faculty_id || null;
+      
+      // Insert each roadmap module for the new venue
+      for (const roadmap of existingRoadmaps) {
+        await connection.query(`
+          INSERT INTO roadmap (
+            venue_id, 
+            faculty_id, 
+            day, 
+            title, 
+            description, 
+            course_type, 
+            learning_objectives, 
+            module_order, 
+            status, 
+            is_template, 
+            created_at
+          )
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, NOW())
+        `, [
+          venueId,
+          roadmapFacultyId,
+          roadmap.day,
+          roadmap.title,
+          roadmap.description,
+          roadmap.course_type,
+          roadmap.learning_objectives,
+          roadmap.module_order,
+          roadmap.status
+        ]);
+      }
+      
+      console.log(`[CREATE VENUE] Successfully copied ${existingRoadmaps.length} roadmap module(s) to venue ${venueId}`);
+    } else {
+      console.log(`[CREATE VENUE] No existing roadmaps found to copy`);
+    }
+
     await connection.commit();
 
     res.status(201).json({ 
       success: true, 
-      message: 'Venue created successfully!',
-      data: { venue_id: venueId }
+      message: existingRoadmaps.length > 0 
+        ? `Venue created successfully with ${existingRoadmaps.length} roadmap module(s)!`
+        : 'Venue created successfully!',
+      data: { 
+        venue_id: venueId,
+        roadmaps_copied: existingRoadmaps.length
+      }
     });
 
   } catch (error) {

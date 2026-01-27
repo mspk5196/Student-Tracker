@@ -75,7 +75,7 @@ export const getVenueAllocations = async (req, res) => {
   try {
     // Get user ID from JWT token
     const userId = req.user.user_id;
-    
+    console.log(`[ATTENDANCE VENUES] user_id: ${userId}, role: ${req.user.role}`);
 
     // Get user info
     const user = await getUserInfo(userId);
@@ -116,6 +116,8 @@ export const getVenueAllocations = async (req, res) => {
         [userId]
       );
       
+      console.log(`[ATTENDANCE VENUES] Faculty lookup - user_id: ${userId}, found: ${faculty.length > 0}, faculty_id: ${faculty.length > 0 ? faculty[0].faculty_id : 'NONE'}`);
+      
       if (faculty.length === 0) {
         return res.status(403).json({
           success: false,
@@ -125,7 +127,7 @@ export const getVenueAllocations = async (req, res) => {
       
       const facultyId = faculty[0].faculty_id;
       
-      // Get venues where faculty is assigned (via venue.assigned_faculty_id or venue_allocation)
+      // Get venues where faculty is assigned
       [allocations] = await db.query(`
         SELECT DISTINCT
           v.venue_id,
@@ -139,12 +141,13 @@ export const getVenueAllocations = async (req, res) => {
         LEFT JOIN group_students gs ON g.group_id = gs.group_id AND gs.status = 'Active'
         LEFT JOIN faculties f ON v.assigned_faculty_id = f.faculty_id
         LEFT JOIN users u ON f.user_id = u.user_id
-        LEFT JOIN venue_allocation va ON v.venue_id = va.venue_id
         WHERE v.status = 'Active'
-          AND (v.assigned_faculty_id = ? OR va.faculty_id = ?)
+          AND v.assigned_faculty_id = ?
         GROUP BY v.venue_id
         ORDER BY v.venue_name
-      `, [facultyId, facultyId]);
+      `, [facultyId]);
+      
+      console.log(`[ATTENDANCE VENUES] Query result for faculty_id ${facultyId}: ${allocations.length} venue(s)`);
     }
 
 

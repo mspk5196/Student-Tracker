@@ -498,7 +498,7 @@ export const bulkUploadFaculties = async (req, res) => {
 export const getFacultyClasses = async (req, res) => {
   try {
     const userId = req.user.user_id;
-    // console.log('getFacultyClasses called for user_id:', userId);
+    console.log(`[MY CLASSES] user_id: ${userId}`);
 
     // Get faculty_id for the logged-in user
     const [faculty] = await db.query(
@@ -506,7 +506,7 @@ export const getFacultyClasses = async (req, res) => {
       [userId]
     );
 
-    // console.log('Faculty lookup result:', faculty);
+    console.log(`[MY CLASSES] Faculty lookup - user_id: ${userId}, found: ${faculty.length > 0}, faculty_id: ${faculty.length > 0 ? faculty[0].faculty_id : 'NONE'}`);
 
     if (faculty.length === 0) {
       return res.status(404).json({
@@ -516,7 +516,6 @@ export const getFacultyClasses = async (req, res) => {
     }
 
     const facultyId = faculty[0].faculty_id;
-    // console.log('Faculty ID:', facultyId);
 
     // Get all venues assigned to this faculty with their groups and student counts
     const [venues] = await db.query(`
@@ -549,17 +548,15 @@ export const getFacultyClasses = async (req, res) => {
           AND DATE(a.created_at) >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
         ) as total_attendance_30d
       FROM venue v
-      LEFT JOIN venue_allocation va ON v.venue_id = va.venue_id
       LEFT JOIN \`groups\` g ON v.venue_id = g.venue_id
       LEFT JOIN group_students gs ON g.group_id = gs.group_id AND gs.status = 'Active'
-      WHERE (v.assigned_faculty_id = ? OR va.faculty_id = ?)
+      WHERE v.assigned_faculty_id = ?
         AND v.status = 'Active'
       GROUP BY v.venue_id, g.group_id
       ORDER BY v.venue_name, g.group_name
-    `, [facultyId, facultyId]);
+    `, [facultyId]);
 
-    // console.log('Venues found:', venues.length);
-    // console.log('Venues data:', JSON.stringify(venues, null, 2));
+    console.log(`[MY CLASSES] Query result for faculty_id ${facultyId}: ${venues.length} venue(s)/group(s)`);
 
     // Transform into a structured format
     const classesMap = new Map();

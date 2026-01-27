@@ -398,6 +398,8 @@ function parseExcelTime(timeValue) {
  */
 export const getFacultyVenues = async (req, res) => {
   try {
+    console.log(`[SKILL REPORT VENUES] user_id: ${req.user.user_id}, role: ${req.user.role}`);
+    
     // Admin can see all venues
     if (req.user.role === 'admin') {
       const [venues] = await db.execute(
@@ -417,6 +419,8 @@ export const getFacultyVenues = async (req, res) => {
       [req.user.user_id]
     );
 
+    console.log(`[SKILL REPORT VENUES] Faculty lookup - user_id: ${req.user.user_id}, found: ${faculty.length > 0}, faculty_id: ${faculty.length > 0 ? faculty[0].faculty_id : 'NONE'}`);
+
     if (faculty.length === 0) {
       return res.status(403).json({ message: 'Faculty record not found' });
     }
@@ -429,11 +433,12 @@ export const getFacultyVenues = async (req, res) => {
        FROM venue v
        LEFT JOIN faculties f ON v.assigned_faculty_id = f.faculty_id
        LEFT JOIN users uf ON f.user_id = uf.user_id
-       LEFT JOIN venue_allocation va ON v.venue_id = va.venue_id
-       WHERE v.assigned_faculty_id = ? OR va.faculty_id = ? 
+       WHERE v.assigned_faculty_id = ? 
        ORDER BY v.venue_name`,
-      [facultyId, facultyId]
+      [facultyId]
     );
+
+    console.log(`[SKILL REPORT VENUES] Query result for faculty_id ${facultyId}: ${venues.length} venue(s)`);
 
     res.status(200).json({ venues });
 
@@ -476,9 +481,8 @@ export const getSkillReportsForFaculty = async (req, res) => {
       if (venueId && !isAllVenues) {
         const [venueAccess] = await db.execute(
           `SELECT v.venue_id FROM venue v 
-           LEFT JOIN venue_allocation va ON v.venue_id = va.venue_id
-           WHERE v.venue_id = ? AND (v.assigned_faculty_id = ? OR va.faculty_id = ?)`,
-          [parseInt(venueId), facultyId, facultyId]
+           WHERE v.venue_id = ? AND v.assigned_faculty_id = ?`,
+          [parseInt(venueId), facultyId]
         );
 
         if (venueAccess.length === 0) {
@@ -489,9 +493,8 @@ export const getSkillReportsForFaculty = async (req, res) => {
       // Get all accessible venues for this faculty
       const [accessibleVenues] = await db.execute(
         `SELECT DISTINCT v.venue_id FROM venue v 
-         LEFT JOIN venue_allocation va ON v.venue_id = va.venue_id
-         WHERE v.assigned_faculty_id = ? OR va.faculty_id = ?`,
-        [facultyId, facultyId]
+         WHERE v.assigned_faculty_id = ?`,
+        [facultyId]
       );
       facultyVenueIds = accessibleVenues.map(v => v.venue_id);
     }
@@ -852,9 +855,8 @@ export const searchStudentSkillReports = async (req, res) => {
       // Get faculty's assigned venues
       const [assignedVenues] = await db.execute(
         `SELECT v.venue_id FROM venue v 
-         LEFT JOIN venue_allocation va ON v.venue_id = va.venue_id
-         WHERE v.assigned_faculty_id = ? OR va.faculty_id = ?`,
-        [facultyId, facultyId]
+         WHERE v.assigned_faculty_id = ?`,
+        [facultyId]
       );
 
       if (assignedVenues.length === 0) {
