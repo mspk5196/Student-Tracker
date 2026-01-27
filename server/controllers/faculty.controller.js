@@ -198,7 +198,7 @@ export const deleteFaculty = async (req, res) => {
 
     // Check if user exists and is faculty
     const [existingUser] = await connection.query(
-      'SELECT user_id, role_id FROM users WHERE user_id = ? AND role_id = 2',
+      'SELECT user_id, role_id, email, ID FROM users WHERE user_id = ? AND role_id = 2',
       [userId]
     );
     
@@ -220,27 +220,62 @@ export const deleteFaculty = async (req, res) => {
     if (facultyRecord.length > 0) {
       const facultyId = facultyRecord[0].faculty_id;
 
-      // Get count of affected groups before deleting
+      // Get counts of affected records before deleting
+      const [venueCount] = await connection.query(
+        'SELECT COUNT(*) as count FROM venue WHERE assigned_faculty_id = ?',
+        [facultyId]
+      );
+      
       const [groupsCount] = await connection.query(
         'SELECT COUNT(*) as count FROM `groups` WHERE faculty_id = ?',
         [facultyId]
       );
-      
-      const affectedGroups = groupsCount[0].count;
 
-      // Delete from faculties table
-      // The foreign key ON DELETE SET NULL constraint will automatically
-      // set faculty_id to NULL in groups and student_skills tables
-      await connection.query('DELETE FROM faculties WHERE user_id = ?', [userId]);
+      const [studentsCount] = await connection.query(
+        'SELECT COUNT(*) as count FROM students WHERE assigned_faculty_id = ?',
+        [facultyId]
+      );
+
+      // Unassign faculty from venues (set to NULL)
+      await connection.query(
+        'UPDATE venue SET assigned_faculty_id = NULL WHERE assigned_faculty_id = ?',
+        [facultyId]
+      );
+
+      // Unassign faculty from students (set to NULL)
+      await connection.query(
+        'UPDATE students SET assigned_faculty_id = NULL WHERE assigned_faculty_id = ?',
+        [facultyId]
+      );
+
+      // Delete from faculties table first
+      // Foreign key constraints will handle:
+      // - groups.faculty_id -> SET NULL
+      // - attendance.faculty_id -> CASCADE DELETE
+      // - roadmap.faculty_id -> CASCADE DELETE  
+      // - student_skills.faculty_id -> SET NULL
+      await connection.query('DELETE FROM faculties WHERE faculty_id = ?', [facultyId]);
+
+      // Delete from users table
+      await connection.query('DELETE FROM users WHERE user_id = ?', [userId]);
 
       await connection.commit();
 
+      const messages = [];
+      if (venueCount[0].count > 0) messages.push(`${venueCount[0].count} venue(s) unassigned`);
+      if (groupsCount[0].count > 0) messages.push(`${groupsCount[0].count} group(s) unassigned`);
+      if (studentsCount[0].count > 0) messages.push(`${studentsCount[0].count} student(s) unassigned`);
+
       res.status(200).json({ 
         success: true, 
-        message: affectedGroups > 0 
-          ? `Faculty deleted successfully. ${affectedGroups} group(s) have been unassigned.`
+        message: messages.length > 0 
+          ? `Faculty deleted successfully. ${messages.join(', ')}.`
           : 'Faculty deleted successfully.',
-        affectedGroups
+        affectedRecords: {
+          venues: venueCount[0].count,
+          groups: groupsCount[0].count,
+          students: studentsCount[0].count
+        }
       });
 
     } else {

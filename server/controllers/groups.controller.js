@@ -759,7 +759,7 @@ export const getAvailableFaculties = async (req, res) => {
       FROM faculties f
       INNER JOIN users u ON f.user_id = u.user_id
       LEFT JOIN venue v ON f.faculty_id = v.assigned_faculty_id AND v.status = 'Active'
-      WHERE u.is_active = 1
+      WHERE u.is_active = 1 AND u.role_id = 2
     `;
 
     const params = [venueId || 0];
@@ -1408,7 +1408,7 @@ export const getAllFacultiesForGroups = async (req, res) => {
         f.designation
       FROM faculties f
       INNER JOIN users u ON f.user_id = u.user_id
-      WHERE u.is_active = 1
+      WHERE u.is_active = 1 AND u.role_id = 2
       ORDER BY u.name
     `);
 
