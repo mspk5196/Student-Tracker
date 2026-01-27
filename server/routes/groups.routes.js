@@ -12,9 +12,11 @@ import {
   getVenueStudents,
   getVenueDetails,
   removeStudentFromVenue,
+  bulkRemoveStudentsFromVenue,
   getAllFacultiesForGroups,
     getAvailableFaculties,
-  searchVenues
+  searchVenues,
+  lookupStudentByRollNumber
 } from '../controllers/groups.controller.js';
 import { authenticate } from '../middleware/auth.middleware.js';
 
@@ -49,6 +51,10 @@ router.post('/venues/:venueId/allocate-range', authenticate, allocateStudentsByR
 router.post('/venues/:venueId/add-student', authenticate, addIndividualStudentToVenue);
 router.get('/venues/:venueId/students', authenticate, getVenueStudents);
 router.delete('/venues/:venueId/students/:studentId', authenticate, removeStudentFromVenue);
+router.post('/venues/:venueId/bulk-remove-students', authenticate, bulkRemoveStudentsFromVenue);
+
+// Student lookup for auto-fill
+router.get('/student-lookup/:rollNumber', authenticate, lookupStudentByRollNumber);
 
 // Faculty routes
 router.get('/faculties', authenticate, getAllFacultiesForGroups);
