@@ -16,38 +16,42 @@ export const addIndividualStudentToVenue = async (req, res) => {
       semester,
     } = req.body;
 
-    const studentName = typeof name === 'string' ? name.trim() : '';
     const studentRollNumberRaw = rollNumber ?? reg_no;
     const studentRollNumber =
       typeof studentRollNumberRaw === 'string'
         ? studentRollNumberRaw.trim()
         : String(studentRollNumberRaw ?? '').trim();
-    const studentDepartment = typeof department === 'string' ? department.trim() : '';
+    
+    // Default name to roll number if not provided
+    const studentName = (typeof name === 'string' && name.trim()) 
+      ? name.trim() 
+      : studentRollNumber;
+    
+    // Default department to "General" if not provided
+    const studentDepartment = (typeof department === 'string' && department.trim())
+      ? department.trim()
+      : 'General';
+    
     const studentEmail =
       typeof email === 'string' && email.trim()
         ? email.trim().toLowerCase()
         : `${studentRollNumber}@student.local`;
 
-    const studentYear = Number(year);
-    const studentSemester = Number(semester);
+    const studentYear = Number(year) || 1;
+    const studentSemester = Number(semester) || 1;
 
     if (!venueId) {
       return res.status(400).json({ success: false, message: 'Venue ID is required' });
     }
 
-    if (!studentName || !studentRollNumber || !studentDepartment) {
+    if (!studentRollNumber) {
       return res.status(400).json({
         success: false,
-        message: 'name, rollNumber, and department are required',
+        message: 'Roll number is required',
       });
     }
 
-    if (!Number.isFinite(studentYear) || !Number.isFinite(studentSemester)) {
-      return res.status(400).json({
-        success: false,
-        message: 'year and semester must be valid numbers',
-      });
-    }
+
 
     await connection.beginTransaction();
 
@@ -924,19 +928,31 @@ export const bulkUploadStudentsToVenue = async (req, res) => {
     for (let i = 0; i < data.length; i++) {
       const row = data[i];
       
-      const { name, email, rollNumber, department, year, semester } = row;
+      // Support multiple column name formats (flexible mapping)
+      const rollNumber = row.rollNumber || row['Reg No'] || row.reg_no || row.RegNo || row.ID || row['S. No.'];
+      const name = row.name || row['Student Name'] || row.studentName || row.Name;
+      const email = row.email || row['Student Official Email ID'] || row.Email || row.student_email;
+      const department = row.department || row.Department || row.dept;
+      const year = row.year || row.Year;
+      const semester = row.semester || row.Semester;
 
-      if (!name || !email || !rollNumber) {
-                errors.push(`Row ${i + 1}: Missing required fields (name, email, or rollNumber)`);
+      // Only rollNumber is required
+      if (!rollNumber || String(rollNumber).trim() === '') {
+        errors.push(`Row ${i + 1}: Missing roll number/registration number`);
         studentsSkipped++;
         continue;
       }
+
+      const rollNumberStr = String(rollNumber).trim();
+      // Auto-fill name and email if not provided
+      const studentName = (name && String(name).trim()) || rollNumberStr;
+      const studentEmail = (email && String(email).trim()) || `${rollNumberStr}@student.local`;
 
       try {
         // Check if user already exists
         const [existingUser] = await connection.query(
           'SELECT user_id FROM users WHERE email = ? OR ID = ?',
-          [email.trim(), rollNumber.trim()]
+          [studentEmail.toLowerCase(), rollNumberStr]
         );
 
         let userId;
@@ -948,7 +964,7 @@ export const bulkUploadStudentsToVenue = async (req, res) => {
           const [userResult] = await connection.query(
             `INSERT INTO users (role_id, name, email, ID, department, created_at, is_active) 
              VALUES (3, ?, ?, ?, ?, NOW(), 1)`,
-            [name.trim(), email.trim(), rollNumber.trim(), (department || 'General').trim()]
+            [studentName, studentEmail.toLowerCase(), rollNumberStr, (department || 'General').trim()]
           );
 
           userId = userResult.insertId;
@@ -996,7 +1012,7 @@ export const bulkUploadStudentsToVenue = async (req, res) => {
 
         if (existingAllocation.length > 0) {
           studentsSkipped++;
-          errors.push(`${name} (${rollNumber}) already allocated to this venue`);
+          errors.push(`${studentName} (${rollNumberStr}) already allocated to this venue`);
           continue;
         }
 
@@ -1014,7 +1030,7 @@ export const bulkUploadStudentsToVenue = async (req, res) => {
           await connection.query(`
             UPDATE group_students SET status = 'Dropped' WHERE id = ?
           `, [otherVenueAllocation[0].id]);
-          errors.push(`${name} (${rollNumber}) moved from ${otherVenueAllocation[0].venue_name}`);
+          errors.push(`${studentName} (${rollNumberStr}) moved from ${otherVenueAllocation[0].venue_name}`);
         }
 
         // Check if student was previously in this venue (reactivate instead of insert)
@@ -1044,10 +1060,10 @@ export const bulkUploadStudentsToVenue = async (req, res) => {
         
         studentsAdded++;
         successfulStudents.push({
-          name,
-          email,
-          rollNumber,
-          department,
+          name: studentName,
+          email: studentEmail,
+          rollNumber: rollNumberStr,
+          department: department || 'General',
           userId,
           studentId,
           groupStudentsId
@@ -1058,7 +1074,7 @@ export const bulkUploadStudentsToVenue = async (req, res) => {
         console.error('SQL Error:', err.sqlMessage || err.message);
         console.error('SQL Query:', err.sql || 'No SQL available');
         studentsSkipped++;
-        errors.push(`Row ${i + 1}: Error processing ${name} (${rollNumber}) - ${err.message}`);
+        errors.push(`Row ${i + 1}: Error processing ${studentName || 'student'} (${rollNumberStr || 'unknown'}) - ${err.message}`);
       }
     }
 
