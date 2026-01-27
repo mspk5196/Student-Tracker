@@ -410,12 +410,12 @@ const styles = {
     borderRight: "1px solid #e5e7eb",
   },
   logo: {
-    padding: "12px 20px",
+    padding: "16px 20px",
     borderBottom: "1px solid #e5e7eb",
     display: "flex",
     justifyContent: "center",
     alignItems: "center",
-    minHeight: "57px",
+    height: "69px",
     boxSizing: "border-box",
   },
   logoContent: {
@@ -433,6 +433,7 @@ const styles = {
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
+    marginBottom:"-30px",
   },
   logoText: {
     fontSize: "20px",
