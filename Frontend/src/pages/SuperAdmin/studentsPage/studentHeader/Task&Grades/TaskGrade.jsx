@@ -47,6 +47,11 @@ const Icons = {
       <circle cx="18" cy="18" r="4" />
     </svg>
   ),
+  Activity: () => (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+    </svg>
+  ),
 };
 
 const TaskGrade = ({ studentId }) => {
@@ -63,11 +68,22 @@ const TaskGrade = ({ studentId }) => {
   const [historyPage, setHistoryPage] = useState(0);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [loading, setLoading] = useState(true);
-  const [tooltip, setTooltip] = useState({ visible: false, x: 0, y: 0, date: '', points: 0, day: '' });
+  const [tooltip, setTooltip] = useState({ visible: false, x: 0, y: 0, date: '', content: '', day: '' });
+  
+  // Activity heatmap state
+  const [activityHeatmapData, setActivityHeatmapData] = useState([]);
+  const [heatmapLoading, setHeatmapLoading] = useState(false);
   
   const topRef = useRef(null);
   const PERF_LIMIT = 6;
   const HIST_LIMIT = 5;
+
+  // Generate year options starting from 2026
+  const currentYear = new Date().getFullYear();
+  const yearOptions = [];
+  for (let y = 2026; y <= currentYear; y++) {
+    yearOptions.push(y);
+  }
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth <= 768);
@@ -78,6 +94,10 @@ const TaskGrade = ({ studentId }) => {
   useEffect(() => {
     if (token && studentId) fetchTaskGradeData();
   }, [token, studentId]);
+
+  useEffect(() => {
+    if (token && studentId) fetchActivityHeatmap();
+  }, [token, studentId, selectedYear]);
 
   useEffect(() => {
     if (studentData?.currentWorkshop) setViewingWorkshop(studentData.currentWorkshop);
@@ -98,25 +118,39 @@ const TaskGrade = ({ studentId }) => {
     }
   };
 
-  const scrollToTop = () => topRef.current?.scrollIntoView({ behavior: 'smooth' });
-
-  const activityLog = useMemo(() => {
-    if (!studentData) return {};
-    const log = {};
-    const allWorkshops = [studentData.currentWorkshop, ...studentData.history].filter(Boolean);
-    allWorkshops.forEach((workshop) => {
-      workshop.tasks.forEach((task) => {
-        log[task.date] = (log[task.date] || 0) + task.points;
+  const fetchActivityHeatmap = async () => {
+    setHeatmapLoading(true);
+    try {
+      const response = await fetch(`${API_URL}/activity/heatmap/${studentId}?year=${selectedYear}`, {
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
       });
-    });
-    return log;
-  }, [studentData]);
+      const data = await response.json();
+      if (data.success) {
+        setActivityHeatmapData(data.data);
+      }
+    } catch (err) {
+      console.error('Error fetching activity heatmap:', err);
+    } finally {
+      setHeatmapLoading(false);
+    }
+  };
+
+  const scrollToTop = () => topRef.current?.scrollIntoView({ behavior: 'smooth' });
 
   const currentDayInfo = useMemo(() => {
     if (!studentData?.currentWorkshop) return 'N/A';
     const task = studentData.currentWorkshop.tasks.find((t) => t.date === TODAY);
     return task ? `Day ${String(task.day).padStart(2, '0')}` : 'N/A';
   }, [studentData]);
+
+  // Create a map for quick lookup of activity data by date
+  const activityMap = useMemo(() => {
+    const map = new Map();
+    activityHeatmapData.forEach(day => {
+      map.set(day.date, day);
+    });
+    return map;
+  }, [activityHeatmapData]);
 
   const handleWorkshopSelection = (workshop, dateToHighlight = null) => {
     setViewingWorkshop(workshop);
@@ -131,33 +165,32 @@ const TaskGrade = ({ studentId }) => {
     scrollToTop();
   };
 
-  const handleHeatMapClick = (dateStr) => {
-    if (!studentData) return;
-    const allWorkshops = [studentData.currentWorkshop, ...studentData.history].filter(Boolean);
-    const foundWorkshop = allWorkshops.find((w) => w.tasks.some((t) => t.date === dateStr));
-    if (foundWorkshop) handleWorkshopSelection(foundWorkshop, dateStr);
-  };
-
-  const handleHeatMapHover = (e, dateStr, points) => {
-    if (isMobile) return; // Tooltips are annoying on touch devices
-    const date = new Date(dateStr);
+  const handleHeatMapHover = (e, dayData) => {
+    if (isMobile) return;
+    const date = new Date(dayData.date);
     const dayName = date.toLocaleDateString('en-US', { weekday: 'short' });
     const dayNum = date.getDate();
     const monthName = date.toLocaleDateString('en-US', { month: 'short' });
-    setTooltip({ visible: true, x: e.clientX, y: e.clientY, date: `${dayName}, ${monthName} ${dayNum}`, points: points });
+    const activities = dayData.activities?.length || 0;
+    setTooltip({ 
+      visible: true, 
+      x: e.clientX, 
+      y: e.clientY, 
+      date: `${dayName}, ${monthName} ${dayNum}`,
+      content: activities > 0 ? `${activities} task${activities > 1 ? 's' : ''} submitted` : 'No activity'
+    });
   };
 
   const handleHeatMapMove = (e) => {
     if (tooltip.visible) setTooltip(prev => ({ ...prev, x: e.clientX, y: e.clientY }));
   };
 
-  const handleHeatMapLeave = () => setTooltip({ visible: false, x: 0, y: 0, date: '', points: 0 });
+  const handleHeatMapLeave = () => setTooltip({ visible: false, x: 0, y: 0, date: '', content: '' });
 
-  const getHeatColor = (points) => {
-    if (!points || points === 0) return '#f8fafc';
-    if (points < 35) return '#dbeafe';
-    if (points < 45) return '#60a5fa';
-    return '#2563eb';
+  // Get color based on activity level (0-4)
+  const getHeatColor = (level) => {
+    const colors = ['#f8fafc', '#dcfce7', '#86efac', '#22c55e', '#16a34a'];
+    return colors[level] || colors[0];
   };
 
   const styles = {
@@ -213,43 +246,71 @@ const TaskGrade = ({ studentId }) => {
   const renderHeatMap = () => (
     <div style={styles.heatMapWrapper}>
       <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'space-between', alignItems: isMobile ? 'flex-start' : 'center', marginBottom: '25px', gap: '15px' }}>
-        <span style={styles.sectionTitle}>Engagement Activity</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <Icons.Activity />
+          <span style={styles.sectionTitle}>Task Submission Activity</span>
+        </div>
         <select
           value={selectedYear}
           onChange={(e) => setSelectedYear(parseInt(e.target.value))}
           style={{ padding: '8px 14px', borderRadius: '10px', border: '1px solid #e2e8f0', outline: 'none', fontWeight: '600', width: isMobile ? '100%' : 'auto' }}
         >
-          <option value={new Date().getFullYear()}>Year {new Date().getFullYear()}</option>
-          <option value={new Date().getFullYear() - 1}>Year {new Date().getFullYear() - 1}</option>
+          {yearOptions.map(year => (
+            <option key={year} value={year}>Year {year}</option>
+          ))}
         </select>
       </div>
-      <div style={{ display: 'flex', gap: '10px', overflowX: 'auto', paddingBottom: '12px', msOverflowStyle: 'none', scrollbarWidth: 'none' }}>
-        {months.map((month, mIdx) => {
-          const daysInMonth = new Date(selectedYear, mIdx + 1, 0).getDate();
-          return (
-            <div key={month} style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <div style={{ display: 'grid', gridTemplateRows: 'repeat(7, 13px)', gridAutoFlow: 'column', gap: '4px' }}>
-                {[...Array(daysInMonth)].map((_, d) => {
-                  const dateStr = `${selectedYear}-${String(mIdx + 1).padStart(2, '0')}-${String(d + 1).padStart(2, '0')}`;
-                  const pts = activityLog[dateStr] || 0;
-                  return (
-                    <div
-                      key={d}
-                      onClick={() => handleHeatMapClick(dateStr)}
-                      onMouseEnter={(e) => handleHeatMapHover(e, dateStr, pts)}
-                      onMouseMove={handleHeatMapMove}
-                      onMouseLeave={handleHeatMapLeave}
-                      style={{ width: '13px', height: '13px', backgroundColor: getHeatColor(pts), borderRadius: '3px', cursor: pts > 0 ? 'pointer' : 'default', border: pts > 0 ? 'none' : '1px solid #f1f5f9' }}
-                    />
-                  );
-                })}
-              </div>
-              <span style={{ fontSize: '11px', color: '#94a3b8', fontWeight: '700', textAlign: 'center' }}>{month}</span>
-            </div>
-          );
-        })}
-      </div>
-      {tooltip.visible && <div style={{ ...styles.tooltip, left: `${tooltip.x}px`, top: `${tooltip.y}px` }}><div>{tooltip.date}</div><div style={{ marginTop: '2px', color: '#94a3b8' }}>{tooltip.points} pts</div></div>}
+      {heatmapLoading ? (
+        <div style={{ textAlign: 'center', padding: '40px', color: '#9ca3af' }}>Loading activity data...</div>
+      ) : (
+        <>
+          <div style={{ display: 'flex', gap: '10px', overflowX: 'auto', paddingBottom: '12px', msOverflowStyle: 'none', scrollbarWidth: 'none' }}>
+            {months.map((month, mIdx) => {
+              const daysInMonth = new Date(selectedYear, mIdx + 1, 0).getDate();
+              return (
+                <div key={month} style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <div style={{ display: 'grid', gridTemplateRows: 'repeat(7, 13px)', gridAutoFlow: 'column', gap: '4px' }}>
+                    {[...Array(daysInMonth)].map((_, d) => {
+                      const dateStr = `${selectedYear}-${String(mIdx + 1).padStart(2, '0')}-${String(d + 1).padStart(2, '0')}`;
+                      const dayData = activityMap.get(dateStr) || { activity_level: 0, activities: [] };
+                      return (
+                        <div
+                          key={d}
+                          onMouseEnter={(e) => handleHeatMapHover(e, { date: dateStr, activities: dayData.activities })}
+                          onMouseMove={handleHeatMapMove}
+                          onMouseLeave={handleHeatMapLeave}
+                          style={{ 
+                            width: '13px', 
+                            height: '13px', 
+                            backgroundColor: getHeatColor(dayData.activity_level), 
+                            borderRadius: '3px', 
+                            cursor: dayData.activity_level > 0 ? 'pointer' : 'default', 
+                            border: dayData.activity_level > 0 ? 'none' : '1px solid #f1f5f9' 
+                          }}
+                        />
+                      );
+                    })}
+                  </div>
+                  <span style={{ fontSize: '11px', color: '#94a3b8', fontWeight: '700', textAlign: 'center' }}>{month}</span>
+                </div>
+              );
+            })}
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '20px', justifyContent: 'flex-end' }}>
+            <span style={{ fontSize: '11px', color: '#94a3b8' }}>Less</span>
+            {[0, 1, 2, 3, 4].map(level => (
+              <div key={level} style={{ width: '13px', height: '13px', backgroundColor: getHeatColor(level), borderRadius: '3px', border: level === 0 ? '1px solid #e2e8f0' : 'none' }} />
+            ))}
+            <span style={{ fontSize: '11px', color: '#94a3b8' }}>More</span>
+          </div>
+        </>
+      )}
+      {tooltip.visible && (
+        <div style={{ ...styles.tooltip, left: `${tooltip.x}px`, top: `${tooltip.y}px` }}>
+          <div>{tooltip.date}</div>
+          <div style={{ marginTop: '2px', color: '#94a3b8' }}>{tooltip.content}</div>
+        </div>
+      )}
     </div>
   );
 
