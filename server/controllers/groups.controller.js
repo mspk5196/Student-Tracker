@@ -313,9 +313,74 @@ export const addIndividualStudentToVenue = async (req, res) => {
   }
 };
 
+// Lookup student by roll number for auto-fill
+export const lookupStudentByRollNumber = async (req, res) => {
+  try {
+    const { rollNumber } = req.params;
+
+    if (!rollNumber || rollNumber.trim().length < 2) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Roll number is required (minimum 2 characters)' 
+      });
+    }
+
+    const [students] = await db.query(`
+      SELECT 
+        u.user_id,
+        u.name,
+        u.email,
+        u.ID as rollNumber,
+        u.department,
+        s.student_id,
+        s.year,
+        s.semester,
+        s.assigned_faculty_id,
+        v.venue_name as current_venue
+      FROM users u
+      LEFT JOIN students s ON u.user_id = s.user_id
+      LEFT JOIN group_students gs ON s.student_id = gs.student_id AND gs.status = 'Active'
+      LEFT JOIN \`groups\` g ON gs.group_id = g.group_id
+      LEFT JOIN venue v ON g.venue_id = v.venue_id AND v.status = 'Active'
+      WHERE u.ID = ? AND u.role_id = 3
+      LIMIT 1
+    `, [rollNumber.trim()]);
+
+    if (students.length === 0) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Student not found',
+        data: null
+      });
+    }
+
+    const student = students[0];
+    res.status(200).json({ 
+      success: true, 
+      data: {
+        name: student.name || '',
+        email: student.email || '',
+        rollNumber: student.rollNumber,
+        department: student.department || '',
+        year: student.year || 1,
+        semester: student.semester || 1,
+        current_venue: student.current_venue || null,
+        is_existing: true
+      }
+    });
+
+  } catch (error) {
+    console.error('Error looking up student:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to lookup student' 
+    });
+  }
+};
+
 // ===== VENUE MANAGEMENT =====
 
-// Get all venues
+// Get all venues (only Active venues)
 export const getAllVenues = async (req, res) => {
   try {
     const [venues] = await db.query(`
@@ -336,6 +401,7 @@ export const getAllVenues = async (req, res) => {
       LEFT JOIN users u ON f.user_id = u.user_id
       LEFT JOIN \`groups\` g ON v.venue_id = g.venue_id
       LEFT JOIN group_students gs ON g.group_id = gs.group_id AND gs.status = 'Active'
+      WHERE v.status = 'Active'
       GROUP BY v.venue_id
       ORDER BY v.venue_name
     `);
@@ -363,11 +429,35 @@ export const createVenue = async (req, res) => {
 
     // Check if venue name already exists
     const [existing] = await connection.query(
-      'SELECT venue_id FROM venue WHERE venue_name = ?',
+      'SELECT venue_id, status FROM venue WHERE venue_name = ?',
       [venue_name]
     );
     
     if (existing.length > 0) {
+      // If venue exists but is inactive, reactivate it
+      if (existing[0].status === 'Inactive') {
+        await connection.beginTransaction();
+        
+        await connection.query(
+          `UPDATE venue SET status = 'Active', capacity = ?, location = ?, assigned_faculty_id = ? WHERE venue_id = ?`,
+          [capacity, location || '', assigned_faculty_id || null, existing[0].venue_id]
+        );
+        
+        // Reactivate associated groups
+        await connection.query(
+          `UPDATE \`groups\` SET status = 'Active' WHERE venue_id = ?`,
+          [existing[0].venue_id]
+        );
+        
+        await connection.commit();
+        
+        return res.status(200).json({ 
+          success: true, 
+          message: 'Venue reactivated successfully!',
+          data: { venue_id: existing[0].venue_id, reactivated: true }
+        });
+      }
+      
       return res.status(400).json({ 
         success: false, 
         message: 'Venue name already exists. Please choose a different name.' 
@@ -478,35 +568,34 @@ export const updateVenue = async (req, res) => {
   }
 };
 
-// Delete venue
+// Delete venue (soft delete - set status to Inactive)
 export const deleteVenue = async (req, res) => {
   const connection = await db.getConnection();
   
   try {
     const { venueId } = req.params;
 
-    // Check if venue has students
-    const [students] = await connection.query(`
-      SELECT COUNT(*) as count 
-      FROM group_students gs
+    await connection.beginTransaction();
+
+    // Mark all active students in this venue as Dropped
+    await connection.query(`
+      UPDATE group_students gs
       INNER JOIN \`groups\` g ON gs.group_id = g.group_id
+      SET gs.status = 'Dropped'
       WHERE g.venue_id = ? AND gs.status = 'Active'
     `, [venueId]);
 
-    if (students[0].count > 0) {
-      return res.status(400).json({ 
-        success: false, 
-        message: `Cannot delete venue with ${students[0].count} active students. Please remove students first.` 
-      });
-    }
+    // Set groups to Inactive
+    await connection.query(
+      `UPDATE \`groups\` SET status = 'Inactive' WHERE venue_id = ?`,
+      [venueId]
+    );
 
-    await connection.beginTransaction();
-
-    // Delete related groups first
-    await connection.query('DELETE FROM \`groups\` WHERE venue_id = ?', [venueId]);
-
-    // Delete venue
-    await connection.query('DELETE FROM venue WHERE venue_id = ?', [venueId]);
+    // Soft delete venue (set status to Inactive)
+    await connection.query(
+      `UPDATE venue SET status = 'Inactive' WHERE venue_id = ?`,
+      [venueId]
+    );
 
     await connection.commit();
 
@@ -527,7 +616,7 @@ export const deleteVenue = async (req, res) => {
   }
 };
 
-// Assign/Change faculty for venue
+// Assign/Change faculty for venue (auto-move faculty from other venues)
 export const assignFacultyToVenue = async (req, res) => {
   const connection = await db.getConnection();
   
@@ -544,7 +633,7 @@ export const assignFacultyToVenue = async (req, res) => {
 
     // Get current venue info
     const [currentVenue] = await connection.query(
-      'SELECT venue_name FROM venue WHERE venue_id = ?',
+      'SELECT venue_name, assigned_faculty_id FROM venue WHERE venue_id = ?',
       [venueId]
     );
 
@@ -555,7 +644,11 @@ export const assignFacultyToVenue = async (req, res) => {
       });
     }
 
-    // Check if faculty is already assigned to another venue
+    await connection.beginTransaction();
+
+    let movedFromVenue = null;
+
+    // Check if faculty is already assigned to another venue - auto-move them
     const [facultyCheck] = await connection.query(
       `SELECT v.venue_id, v.venue_name, u.name as faculty_name
        FROM venue v 
@@ -566,18 +659,51 @@ export const assignFacultyToVenue = async (req, res) => {
     );
 
     if (facultyCheck.length > 0) {
-      return res.status(400).json({ 
-        success: false, 
-        message: `${facultyCheck[0].faculty_name} is already assigned to "${facultyCheck[0].venue_name}". A faculty can only be assigned to one venue at a time.` 
-      });
+      // Remove faculty from old venue (auto-move)
+      const oldVenueId = facultyCheck[0].venue_id;
+      movedFromVenue = facultyCheck[0].venue_name;
+      
+      await connection.query(
+        'UPDATE venue SET assigned_faculty_id = NULL WHERE venue_id = ?',
+        [oldVenueId]
+      );
+
+      // Update groups in old venue to have no faculty
+      await connection.query(
+        'UPDATE `groups` SET faculty_id = NULL WHERE venue_id = ?',
+        [oldVenueId]
+      );
+
+      // Update students in old venue to have no assigned faculty
+      await connection.query(`
+        UPDATE students s
+        INNER JOIN group_students gs ON s.student_id = gs.student_id
+        INNER JOIN \`groups\` g ON gs.group_id = g.group_id
+        SET s.assigned_faculty_id = NULL
+        WHERE g.venue_id = ? AND gs.status = 'Active'
+      `, [oldVenueId]);
     }
 
-    await connection.beginTransaction();
-
+    // Assign faculty to new venue
     await connection.query(
       'UPDATE venue SET assigned_faculty_id = ? WHERE venue_id = ?',
       [faculty_id, venueId]
     );
+
+    // Update groups in new venue
+    await connection.query(
+      'UPDATE `groups` SET faculty_id = ? WHERE venue_id = ?',
+      [faculty_id, venueId]
+    );
+
+    // Update students in new venue to have this faculty
+    await connection.query(`
+      UPDATE students s
+      INNER JOIN group_students gs ON s.student_id = gs.student_id
+      INNER JOIN \`groups\` g ON gs.group_id = g.group_id
+      SET s.assigned_faculty_id = ?
+      WHERE g.venue_id = ? AND gs.status = 'Active'
+    `, [faculty_id, venueId]);
 
     await connection.commit();
 
@@ -589,9 +715,10 @@ export const assignFacultyToVenue = async (req, res) => {
       [faculty_id]
     );
 
+    const moveMsg = movedFromVenue ? ` (moved from "${movedFromVenue}")` : '';
     res.status(200).json({ 
       success: true, 
-      message: `${facultyInfo[0].faculty_name} has been assigned to ${currentVenue[0].venue_name} successfully!` 
+      message: `${facultyInfo[0].faculty_name} has been assigned to ${currentVenue[0].venue_name} successfully!${moveMsg}` 
     });
 
   } catch (error) {
@@ -646,6 +773,7 @@ export const getAvailableFaculties = async (req, res) => {
     // Separate faculties
     let currentlyAssigned = null;
     let availableFaculties = [];
+    let assignedToOther = [];
 
     faculties.forEach(faculty => {
       if (faculty.assignment_status === 1) {
@@ -663,16 +791,24 @@ export const getAvailableFaculties = async (req, res) => {
           workload_status: 'Available',
           venue_names: null
         });
+      } else {
+        // Assigned to another venue - include for auto-move
+        assignedToOther.push({
+          ...faculty,
+          workload: 1,
+          workload_status: 'Assigned',
+          venue_names: faculty.assigned_venue_name
+        });
       }
-      // assignment_status === -1 means assigned to another venue, exclude from list
     });
 
     res.status(200).json({ 
       success: true, 
       data: {
         available: availableFaculties,
+        assignedToOther: assignedToOther,
         current: currentlyAssigned,
-        total: availableFaculties.length + (currentlyAssigned ? 1 : 0)
+        total: availableFaculties.length + assignedToOther.length + (currentlyAssigned ? 1 : 0)
       }
     });
 
@@ -690,6 +826,7 @@ export const bulkUploadStudentsToVenue = async (req, res) => {
   
   try {
     const { venueId } = req.params;
+    const overwrite = req.query.overwrite === 'true';
 
     if (!req.file) {
       return res.status(400).json({ 
@@ -714,18 +851,7 @@ export const bulkUploadStudentsToVenue = async (req, res) => {
 
     const venue = venues[0];
 
-    // Get current student count
-    const [currentCount] = await connection.query(`
-      SELECT COUNT(*) as count 
-      FROM group_students gs
-      INNER JOIN \`groups\` g ON gs.group_id = g.group_id
-      WHERE g.venue_id = ? AND gs.status = 'Active'
-    `, [venueId]);
-
-   
-    const availableSlots = venue.capacity - currentCount[0].count;
-
-    // Parse Excel file
+    // Parse Excel file first to get count
     const workbook = xlsx.read(req.file.buffer, { type: 'buffer' });
     const sheetName = workbook.SheetNames[0];
     const worksheet = workbook.Sheets[sheetName];
@@ -738,14 +864,38 @@ export const bulkUploadStudentsToVenue = async (req, res) => {
       });
     }
 
+    await connection.beginTransaction();
+
+    // If overwrite mode, drop all existing students first
+    let droppedCount = 0;
+    if (overwrite) {
+      const [dropResult] = await connection.query(`
+        UPDATE group_students gs
+        INNER JOIN \`groups\` g ON gs.group_id = g.group_id
+        SET gs.status = 'Dropped'
+        WHERE g.venue_id = ? AND gs.status = 'Active'
+      `, [venueId]);
+      droppedCount = dropResult.affectedRows;
+    }
+
+    // Check capacity after potential drop
+    const [currentCount] = await connection.query(`
+      SELECT COUNT(*) as count 
+      FROM group_students gs
+      INNER JOIN \`groups\` g ON gs.group_id = g.group_id
+      WHERE g.venue_id = ? AND gs.status = 'Active'
+    `, [venueId]);
+
+   
+    const availableSlots = venue.capacity - currentCount[0].count;
+
     if (data.length > availableSlots) {
+      await connection.rollback();
       return res.status(400).json({ 
         success: false, 
         message: `Venue capacity exceeded. Available slots: ${availableSlots}, Students in file: ${data.length}` 
       });
     }
-
-    await connection.beginTransaction();
 
     // Get or create default group for venue
     let [groups] = await connection.query(
@@ -845,18 +995,52 @@ export const bulkUploadStudentsToVenue = async (req, res) => {
         `, [studentId, venueId]);
 
         if (existingAllocation.length > 0) {
-          
           studentsSkipped++;
           errors.push(`${name} (${rollNumber}) already allocated to this venue`);
           continue;
         }
 
-        // Insert into group_students
-        const [insertResult] = await connection.query(
-          'INSERT INTO group_students (group_id, student_id, allocation_date, status) VALUES (?, ?, NOW(), "Active")',
-          [groupId, studentId]
-        );
-        
+        // Check if student is in another venue - auto-move by dropping from old venue
+        const [otherVenueAllocation] = await connection.query(`
+          SELECT gs.id, g.venue_id, v.venue_name
+          FROM group_students gs
+          INNER JOIN \`groups\` g ON gs.group_id = g.group_id
+          INNER JOIN venue v ON g.venue_id = v.venue_id
+          WHERE gs.student_id = ? AND gs.status = 'Active'
+        `, [studentId]);
+
+        if (otherVenueAllocation.length > 0) {
+          // Drop student from old venue (preserves history)
+          await connection.query(`
+            UPDATE group_students SET status = 'Dropped' WHERE id = ?
+          `, [otherVenueAllocation[0].id]);
+          errors.push(`${name} (${rollNumber}) moved from ${otherVenueAllocation[0].venue_name}`);
+        }
+
+        // Check if student was previously in this venue (reactivate instead of insert)
+        const [previousAllocation] = await connection.query(`
+          SELECT gs.id
+          FROM group_students gs
+          INNER JOIN \`groups\` g ON gs.group_id = g.group_id
+          WHERE gs.student_id = ? AND g.venue_id = ? AND gs.status != 'Active'
+        `, [studentId, venueId]);
+
+        let groupStudentsId = null;
+        if (previousAllocation.length > 0) {
+          // Reactivate previous allocation
+          await connection.query(
+            'UPDATE group_students SET status = "Active", allocation_date = NOW() WHERE id = ?',
+            [previousAllocation[0].id]
+          );
+          groupStudentsId = previousAllocation[0].id;
+        } else {
+          // Insert into group_students
+          const [insertResult] = await connection.query(
+            'INSERT INTO group_students (group_id, student_id, allocation_date, status) VALUES (?, ?, NOW(), "Active")',
+            [groupId, studentId]
+          );
+          groupStudentsId = insertResult.insertId;
+        }
         
         studentsAdded++;
         successfulStudents.push({
@@ -866,7 +1050,7 @@ export const bulkUploadStudentsToVenue = async (req, res) => {
           department,
           userId,
           studentId,
-          groupStudentsId: insertResult.insertId
+          groupStudentsId
         });
 
       } catch (err) {
@@ -880,13 +1064,14 @@ export const bulkUploadStudentsToVenue = async (req, res) => {
 
     await connection.commit();
 
-
+    const overwriteMsg = overwrite && droppedCount > 0 ? ` (Replaced ${droppedCount} existing students)` : '';
     res.status(201).json({ 
       success: true, 
-      message: `Successfully uploaded! Added: ${studentsAdded} students, Skipped: ${studentsSkipped}`,
+      message: `Successfully uploaded! Added: ${studentsAdded} students, Skipped: ${studentsSkipped}${overwriteMsg}`,
       data: {
         studentsAdded,
         studentsSkipped,
+        droppedCount: overwrite ? droppedCount : 0,
         errors: errors.slice(0, 10),
         successfulStudents: successfulStudents.slice(0, 5)
       }
@@ -949,11 +1134,16 @@ export const allocateStudentsByRollRange = async (req, res) => {
 
     const availableSlots = venue.capacity - currentCount[0].count;
 
-    // Find students in roll number range
+    // Find students in roll number range (include those in other venues for auto-move)
     const [students] = await connection.query(`
-      SELECT s.student_id, u.name, u.ID as rollNumber
+      SELECT s.student_id, u.name, u.ID as rollNumber,
+        gs_current.id as current_allocation_id,
+        v_current.venue_name as current_venue_name
       FROM students s
       INNER JOIN users u ON s.user_id = u.user_id
+      LEFT JOIN group_students gs_current ON s.student_id = gs_current.student_id AND gs_current.status = 'Active'
+      LEFT JOIN \`groups\` g_current ON gs_current.group_id = g_current.group_id
+      LEFT JOIN venue v_current ON g_current.venue_id = v_current.venue_id
       WHERE u.ID BETWEEN ? AND ?
         AND u.role_id = 3
         AND u.is_active = 1
@@ -1002,12 +1192,37 @@ export const allocateStudentsByRollRange = async (req, res) => {
       groupId = groups[0].group_id;
     }
 
-    // Allocate students
+    // Allocate students (auto-move from other venues if needed)
+    const movedStudents = [];
     for (const student of students) {
-      await connection.query(
-        'INSERT INTO group_students (group_id, student_id, allocation_date, status) VALUES (?, ?, NOW(), "Active")',
-        [groupId, student.student_id]
-      );
+      // If student is in another venue, drop them first
+      if (student.current_allocation_id) {
+        await connection.query(
+          'UPDATE group_students SET status = "Dropped" WHERE id = ?',
+          [student.current_allocation_id]
+        );
+        movedStudents.push({ name: student.name, from: student.current_venue_name });
+      }
+
+      // Check if student was previously in this venue (reactivate)
+      const [previousAllocation] = await connection.query(`
+        SELECT gs.id
+        FROM group_students gs
+        INNER JOIN \`groups\` g ON gs.group_id = g.group_id
+        WHERE gs.student_id = ? AND g.venue_id = ? AND gs.status != 'Active'
+      `, [student.student_id, venueId]);
+
+      if (previousAllocation.length > 0) {
+        await connection.query(
+          'UPDATE group_students SET status = "Active", allocation_date = NOW() WHERE id = ?',
+          [previousAllocation[0].id]
+        );
+      } else {
+        await connection.query(
+          'INSERT INTO group_students (group_id, student_id, allocation_date, status) VALUES (?, ?, NOW(), "Active")',
+          [groupId, student.student_id]
+        );
+      }
     }
 
     // Get count of existing tasks and roadmap for this venue
@@ -1046,10 +1261,16 @@ export const allocateStudentsByRollRange = async (req, res) => {
   }
 };
 
-// Get students in a venue
+// Get students in a venue (Active and Dropped students)
 export const getVenueStudents = async (req, res) => {
   try {
     const { venueId } = req.params;
+    const { includeDropped } = req.query;
+
+    let statusFilter = `gs.status = 'Active'`;
+    if (includeDropped === 'true') {
+      statusFilter = `gs.status IN ('Active', 'Dropped')`;
+    }
 
     const [students] = await db.query(`
       SELECT 
@@ -1062,13 +1283,14 @@ export const getVenueStudents = async (req, res) => {
         s.year,
         s.semester,
         gs.allocation_date,
-        gs.status
+        gs.status,
+        CASE WHEN gs.status = 'Dropped' THEN 1 ELSE 0 END as is_dropped
       FROM group_students gs
       INNER JOIN \`groups\` g ON gs.group_id = g.group_id
       INNER JOIN students s ON gs.student_id = s.student_id
       INNER JOIN users u ON s.user_id = u.user_id
-      WHERE g.venue_id = ? 
-      ORDER BY u.ID
+      WHERE g.venue_id = ? AND ${statusFilter}
+      ORDER BY gs.status ASC, u.ID ASC
     `, [venueId]);
 
     res.status(200).json({ success: true, data: students });
@@ -1107,6 +1329,51 @@ export const removeStudentFromVenue = async (req, res) => {
     res.status(500).json({ 
       success: false, 
       message: 'Failed to remove student. Please try again.' 
+    });
+  } finally {
+    connection.release();
+  }
+};
+
+// Bulk remove multiple students from venue
+export const bulkRemoveStudentsFromVenue = async (req, res) => {
+  const connection = await db.getConnection();
+  
+  try {
+    const { venueId } = req.params;
+    const { studentIds } = req.body;
+
+    if (!studentIds || !Array.isArray(studentIds) || studentIds.length === 0) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Please select at least one student to remove' 
+      });
+    }
+
+    await connection.beginTransaction();
+
+    // Update status to Dropped for all selected students
+    const placeholders = studentIds.map(() => '?').join(',');
+    await connection.query(`
+      UPDATE group_students gs
+      INNER JOIN \`groups\` g ON gs.group_id = g.group_id
+      SET gs.status = 'Dropped'
+      WHERE g.venue_id = ? AND gs.student_id IN (${placeholders}) AND gs.status = 'Active'
+    `, [venueId, ...studentIds]);
+
+    await connection.commit();
+
+    res.status(200).json({ 
+      success: true, 
+      message: `${studentIds.length} student(s) removed from venue successfully!` 
+    });
+
+  } catch (error) {
+    await connection.rollback();
+    console.error('Error bulk removing students:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to remove students. Please try again.' 
     });
   } finally {
     connection.release();

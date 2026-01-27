@@ -858,7 +858,7 @@ export const getStudentTasks = async (req, res) => {
     const user_id = req.user.user_id;
     const { course_type } = req.query;
 
-    // Get student info and their venue
+    // Get student info and their current venue
     const [studentInfo] = await db.query(`
       SELECT 
         s.student_id, 
@@ -885,7 +885,22 @@ export const getStudentTasks = async (req, res) => {
 
     console.log('Student Info:', { student_id, venue_id, venue_name, user_id });
 
-    if (!venue_id) {
+    // Get ALL venues the student has been in (current + dropped) for historical task display
+    const [allVenueAllocations] = await db.query(`
+      SELECT DISTINCT g.venue_id, v.venue_name, gs.status as allocation_status
+      FROM group_students gs
+      INNER JOIN \`groups\` g ON gs.group_id = g.group_id
+      INNER JOIN venue v ON g.venue_id = v.venue_id
+      WHERE gs.student_id = ?
+      ORDER BY gs.status DESC
+    `, [student_id]);
+
+    const currentVenueId = venue_id;
+    const allVenueIds = allVenueAllocations.map(v => v.venue_id);
+
+    console.log('All venues student has been in:', allVenueAllocations);
+
+    if (!venue_id && allVenueIds.length === 0) {
       return res.status(200).json({
         success: true,
         message: 'Student not assigned to any venue',
@@ -1023,7 +1038,8 @@ export const getStudentTasks = async (req, res) => {
     });
     console.log('Unlocked skills set:', Array.from(unlockedSkills));
 
-    // Get all tasks for the student's venue
+    // Get all tasks from ALL venues the student has been in (match by task title for cross-venue)
+    // Priority: Current venue tasks first, then historical submissions from other venues
     let tasksQuery = `
       SELECT 
         t.task_id,
@@ -1038,6 +1054,8 @@ export const getStudentTasks = async (req, res) => {
         t.course_type,
         t.status as task_status,
         t.created_at,
+        t.venue_id as task_venue_id,
+        v.venue_name as task_venue_name,
         u.name as faculty_name,
         ts.submission_id,
         ts.file_name,
@@ -1047,14 +1065,27 @@ export const getStudentTasks = async (req, res) => {
         ts.grade,
         ts.feedback,
         ts.is_late,
-        ts.status as submission_status
+        ts.status as submission_status,
+        CASE WHEN t.venue_id = ? THEN 1 ELSE 0 END as is_current_venue
       FROM tasks t
+      INNER JOIN venue v ON t.venue_id = v.venue_id
       INNER JOIN faculties f ON t.faculty_id = f.faculty_id
       LEFT JOIN users u ON f.user_id = u.user_id
-      LEFT JOIN task_submissions ts ON t.task_id = ts.task_id AND ts.student_id = ?
+      LEFT JOIN (
+        -- Get submissions from current venue OR matching title tasks from other venues
+        SELECT ts1.*
+        FROM task_submissions ts1
+        INNER JOIN tasks t1 ON ts1.task_id = t1.task_id
+        WHERE ts1.student_id = ?
+      ) ts ON t.task_id = ts.task_id OR (
+        ts.task_id IN (
+          SELECT t2.task_id FROM tasks t2 
+          WHERE t2.title = t.title AND ts.task_id = t2.task_id
+        )
+      )
       WHERE t.venue_id = ? AND t.status = 'Active'
     `;
-    const tasksParams = [student_id, venue_id];
+    const tasksParams = [currentVenueId || 0, student_id, currentVenueId || allVenueIds[0]];
 
     if (course_type) {
       tasksQuery += ` AND t.course_type = ?`;
@@ -1063,9 +1094,56 @@ export const getStudentTasks = async (req, res) => {
 
     tasksQuery += ` ORDER BY t.day ASC, t.created_at ASC`;
 
-    const [tasks] = await db.query(tasksQuery, tasksParams);
+    const [currentVenueTasks] = await db.query(tasksQuery, tasksParams);
 
-    console.log(`Found ${tasks.length} tasks for venue_id ${venue_id} before skill filtering`);
+    // Also get historical submissions from other venues (for tasks with same title)
+    const [historicalSubmissions] = await db.query(`
+      SELECT 
+        t.title,
+        t.skill_filter,
+        t.course_type,
+        ts.submission_id,
+        ts.status as submission_status,
+        ts.grade,
+        ts.feedback,
+        ts.submitted_at,
+        v.venue_name as submitted_venue
+      FROM task_submissions ts
+      INNER JOIN tasks t ON ts.task_id = t.task_id
+      INNER JOIN venue v ON t.venue_id = v.venue_id
+      WHERE ts.student_id = ? AND t.venue_id != ?
+    `, [student_id, currentVenueId || 0]);
+
+    // Create a map of historical submissions by title
+    const historicalByTitle = {};
+    historicalSubmissions.forEach(sub => {
+      const key = sub.title.toLowerCase().trim();
+      if (!historicalByTitle[key] || sub.submitted_at > historicalByTitle[key].submitted_at) {
+        historicalByTitle[key] = sub;
+      }
+    });
+
+    // Merge historical submissions into current venue tasks
+    const tasks = currentVenueTasks.map(task => {
+      const titleKey = task.title.toLowerCase().trim();
+      const historical = historicalByTitle[titleKey];
+      
+      // If task has no submission but there's a historical one, use it
+      if (!task.submission_id && historical) {
+        return {
+          ...task,
+          submission_id: historical.submission_id,
+          submission_status: historical.submission_status,
+          grade: historical.grade,
+          feedback: historical.feedback,
+          submitted_at: historical.submitted_at,
+          from_previous_venue: historical.submitted_venue
+        };
+      }
+      return task;
+    });
+
+    console.log(`Found ${tasks.length} tasks for venue_id ${currentVenueId} (including historical submissions)`);
     console.log('Ordered skills from skill_order table:', orderedSkills.map(s => s.skill_name));
     console.log('Unlocked skills for student:', Array.from(unlockedSkills));
 
@@ -1144,8 +1222,8 @@ export const getStudentTasks = async (req, res) => {
     // Debug: Check all tasks in the venue regardless of status
     const [allVenueTasks] = await db.query(`
       SELECT task_id, title, status, venue_id FROM tasks WHERE venue_id = ?
-    `, [venue_id]);
-    console.log(`Total tasks in venue ${venue_id}:`, allVenueTasks);
+    `, [currentVenueId || allVenueIds[0] || 0]);
+    console.log(`Total tasks in venue ${currentVenueId}:`, allVenueTasks);
 
     // Get materials for each task
     const tasksWithResources = await Promise.all(filteredTasks.map(async (task) => {
@@ -1193,7 +1271,8 @@ export const getStudentTasks = async (req, res) => {
         filePath: task.file_path,
         link_url: task.link_url,
         submissionStatus: task.submission_status,
-        materials: materials
+        materials: materials,
+        fromPreviousVenue: task.from_previous_venue || null
       };
     }));
 
