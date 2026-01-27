@@ -693,6 +693,7 @@ export const assignFacultyToVenue = async (req, res) => {
       'UPDATE venue SET assigned_faculty_id = ? WHERE venue_id = ?',
       [faculty_id, venueId]
     );
+    console.log(`[ASSIGN FACULTY] Assigned faculty_id: ${faculty_id} to venue_id: ${venueId}`);
 
     // Update groups in new venue
     await connection.query(

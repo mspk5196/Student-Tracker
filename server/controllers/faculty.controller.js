@@ -85,19 +85,23 @@ export const createFaculty = async (req, res) => {
     );
 
     const userId = userResult.insertId;
+    console.log(`[CREATE FACULTY] Created user record - user_id: ${userId}, name: ${name}, role_id: 2`);
 
     // Insert into faculties table
-    await connection.query(
+    const [facultyResult] = await connection.query(
       'INSERT INTO faculties (user_id, designation) VALUES (?, ?)',
       [userId, designation]
     );
+
+    const dbFacultyId = facultyResult.insertId;
+    console.log(`[CREATE FACULTY] Created faculty record - faculty_id: ${dbFacultyId}, user_id: ${userId}, designation: ${designation}`);
 
     await connection.commit();
 
     res.status(201).json({ 
       success: true, 
       message: 'Faculty created successfully',
-      data: { userId, facultyId }
+      data: { userId, facultyId: dbFacultyId }
     });
 
   } catch (error) {

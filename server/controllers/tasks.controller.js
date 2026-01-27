@@ -79,6 +79,8 @@ export const getVenuesForFaculty = async (req, res) => {
       // Get faculty_id from user_id
       const [faculty] = await db.query('SELECT faculty_id FROM faculties WHERE user_id = ?', [userId]);
       
+      console.log(`[GET VENUES] user_id: ${userId}, faculty record found:`, faculty.length > 0, faculty.length > 0 ? `faculty_id: ${faculty[0].faculty_id}` : 'NO FACULTY RECORD');
+      
       if (faculty.length === 0) {
         return res.status(404).json({
           success: false,
@@ -100,9 +102,11 @@ export const getVenuesForFaculty = async (req, res) => {
         ORDER BY v. venue_name
       `;
       params = [faculty[0].faculty_id];
+      console.log(`[GET VENUES] Querying venues for faculty_id: ${faculty[0].faculty_id}`);
     }
 
     const [venues] = await db.query(query, params);
+    console.log(`[GET VENUES] Found ${venues.length} venue(s)`);
 
     res.status(200).json({
       success: true,
