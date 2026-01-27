@@ -127,12 +127,10 @@ const SkillProficiencyView = ({ selectedVenue, selectedVenueName, facultyName, i
       
       // Set stats from API response (backend returns 'statistics')
       if (response.data.statistics) {
-        // Calculate not attempted count
-        const attemptedStudentIds = new Set((response.data.reports || []).map(r => r.student_id));
         const totalVenueStudents = response.data.venueStudents?.length || 0;
-        // For stats, we need unique students who attempted this skill
-        const uniqueAttemptedCount = response.data.statistics.total || 0;
-        const notAttemptedCount = Math.max(0, totalVenueStudents - attemptedStudentIds.size);
+        // Use statistics.total which is the count of unique students who have attempted this skill
+        const attemptedCount = response.data.statistics.total || 0;
+        const notAttemptedCount = Math.max(0, totalVenueStudents - attemptedCount);
         
         setSkillStats({
           totalStudents: totalVenueStudents, // Total students in venue

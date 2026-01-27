@@ -664,6 +664,7 @@ export const getSkillReportsForFaculty = async (req, res) => {
 
     // Get statistics (only for latest records per student/course)
     // Always show total students count from students table (not enrolled count)
+    // Statistics should NOT be affected by status/search filters - only by venue and skill
     let statsQuery = `
       SELECT 
         COUNT(*) as total,
@@ -703,26 +704,10 @@ export const getSkillReportsForFaculty = async (req, res) => {
       )`;
     }
 
-    // Skill filter for stats
+    // Only apply skill filter for stats (NOT status/date/search - stats should show overall for the skill)
     if (skill && skill.trim().length > 0) {
       statsQuery += ' AND ss.course_name = ?';
       statsParams.push(skill.trim());
-    }
-
-    if (status && ['Cleared', 'Not Cleared', 'Ongoing'].includes(status)) {
-      statsQuery += ' AND ss.status = ?';
-      statsParams.push(status);
-    }
-
-    if (date) {
-      statsQuery += ' AND DATE(ss.last_slot_date) = ?';
-      statsParams.push(date);
-    }
-
-    if (search && search.trim().length > 0) {
-      statsQuery += ' AND (u.name LIKE ? OR u.ID LIKE ? OR ss.course_name LIKE ? OR ss.student_name LIKE ?)';
-      const searchPattern = `%${search.trim()}%`;
-      statsParams.push(searchPattern, searchPattern, searchPattern, searchPattern);
     }
 
     const [stats] = await db.execute(statsQuery, statsParams);
