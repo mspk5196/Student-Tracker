@@ -1,9 +1,3 @@
-roadmap is showing for all even after not completing 
+#  Student Tracker
 
-
-in reports it showing only 5 students pagination not enabled +
-
-attendance also not correct in students page  if one faculty is marked  then its  not showing for admin when i see 
-
-
-unable to grade only it is active for faculty 
+A comprehensive full-stack student management system designed to track student progress, attendance, tasks, assignments, and skill development across educational institutions.

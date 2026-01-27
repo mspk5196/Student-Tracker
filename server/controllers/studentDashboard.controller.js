@@ -73,6 +73,8 @@ export const getStudentDashboardStats = async (req, res) => {
     let pendingTasks = 0;
     let tasksDueTomorrow = 0;
     let courseProgress = 0;
+    let completedTasks = 0;
+    let totalTasks = 0;
 
     if (venueIds.length) {
       const placeholders = venueIds.map(() => '?').join(',');
@@ -105,32 +107,24 @@ export const getStudentDashboardStats = async (req, res) => {
         [studentId, ...venueIds]
       );
 
-      const totalTasks = Number(taskCounts?.[0]?.total_tasks || 0);
-      const gradedTasks = Number(taskCounts?.[0]?.graded_tasks || 0);
+      totalTasks = Number(taskCounts?.[0]?.total_tasks || 0);
+      completedTasks = Number(taskCounts?.[0]?.graded_tasks || 0);
       pendingTasks = Number(taskCounts?.[0]?.pending_tasks || 0);
       tasksDueTomorrow = Number(taskCounts?.[0]?.due_tomorrow || 0);
-      courseProgress = totalTasks > 0 ? Math.round((gradedTasks / totalTasks) * 100) : 0;
+      courseProgress = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
     }
 
-    // CGPA-ish: average graded percentage scaled to 10
-    const [avgGradeRows] = await db.query(
-      `
-      SELECT COALESCE(AVG(grade), 0) as avg_grade
-      FROM task_submissions
-      WHERE student_id = ? AND status = 'Graded' AND grade IS NOT NULL
-      `,
-      [studentId]
-    );
-
-    const avgGrade = Number(avgGradeRows?.[0]?.avg_grade || 0);
-    const currentCGPA = Number((avgGrade / 10).toFixed(1));
+    // Tasks Completed: use graded tasks count as "completed" metric
+    // (skill_completion table may not exist, so we use task completion instead)
+    const tasksCompleted = completedTasks;
 
     return res.status(200).json({
       success: true,
       data: {
         overallAttendance,
         pendingTasks,
-        currentCGPA,
+        tasksCompleted,
+        totalTasks,
         courseProgress,
         attendanceTrend,
         tasksDueTomorrow,
@@ -342,5 +336,67 @@ export const getStudentSubjectWiseAttendance = async (req, res) => {
   } catch (error) {
     console.error('Error in getStudentSubjectWiseAttendance:', error);
     return res.status(500).json({ success: false, message: 'Failed to fetch subject-wise attendance', error: error.message });
+  }
+};
+
+/**
+ * Get task completion statistics for the donut chart
+ * Returns: { completed: number, pending: number, overdue: number }
+ */
+export const getStudentTaskCompletionStats = async (req, res) => {
+  try {
+    const studentId = await resolveStudentIdFromToken(req);
+    if (!studentId) {
+      return res.status(404).json({ success: false, message: 'Student not found for this user' });
+    }
+
+    const venueIds = await resolveStudentVenueIds(studentId);
+
+    if (!venueIds.length) {
+      return res.status(200).json({
+        success: true,
+        data: { completed: 0, pending: 0, overdue: 0 },
+      });
+    }
+
+    const placeholders = venueIds.map(() => '?').join(',');
+
+    const [taskStats] = await db.query(
+      `
+      SELECT
+        COUNT(DISTINCT CASE 
+          WHEN ts.status = 'Graded' THEN t.task_id 
+        END) as completed,
+        COUNT(DISTINCT CASE 
+          WHEN (ts.submission_id IS NULL OR (ts.status IS NOT NULL AND ts.status <> 'Graded'))
+            AND (t.due_date IS NULL OR t.due_date >= CURDATE())
+          THEN t.task_id 
+        END) as pending,
+        COUNT(DISTINCT CASE 
+          WHEN (ts.submission_id IS NULL OR (ts.status IS NOT NULL AND ts.status <> 'Graded'))
+            AND t.due_date IS NOT NULL 
+            AND t.due_date < CURDATE()
+          THEN t.task_id 
+        END) as overdue
+      FROM tasks t
+      LEFT JOIN task_submissions ts
+        ON ts.task_id = t.task_id AND ts.student_id = ?
+      WHERE t.status = 'Active'
+        AND t.venue_id IN (${placeholders})
+      `,
+      [studentId, ...venueIds]
+    );
+
+    const completed = Number(taskStats?.[0]?.completed || 0);
+    const pending = Number(taskStats?.[0]?.pending || 0);
+    const overdue = Number(taskStats?.[0]?.overdue || 0);
+
+    return res.status(200).json({
+      success: true,
+      data: { completed, pending, overdue },
+    });
+  } catch (error) {
+    console.error('Error in getStudentTaskCompletionStats:', error);
+    return res.status(500).json({ success: false, message: 'Failed to fetch task completion stats', error: error.message });
   }
 };

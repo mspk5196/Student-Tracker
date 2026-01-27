@@ -1,231 +1,173 @@
 import React, { useState, useEffect } from "react";
 import {
-  BookOpen,
   Calendar,
-  Clock,
   ClipboardCheck,
-  MapPin,
-  Users,
   ChevronRight,
-  Plus,
   BarChart3,
   PieChart,
-  MoreVertical,
   CheckCircle,
-  AlertCircle,
   TrendingUp,
   TrendingDown,
-  FileText,
-  Video,
-  Code,
-  Database,
-  Rocket,
-  Award,
-  Star,
   Target,
-  ArrowRight,
-  Bell,
+  Loader2,
+  Activity,
+  BookOpen,
+  FileText,
+  Award,
+  ListChecks,
 } from "lucide-react";
+import useAuthStore from "../../../store/useAuthStore";
 
-// Static data for Student Dashboard
-const STATIC_DATA = {
-  stats: [
-    {
-      id: 1,
-      label: "Overall Attendance",
-      value: "82%",
-      sub: "Last 30 days: +2.4%",
-      icon: <Calendar size={20} />,
-      badge: "Good",
-    },
-    {
-      id: 2,
-      label: "Pending Tasks",
-      value: "3",
-      sub: "2 due by tomorrow",
-      icon: <ClipboardCheck size={20} />,
-      badge: "Urgent",
-    },
-    {
-      id: 3,
-      label: "Current CGPA",
-      value: "8.4",
-      sub: "Semester 5 progress",
-      icon: <Award size={20} />,
-    },
-    {
-      id: 4,
-      label: "Course Progress",
-      value: "68%",
-      sub: "Target: 85% by Semester end",
-      icon: <Target size={20} />,
-    },
-  ],
+// API Configuration
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
-  schedule: [
-    {
-      id: "CS-201",
-      name: "Data Structures & Algorithms",
-      type: "Lecture",
-      time: "10:00 - 11:00 AM",
-      loc: "Lab 3",
-      faculty: "Dr. Rajesh Kumar",
-      status: "Ongoing",
-      statusType: "progress",
-    },
-    {
-      id: "CS-203",
-      name: "Database Systems",
-      type: "Laboratory",
-      time: "11:15 AM - 12:15 PM",
-      loc: "Room 204",
-      faculty: "Prof. Meena Sharma",
-      status: "Upcoming",
-      statusType: "pending",
-    },
-    {
-      id: "CS-205",
-      name: "Operating Systems",
-      type: "Tutorial",
-      time: "02:00 - 03:00 PM",
-      loc: "Seminar Hall",
-      faculty: "Dr. Amit Patel",
-      status: "Completed",
-      statusType: "completed",
-    },
-  ],
+const getAuthHeaders = (token) => ({
+  'Content-Type': 'application/json',
+  Authorization: `Bearer ${token}`,
+});
 
-  tasks: [
-    {
-      id: 1,
-      name: "AVL Tree Rotations",
-      subject: "DSA",
-      submitted: 0,
-      total: 1,
-      status: "pending",
-      deadline: "Today",
-    },
-    {
-      id: 2,
-      name: "SQL Normalization",
-      subject: "DBMS",
-      submitted: 0,
-      total: 1,
-      status: "progress",
-      deadline: "Tomorrow",
-    },
-    {
-      id: 3,
-      name: "Memory Management",
-      subject: "OS",
-      submitted: 1,
-      total: 1,
-      status: "completed",
-      deadline: "Done",
-    },
-  ],
-
-  grades: [
-    {
-      id: 1,
-      subject: "Mathematics IV",
-      code: "MTH-301",
-      grade: "A",
-      score: "92/100",
-      type: "success",
-    },
-    {
-      id: 2,
-      subject: "Web Development",
-      code: "CS-304",
-      grade: "A+",
-      score: "98/100",
-      type: "success",
-    },
-    {
-      id: 3,
-      subject: "Computer Networks",
-      code: "CS-302",
-      grade: "B+",
-      score: "85/100",
-      type: "warning",
-    },
-  ],
-
-  engagementData: {
-    attendance: {
-      labels: ["DSA", "DBMS", "OS", "Math", "Web"],
-      datasets: [
-        {
-          data: [92, 75, 83, 76, 88],
-          label: "Attendance %",
-          color: "#2563eb",
-        },
-      ],
-    },
-    taskCompletion: {
-      labels: ["Completed", "Pending", "Overdue"],
-      data: [68, 22, 10],
-      colors: ["#10b981", "#f59e0b", "#ef4444"],
-    },
-    activity: Array.from({ length: 365 }, (_, i) => ({
-      level: Math.floor(Math.random() * 5),
-      date: new Date(2024, 0, i + 1).toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-      }),
-      tasks: [
-        "Attended: Data Structures Class",
-        "Submitted: Weekly Quiz 4",
-        "Completed: 2 Library coding hours",
-        "Forum Post: React Hooks discussion",
-      ].slice(0, Math.floor(Math.random() * 4) + 1),
-    })),
-  },
+// API Functions
+const getStudentDashboardStats = async (token) => {
+  const response = await fetch(`${API_URL}/dashboard/stats`, {
+    method: 'GET',
+    headers: getAuthHeaders(token),
+  });
+  if (!response.ok) throw new Error('Failed to fetch dashboard stats');
+  return response.json();
 };
 
-// HeatMap Component
-const ActivityHeatMap = ({ data }) => {
+const getStudentRecentAssignments = async (token) => {
+  const response = await fetch(`${API_URL}/assignments/recent`, {
+    method: 'GET',
+    headers: getAuthHeaders(token),
+  });
+  if (!response.ok) throw new Error('Failed to fetch recent assignments');
+  return response.json();
+};
+
+const getStudentSubjectWiseAttendance = async (token) => {
+  const response = await fetch(`${API_URL}/attendance/subject-wise`, {
+    method: 'GET',
+    headers: getAuthHeaders(token),
+  });
+  if (!response.ok) throw new Error('Failed to fetch subject-wise attendance');
+  return response.json();
+};
+
+const getStudentActivityHeatmap = async (token, year = new Date().getFullYear()) => {
+  const response = await fetch(`${API_URL}/activity/heatmap?year=${year}`, {
+    method: 'GET',
+    headers: getAuthHeaders(token),
+  });
+  if (!response.ok) throw new Error('Failed to fetch activity heatmap');
+  return response.json();
+};
+
+const getStudentTaskCompletionStats = async (token) => {
+  const response = await fetch(`${API_URL}/dashboard/task-completion-stats`, {
+    method: 'GET',
+    headers: getAuthHeaders(token),
+  });
+  if (!response.ok) throw new Error('Failed to fetch task completion stats');
+  return response.json();
+};
+
+// Helper to format date for display
+const formatDate = (dateString) => {
+  if (!dateString) return "No deadline";
+  const date = new Date(dateString);
+  const today = new Date();
+  const tomorrow = new Date();
+  tomorrow.setDate(today.getDate() + 1);
+
+  if (date.toDateString() === today.toDateString()) return "Today";
+  if (date.toDateString() === tomorrow.toDateString()) return "Tomorrow";
+
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+};
+
+// Get status from assignment data
+const getTaskStatus = (task) => {
+  if (task.is_submitted && task.submission_status === "Graded") return "completed";
+  if (task.is_submitted) return "submitted";
+  const dueDate = new Date(task.due_date);
+  const today = new Date();
+  if (dueDate < today) return "overdue";
+  return "pending";
+};
+
+// HeatMap Component - Dynamic version
+const ActivityHeatMap = ({ data, selectedYear, onYearChange, loading }) => {
   const [hoveredDay, setHoveredDay] = React.useState(null);
-  const [selectedYear, setSelectedYear] = React.useState("2024");
   const [mousePos, setMousePos] = React.useState({ x: 0, y: 0 });
 
   const months = [
-    "Jan",
-    "Feb",
-    "Mar",
-    "Apr",
-    "May",
-    "Jun",
-    "Jul",
-    "Aug",
-    "Sep",
-    "Oct",
-    "Nov",
-    "Dec",
+    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
   ];
 
-  const monthData = [];
-  for (let i = 0; i < 12; i++) {
-    monthData.push(data.slice(i * 30, (i + 1) * 30));
-  }
+  // Group data by month
+  const getMonthData = () => {
+    if (!data || data.length === 0) {
+      return months.map(() => Array(30).fill({ level: 0, date: "", activities: [] }));
+    }
+
+    const monthData = [];
+    for (let i = 0; i < 12; i++) {
+      const monthStart = i * 30;
+      const monthEnd = Math.min((i + 1) * 30, data.length);
+      monthData.push(data.slice(monthStart, monthEnd));
+    }
+    return monthData;
+  };
+
+  const monthData = getMonthData();
 
   const getColor = (value) => {
     switch (value) {
       case 0:
         return "#f1f5f9";
       case 1:
-        return "#bfdbfe";
+        return "#bbf7d0";
       case 2:
-        return "#60a5fa";
+        return "#4ade80";
       case 3:
-        return "#2563eb";
+        return "#22c55e";
       case 4:
-        return "#1e3a8a";
+        return "#16a34a";
       default:
         return "#f1f5f9";
     }
   };
+
+  const currentYear = new Date().getFullYear();
+  const startYear = 2026;
+  // Generate year options from 2026 to current year (adds years automatically as they pass)
+  const yearOptions = [];
+  for (let year = currentYear; year >= startYear; year--) {
+    yearOptions.push(year);
+  }
+
+  if (loading) {
+    return (
+      <div
+        className="heatmap-card"
+        style={{
+          background: "white",
+          borderRadius: "24px",
+          border: "1px solid #f1f5f9",
+          padding: "32px",
+          boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.05)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          minHeight: "200px",
+        }}
+      >
+        <Loader2 className="animate-spin" size={32} color="#22c55e" />
+      </div>
+    );
+  }
 
   return (
     <div
@@ -252,21 +194,24 @@ const ActivityHeatMap = ({ data }) => {
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-          <h3
-            style={{
-              margin: 0,
-              fontSize: "22px",
-              fontWeight: 800,
-              color: "#0f172a",
-              letterSpacing: "-0.025em",
-            }}
-          >
-            Academic Activity
-          </h3>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <Activity size={24} color="#6b7280" />
+            <h3
+              style={{
+                margin: 0,
+                fontSize: "22px",
+                fontWeight: 800,
+                color: "#0f172a",
+                letterSpacing: "-0.025em",
+              }}
+            >
+              Task Submission Activity
+            </h3>
+          </div>
           <div style={{ position: "relative" }}>
             <select
               value={selectedYear}
-              onChange={(e) => setSelectedYear(e.target.value)}
+              onChange={(e) => onYearChange(Number(e.target.value))}
               style={{
                 appearance: "none",
                 padding: "8px 40px 8px 16px",
@@ -282,8 +227,9 @@ const ActivityHeatMap = ({ data }) => {
                 boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
               }}
             >
-              <option value="2024">2024</option>
-              <option value="2023">2023</option>
+              {yearOptions.map((year) => (
+                <option key={year} value={year}>{year}</option>
+              ))}
             </select>
             <div
               style={{
@@ -386,7 +332,7 @@ const ActivityHeatMap = ({ data }) => {
                     style={{
                       width: "13px",
                       height: "13px",
-                      backgroundColor: getColor(day.level),
+                      backgroundColor: getColor(day.activity_level || day.level || 0),
                       borderRadius: "3px",
                       border: "1px solid #e2e8f0",
                       transition: "all 0.1s ease",
@@ -415,6 +361,7 @@ const ActivityHeatMap = ({ data }) => {
                 textTransform: "uppercase",
                 letterSpacing: "0.08em",
                 whiteSpace: "nowrap",
+                marginTop: "6px",
               }}
             >
               {month}
@@ -452,7 +399,7 @@ const ActivityHeatMap = ({ data }) => {
             }}
           >
             <span style={{ fontWeight: 700, fontSize: "15px" }}>
-              {hoveredDay.date}, {selectedYear}
+              {hoveredDay.date || "Unknown Date"}
             </span>
             <span
               style={{
@@ -464,11 +411,13 @@ const ActivityHeatMap = ({ data }) => {
                 fontWeight: 700,
               }}
             >
-              {hoveredDay.level === 0 ? "REST DAY" : `LVL ${hoveredDay.level}`}
+              {(hoveredDay.activity_level || hoveredDay.level || 0) === 0 
+                ? "NO ACTIVITY" 
+                : `${hoveredDay.activities?.length || 0} SUBMISSIONS`}
             </span>
           </div>
 
-          {hoveredDay.level === 0 ? (
+          {(hoveredDay.activity_level || hoveredDay.level || 0) === 0 ? (
             <div
               style={{
                 fontSize: "13.5px",
@@ -478,13 +427,13 @@ const ActivityHeatMap = ({ data }) => {
                 fontWeight: 500,
               }}
             >
-              No contribution has done for day
+              No tasks submitted on this day
             </div>
           ) : (
             <div
               style={{ display: "flex", flexDirection: "column", gap: "10px" }}
             >
-              {hoveredDay.tasks.map((task, i) => (
+              {(hoveredDay.activities || []).slice(0, 5).map((activity, i) => (
                 <div
                   key={i}
                   style={{
@@ -498,29 +447,40 @@ const ActivityHeatMap = ({ data }) => {
                     style={{
                       width: "6px",
                       height: "6px",
-                      background: "#3b82f6",
+                      background: "#22c55e",
                       borderRadius: "50%",
-                      boxShadow: "0 0 12px rgba(59, 130, 246, 0.5)",
+                      boxShadow: "0 0 12px rgba(34, 197, 94, 0.5)",
                     }}
                   />
-                  {task}
+                  {activity}
                 </div>
               ))}
+              {(hoveredDay.activities?.length || 0) > 5 && (
+                <div style={{ fontSize: "12px", color: "#94a3b8" }}>
+                  +{hoveredDay.activities.length - 5} more...
+                </div>
+              )}
             </div>
           )}
         </div>
       )}
-
-      {/* (Heatmap is non-scroll now) */}
     </div>
   );
 };
 
-const BarChart = ({ data }) => {
+const BarChart = ({ data, loading }) => {
   const baseline = 100;
+
+  if (loading || !data?.labels?.length) {
+    return (
+      <div style={{ padding: "24px 0", display: "flex", justifyContent: "center", alignItems: "center", minHeight: "200px" }}>
+        {loading ? <Loader2 className="animate-spin" size={24} color="#2563eb" /> : <span style={{ color: "#9ca3af" }}>No attendance data available</span>}
+      </div>
+    );
+  }
+
   return (
     <div style={{ padding: "24px 0 10px 0", marginTop: "25px" }}>
-      {/* Added Scroll Container specifically for the bars */}
       <div
         style={{
           width: "100%",
@@ -539,18 +499,18 @@ const BarChart = ({ data }) => {
             paddingBottom: "30px",
             borderBottom: "1px solid #f1f5f9",
             position: "relative",
-            minWidth: "max-content", // This ensures it doesn't shrink on mobile
+            minWidth: "max-content",
             paddingRight: "10px",
           }}
         >
           {data.labels.map((label, index) => {
-            const value = data.datasets[0].data[index];
+            const value = data.datasets?.[0]?.data?.[index] || 0;
             const height = (value / baseline) * 100;
             return (
               <div
                 key={index}
                 style={{
-                  width: "50px", // Fixed width per bar to allow horizontal scrolling
+                  width: "50px",
                   display: "flex",
                   flexDirection: "column",
                   alignItems: "center",
@@ -575,7 +535,7 @@ const BarChart = ({ data }) => {
                   style={{
                     width: "32px",
                     height: `${height}%`,
-                    backgroundColor: data.datasets[0].color,
+                    backgroundColor: data.datasets?.[0]?.color || "#2563eb",
                     borderRadius: "6px",
                     transition: "height 0.6s cubic-bezier(0.4, 0, 0.2, 1)",
                     position: "relative",
@@ -628,32 +588,33 @@ const BarChart = ({ data }) => {
         <span style={{ fontSize: "13px", color: "#94a3b8", fontWeight: 500 }}>
           Attendance by Subject
         </span>
-        <div
-          style={{
-            fontSize: "13px",
-            color: "#22c55e",
-            backgroundColor: "#f0fdf4",
-            padding: "4px 10px",
-            borderRadius: "20px",
-            display: "flex",
-            alignItems: "center",
-            gap: "6px",
-            fontWeight: 600,
-          }}
-        >
-          <TrendingUp size={14} /> +2.4%
-        </div>
       </div>
       <style>{`
-                .barchart-scroll::-webkit-scrollbar { height: 4px; }
-                .barchart-scroll::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
-            `}</style>
+        .barchart-scroll::-webkit-scrollbar { height: 4px; }
+        .barchart-scroll::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
+      `}</style>
     </div>
   );
 };
 
-const DonutChart = ({ data }) => {
+const DonutChart = ({ data, loading }) => {
+  if (loading || !data?.data?.length) {
+    return (
+      <div style={{ padding: "24px", display: "flex", justifyContent: "center", alignItems: "center", minHeight: "200px" }}>
+        {loading ? <Loader2 className="animate-spin" size={24} color="#10b981" /> : <span style={{ color: "#9ca3af" }}>No task data available</span>}
+      </div>
+    );
+  }
+
   const total = data.data.reduce((a, b) => a + b, 0);
+  if (total === 0) {
+    return (
+      <div style={{ padding: "24px", textAlign: "center", color: "#9ca3af" }}>
+        No tasks assigned yet
+      </div>
+    );
+  }
+
   let accumulatedAngle = 0;
   return (
     <div style={{ padding: "8px 4px" }}>
@@ -667,6 +628,7 @@ const DonutChart = ({ data }) => {
       >
         <svg width="150" height="150" viewBox="0 0 100 100">
           {data.data.map((value, index) => {
+            if (value === 0) return null;
             const percentage = (value / total) * 100;
             const angle = (percentage / 100) * 360;
             const startAngle = accumulatedAngle;
@@ -700,7 +662,7 @@ const DonutChart = ({ data }) => {
           }}
         >
           <div style={{ fontSize: "24px", fontWeight: 800, color: "#111827" }}>
-            {data.data[0]}%
+            {Math.round((data.data[0] / total) * 100)}%
           </div>
           <div style={{ fontSize: "11px", color: "#6b7280" }}>Completed</div>
         </div>
@@ -735,7 +697,7 @@ const DonutChart = ({ data }) => {
             <span
               style={{ fontSize: "14px", fontWeight: 700, color: "#111827" }}
             >
-              {data.data[index]}%
+              {data.data[index]}
             </span>
           </div>
         ))}
@@ -745,253 +707,429 @@ const DonutChart = ({ data }) => {
 };
 
 const StudentDashboard = () => {
+  const { token } = useAuthStore();
+  
+  // State for dynamic data
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({
+    overallAttendance: 0,
+    pendingTasks: 0,
+    tasksCompleted: 0,
+    courseProgress: 0,
+    attendanceTrend: 0,
+    tasksDueTomorrow: 0,
+    totalTasks: 0,
+  });
+  const [assignments, setAssignments] = useState([]);
+  const [attendanceData, setAttendanceData] = useState({ labels: [], datasets: [] });
+  const [taskCompletionData, setTaskCompletionData] = useState({ labels: [], data: [], colors: [] });
+  const [heatmapData, setHeatmapData] = useState([]);
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [heatmapLoading, setHeatmapLoading] = useState(true);
+
+  // Fetch dashboard stats
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      if (!token) return;
+      
+      setLoading(true);
+      try {
+        const [statsRes, assignmentsRes, attendanceRes, taskCompletionRes] = await Promise.all([
+          getStudentDashboardStats(token).catch(() => ({ success: false })),
+          getStudentRecentAssignments(token).catch(() => ({ success: false, data: [] })),
+          getStudentSubjectWiseAttendance(token).catch(() => ({ success: false, data: [] })),
+          getStudentTaskCompletionStats(token).catch(() => ({ success: false, data: { completed: 0, pending: 0, overdue: 0 } })),
+        ]);
+
+        if (statsRes.success) {
+          setStats({
+            overallAttendance: statsRes.data.overallAttendance || 0,
+            pendingTasks: statsRes.data.pendingTasks || 0,
+            tasksCompleted: statsRes.data.tasksCompleted || 0,
+            courseProgress: statsRes.data.courseProgress || 0,
+            attendanceTrend: statsRes.data.attendanceTrend || 0,
+            tasksDueTomorrow: statsRes.data.tasksDueTomorrow || 0,
+            totalTasks: statsRes.data.totalTasks || 0,
+          });
+        }
+
+        if (assignmentsRes.success) {
+          setAssignments(assignmentsRes.data || []);
+        }
+
+        if (attendanceRes.success && attendanceRes.data?.length) {
+          setAttendanceData({
+            labels: attendanceRes.data.map(item => item.subject_code || item.subject),
+            datasets: [{
+              data: attendanceRes.data.map(item => item.attendance_percentage),
+              label: "Attendance %",
+              color: "#2563eb",
+            }],
+          });
+        }
+
+        if (taskCompletionRes.success) {
+          const taskData = taskCompletionRes.data;
+          setTaskCompletionData({
+            labels: ["Completed", "Pending", "Overdue"],
+            data: [taskData.completed || 0, taskData.pending || 0, taskData.overdue || 0],
+            colors: ["#10b981", "#f59e0b", "#ef4444"],
+          });
+        }
+      } catch (error) {
+        console.error("Error fetching dashboard data:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDashboardData();
+  }, [token]);
+
+  // Fetch heatmap data separately (allows year change)
+  useEffect(() => {
+    const fetchHeatmapData = async () => {
+      if (!token) return;
+      
+      setHeatmapLoading(true);
+      try {
+        const heatmapRes = await getStudentActivityHeatmap(token, selectedYear);
+        if (heatmapRes.success) {
+          setHeatmapData(heatmapRes.data || []);
+        }
+      } catch (error) {
+        console.error("Error fetching heatmap data:", error);
+        setHeatmapData([]);
+      } finally {
+        setHeatmapLoading(false);
+      }
+    };
+
+    fetchHeatmapData();
+  }, [token, selectedYear]);
+
+  // Build stats cards dynamically
+  const statsCards = [
+    {
+      id: 1,
+      label: "Overall Attendance",
+      value: `${stats.overallAttendance}%`,
+      icon: <Calendar size={22} color="#6b7280" />,
+      badge: stats.overallAttendance >= 75 ? "Good" : stats.overallAttendance >= 50 ? "Average" : "Low",
+    },
+    {
+      id: 2,
+      label: "Pending Tasks",
+      value: String(stats.pendingTasks),
+      sub: stats.tasksDueTomorrow > 0 ? `${stats.tasksDueTomorrow} due tomorrow` : null,
+      icon: <ListChecks size={22} color="#6b7280" />,
+      badge: stats.pendingTasks > 5 ? "Urgent" : stats.pendingTasks > 0 ? "Active" : "Clear",
+    },
+    {
+      id: 3,
+      label: "Tasks Completed",
+      value: String(stats.tasksCompleted),
+      sub: stats.totalTasks > 0 ? `of ${stats.totalTasks} total` : null,
+      icon: <CheckCircle size={22} color="#6b7280" />,
+      badge: null,
+    },
+    {
+      id: 4,
+      label: "Course Progress",
+      value: `${stats.courseProgress}%`,
+      icon: <Target size={22} color="#6b7280" />,
+      badge: null,
+    },
+  ];
+
   return (
     <div className="dashboard-wrapper">
       <style>{`
-                .dashboard-wrapper {
-                    background-color: #f9fafb;
-                    min-height: 100vh;
-                    font-family: 'Inter', system-ui, -apple-system, sans-serif;
-                    color: #111827;
-                    padding: 24px;
-                    max-width: 1920px;
-                    margin: 0 auto;
-                }
-                .header h1 { font-size: 24px; font-weight: 600; margin-bottom: 32px; color: #374151; letter-spacing: -0.02em; }
-                
-                .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; margin-bottom: 40px; }
-                .stat-card { 
-                    background: white; 
-                    padding: 28px 24px; 
-                    border-radius: 16px; 
-                    border: 1px solid #e5e7eb; 
-                    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-                    transition: all 0.3s ease;
-                    cursor: pointer;
-                }
-                .stat-card:hover {
-                    transform: translateY(-3px);
-                    box-shadow: 0 6px 12px rgba(0,0,0,0.08);
-                    border-color: #d1d5db;
-                }
-                .stat-top { display: flex; justify-content: space-between; color: #6b7280; margin-bottom: 16px; font-size: 15px; font-weight: 500; }
-                .stat-val { font-size: 36px; font-weight: 700; display: flex; align-items: center; gap: 10px; line-height: 1; }
-                .stat-sub { font-size: 14px; color: #9ca3af; margin-top: 8px; }
-                .pill-green { background: #dcfce7; color: #166534; font-size: 11px; padding: 4px 10px; border-radius: 20px; font-weight: 600; }
-                .pill-blue { background: #dbeafe; color: #1e40af; font-size: 11px; padding: 4px 10px; border-radius: 20px; font-weight: 600; }
+        .dashboard-wrapper {
+          background-color: #f9fafb;
+          min-height: 100vh;
+          font-family: 'Inter', system-ui, -apple-system, sans-serif;
+          color: #111827;
+          padding: 24px;
+          max-width: 1920px;
+          margin: 0 auto;
+        }
+        .header { margin-bottom: 32px; }
+        .header > div { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+        .header h1 { font-size: 24px; font-weight: 600; color: #374151; letter-spacing: -0.02em; margin: 0; }
+        
+        .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-bottom: 40px; }
+        .stat-card { 
+          background: white; 
+          padding: 24px 20px; 
+          border-radius: 16px; 
+          border: 1px solid #e5e7eb; 
+          box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+          min-height: 120px;
+        }
+        .stat-top { 
+          display: flex; 
+          justify-content: space-between; 
+          align-items: center;
+          color: #6b7280; 
+          margin-bottom: 12px; 
+          font-size: 14px; 
+          font-weight: 500; 
+        }
+        .stat-icon {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 40px;
+          height: 40px;
+          border-radius: 10px;
+          background: #f8fafc;
+          flex-shrink: 0;
+        }
+        .stat-val { font-size: 32px; font-weight: 700; display: flex; align-items: center; gap: 10px; line-height: 1; color: #111827; }
+        .stat-sub { font-size: 13px; color: #9ca3af; margin-top: 8px; }
+        .pill-green { background: #dcfce7; color: #166534; font-size: 11px; padding: 4px 10px; border-radius: 20px; font-weight: 600; }
+        .pill-blue { background: #dbeafe; color: #1e40af; font-size: 11px; padding: 4px 10px; border-radius: 20px; font-weight: 600; }
+        .pill-yellow { background: #fef3c7; color: #92400e; font-size: 11px; padding: 4px 10px; border-radius: 20px; font-weight: 600; }
+        .pill-red { background: #fee2e2; color: #991b1b; font-size: 11px; padding: 4px 10px; border-radius: 20px; font-weight: 600; }
 
-                .main-grid { 
-                    display: grid; 
-                    grid-template-columns: 1fr 480px; 
-                    gap: 32px; 
-                    align-items: start;
-                }
-                .left-content {
-                    position: sticky;
-                    top: 4px;
-                    align-self: start;
-                }
+        .main-grid { 
+          display: grid; 
+          grid-template-columns: 1fr 420px; 
+          gap: 24px; 
+          align-items: start;
+        }
+        .left-content {
+          position: sticky;
+          top: 4px;
+          align-self: start;
+        }
 
-                @media (max-width: 1200px) {
-                    .main-grid { grid-template-columns: 1fr; }
-                    .stats-row { grid-template-columns: repeat(2, 1fr); }
-                    .left-content { position: relative; top: 0; }
-                }
+        @media (max-width: 1200px) {
+          .main-grid { grid-template-columns: 1fr; }
+          .stats-row { grid-template-columns: repeat(2, 1fr); gap: 16px; }
+          .left-content { position: relative; top: 0; }
+        }
 
-                @media (max-width: 768px) {
-                    .dashboard-wrapper { padding: 16px; }
-                    .header h1 { font-size: 20px; margin-bottom: 24px; }
-                    .stats-row { grid-template-columns: 1fr; gap: 16px; }
-                    .class-card { flex-direction: column; align-items: flex-start; gap: 16px; }
-                    .class-card .actions { width: 100%; }
-                    .class-card .actions button { width: 100%; justify-content: center; }
-                    .stat-val { font-size: 28px; }
-                    .section-label { flex-direction: column; align-items: flex-start; gap: 12px; }
-                    .section-label button { width: 100%; justify-content: center; }
-                }
-                
-                .section-label { margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
-                .section-label h2 { font-size: 20px; font-weight: 700; margin: 0; letter-spacing: -0.01em; }
-                .section-label p { font-size: 14px; color: #6b7280; margin-top: 4px; }
+        @media (max-width: 640px) {
+          .dashboard-wrapper { padding: 16px; }
+          .header h1 { font-size: 18px; }
+          .stats-row { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+          .stat-card { padding: 16px; min-height: auto; }
+          .stat-val { font-size: 24px; }
+          .stat-top { font-size: 12px; margin-bottom: 8px; }
+          .stat-icon { width: 32px; height: 32px; }
+          .stat-sub { font-size: 11px; }
+          .section-label { flex-direction: column; align-items: flex-start; gap: 8px; }
+          .section-label h2 { font-size: 18px; }
+          .data-table { min-width: 400px; }
+          .data-table th, .data-table td { padding: 12px 14px; font-size: 13px; }
+        }
 
-                .class-card { 
-                    background: white; 
-                    border: 1px solid #e5e7eb; 
-                    border-radius: 16px; 
-                    padding: 24px 28px; 
-                    margin-bottom: 16px; 
-                    display: flex; 
-                    justify-content: space-between; 
-                    align-items: center;
-                    transition: all 0.2s ease;
-                }
-                .class-card:hover {
-                    border-color: #3b82f6;
-                    box-shadow: 0 4px 8px rgba(59, 130, 246, 0.12);
-                }
-                .class-info-top { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; flex-wrap: wrap; }
-                .class-name { font-weight: 700; font-size: 16px; }
-                .meta-row { display: flex; gap: 20px; font-size: 14px; color: #6b7280; flex-wrap: wrap; }
-                .status-badge { font-size: 13px; padding: 4px 12px; border-radius: 6px; font-weight: 600; }
-                .status-pending { background: #eff6ff; color: #2563eb; }
-                .status-progress { background: #ecfdf5; color: #059669; }
-                .status-completed { background: #f3f4f6; color: #6b7280; }
+        @media (max-width: 480px) {
+          .stats-row { grid-template-columns: 1fr; }
+          .header > div { justify-content: center; text-align: center; }
+        }
+        
+        .section-label { margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
+        .section-label h2 { font-size: 20px; font-weight: 700; margin: 0; letter-spacing: -0.01em; }
+        .section-label p { font-size: 14px; color: #6b7280; margin-top: 4px; }
 
-                .btn-primary { 
-                    background: #2563eb; 
-                    color: white; 
-                    border: none; 
-                    padding: 10px 20px; 
-                    border-radius: 10px; 
-                    font-size: 15px; 
-                    font-weight: 600; 
-                    display: flex; 
-                    align-items: center; 
-                    gap: 10px; 
-                    cursor: pointer;
-                    transition: all 0.2s;
-                    white-space: nowrap;
-                }
-                .btn-primary:hover { background: #1d4ed8; transform: translateY(-1px); }
+        .table-card { 
+          background: white; 
+          border: 1px solid #e5e7eb; 
+          border-radius: 16px; 
+          overflow-x: auto; 
+        }
+        .data-table { width: 100%; border-collapse: collapse; min-width: 500px; }
+        .data-table th { 
+          background: #f9fafb; 
+          text-align: left; 
+          padding: 16px 20px; 
+          font-size: 13px; 
+          color: #6b7280; 
+          text-transform: uppercase; 
+          font-weight: 700; 
+          border-bottom: 1px solid #e5e7eb; 
+        }
+        .data-table td { padding: 16px 20px; border-bottom: 1px solid #f3f4f6; font-size: 14px; }
+        .badge-flat { font-size: 11px; font-weight: 800; text-transform: uppercase; padding: 4px 8px; border-radius: 6px; }
+        .type-success { color: #059669; background: #f0fdf4; }
+        .type-warning { color: #d97706; background: #fffbeb; }
+        .type-danger { color: #dc2626; background: #fef2f2; }
+        .type-info { color: #2563eb; background: #eff6ff; }
 
-                .sidebar-card { 
-                    background: white; 
-                    border: 1px solid #e5e7eb; 
-                    border-radius: 16px; 
-                    padding: 24px; 
-                    margin-bottom: 28px;
-                }
-                .sb-title { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-                .sb-title h3 { font-size: 17px; font-weight: 700; margin: 0; }
-                .graph-card {
-                    background: white;
-                    border: 1px solid #e5e7eb;
-                    border-radius: 16px;
-                    padding: 24px;
-                    margin-bottom: 24px;
-                }
+        .graph-card {
+          background: white;
+          border: 1px solid #e5e7eb;
+          border-radius: 16px;
+          padding: 24px;
+          margin-bottom: 24px;
+        }
+        .sb-title { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .sb-title h3 { font-size: 17px; font-weight: 700; margin: 0; }
 
-                .table-card { 
-                    background: white; 
-                    border: 1px solid #e5e7eb; 
-                    border-radius: 16px; 
-                    overflow-x: auto; 
-                }
-                .data-table { width: 100%; border-collapse: collapse; min-width: 500px; }
-                .data-table th { 
-                    background: #f9fafb; 
-                    text-align: left; 
-                    padding: 16px 20px; 
-                    font-size: 13px; 
-                    color: #6b7280; 
-                    text-transform: uppercase; 
-                    font-weight: 700; 
-                    border-bottom: 1px solid #e5e7eb; 
-                }
-                .data-table td { padding: 16px 20px; border-bottom: 1px solid #f3f4f6; font-size: 14px; }
-                .badge-flat { font-size: 11px; font-weight: 800; text-transform: uppercase; padding: 4px 8px; border-radius: 6px; }
-                .type-success { color: #059669; background: #f0fdf4; }
-                .type-warning { color: #d97706; background: #fffbeb; }
-
-                .action-row { 
-                    display: flex; 
-                    justify-content: space-between; 
-                    align-items: center; 
-                    padding: 14px 0; 
-                    border-bottom: 1px solid #f9fafb; 
-                    cursor: pointer;
-                }
-                .action-row:last-child { border: none; }
-                .at-text { font-size: 14px; font-weight: 600; }
-                .as-text { font-size: 12px; color: #9ca3af; }
-            `}</style>
+        .loading-skeleton {
+          background: linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%);
+          background-size: 200% 100%;
+          animation: shimmer 1.5s infinite;
+          border-radius: 8px;
+        }
+        @keyframes shimmer {
+          0% { background-position: -200% 0; }
+          100% { background-position: 200% 0; }
+        }
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+        .animate-spin {
+          animation: spin 1s linear infinite;
+        }
+      `}</style>
 
       <header className="header">
-        <h1>Overview of today's classes, attendance, and pending tasks</h1>
+        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+          <BookOpen size={24} color="#6b7280" />
+          <h1>Overview of today's classes, attendance, and pending tasks</h1>
+        </div>
       </header>
 
+      {/* Stats Cards */}
       <div className="stats-row">
-        {STATIC_DATA.stats.map((s) => (
-          <div className="stat-card" key={s.id}>
-            <div className="stat-top">
-              <span>{s.label}</span>
-              <span style={{ color: "#d1d5db" }}>{s.icon}</span>
+        {loading ? (
+          Array(4).fill(0).map((_, i) => (
+            <div key={i} className="stat-card">
+              <div className="loading-skeleton" style={{ height: "20px", width: "60%", marginBottom: "16px" }} />
+              <div className="loading-skeleton" style={{ height: "36px", width: "40%", marginBottom: "8px" }} />
+              <div className="loading-skeleton" style={{ height: "14px", width: "80%" }} />
             </div>
-            <div className="stat-val">
-              {s.value}
-              {s.badge && (
-                <span
-                  className={s.badge === "Urgent" ? "pill-blue" : "pill-green"}
-                >
-                  {s.badge}
-                </span>
-              )}
+          ))
+        ) : (
+          statsCards.map((s) => (
+            <div className="stat-card" key={s.id}>
+              <div className="stat-top">
+                <span>{s.label}</span>
+                <div className="stat-icon">{s.icon}</div>
+              </div>
+              <div className="stat-val">
+                {s.value}
+                {s.badge && (
+                  <span
+                    className={
+                      s.badge === "Urgent" ? "pill-blue" : 
+                      s.badge === "Low" ? "pill-red" :
+                      s.badge === "Average" ? "pill-yellow" :
+                      s.badge === "Clear" ? "pill-green" :
+                      s.badge === "Active" ? "pill-yellow" :
+                      "pill-green"
+                    }
+                  >
+                    {s.badge}
+                  </span>
+                )}
+              </div>
+              {s.sub && <div className="stat-sub">{s.sub}</div>}
             </div>
-            <div className="stat-sub">{s.sub}</div>
-          </div>
-        ))}
+          ))
+        )}
       </div>
 
+      {/* Activity Heatmap */}
       <div style={{ width: "100%", margin: "0 auto 40px auto" }}>
-        <ActivityHeatMap data={STATIC_DATA.engagementData.activity} />
+        <ActivityHeatMap 
+          data={heatmapData} 
+          selectedYear={selectedYear}
+          onYearChange={setSelectedYear}
+          loading={heatmapLoading}
+        />
       </div>
 
       <div className="main-grid">
         <div className="left-content">
           <div className="section-label">
             <div>
-              <h2>Assignments & Tasks</h2>
+              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                <FileText size={20} color="#6b7280" />
+                <h2>Assignments & Tasks</h2>
+              </div>
               <p>Recent tasks requiring your attention</p>
             </div>
           </div>
 
           <div className="table-card">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Assignment Name</th>
-                  <th>Subject</th>
-                  <th>Deadline</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {STATIC_DATA.tasks.map((t) => (
-                  <tr key={t.id}>
-                    <td>
-                      <span style={{ fontWeight: 700 }}>{t.name}</span>
-                    </td>
-                    <td>{t.subject}</td>
-                    <td>{t.deadline}</td>
-                    <td>
-                      <span
-                        className={`badge-flat ${t.status === "completed" ? "type-success" : "type-warning"}`}
-                      >
-                        {t.status}
-                      </span>
-                    </td>
-                  </tr>
+            {loading ? (
+              <div style={{ padding: "24px" }}>
+                {Array(3).fill(0).map((_, i) => (
+                  <div key={i} className="loading-skeleton" style={{ height: "48px", marginBottom: "12px" }} />
                 ))}
-              </tbody>
-            </table>
+              </div>
+            ) : assignments.length === 0 ? (
+              <div style={{ padding: "40px", textAlign: "center", color: "#9ca3af" }}>
+                <ClipboardCheck size={48} color="#d1d5db" style={{ marginBottom: "12px" }} />
+                <p>No assignments found. You're all caught up!</p>
+                <Award size={20} color="#6b7280" style={{ marginTop: "8px" }} />
+              </div>
+            ) : (
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Assignment Name</th>
+                    <th>Subject</th>
+                    <th>Deadline</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {assignments.map((t) => {
+                    const status = getTaskStatus(t);
+                    return (
+                      <tr key={t.assignment_id}>
+                        <td>
+                          <span style={{ fontWeight: 700 }}>{t.title}</span>
+                        </td>
+                        <td>{t.subject_name}</td>
+                        <td>{formatDate(t.due_date)}</td>
+                        <td>
+                          <span
+                            className={`badge-flat ${
+                              status === "completed" ? "type-success" :
+                              status === "submitted" ? "type-info" :
+                              status === "overdue" ? "type-danger" :
+                              "type-warning"
+                            }`}
+                          >
+                            {status}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )}
           </div>
         </div>
 
         <div className="sidebar">
           <div className="graph-card">
             <div className="sb-title">
-              <h3>Attendance Engagement</h3>
-              <BarChart3 size={18} color="#2563eb" />
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <BarChart3 size={18} color="#6b7280" />
+                <h3>Attendance Engagement</h3>
+              </div>
             </div>
-            <BarChart data={STATIC_DATA.engagementData.attendance} />
+            <BarChart data={attendanceData} loading={loading} />
           </div>
 
           <div className="graph-card">
             <div className="sb-title">
-              <h3>Task Completion</h3>
-              <PieChart size={18} color="#10b981" />
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <ListChecks size={18} color="#6b7280" />
+                <h3>Task Completion</h3>
+              </div>
             </div>
-            <DonutChart data={STATIC_DATA.engagementData.taskCompletion} />
+            <DonutChart data={taskCompletionData} loading={loading} />
           </div>
         </div>
       </div>
