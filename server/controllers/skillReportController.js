@@ -279,18 +279,20 @@ async function processSkillRow(connection, row, rowIndex, studentMap) {
     return { success: false, error: `Row ${rowIndex}: Student not found - Excel user_id "${lookupValue}" does not match any users.ID in database` };
   }
 
-  // Check if record with same student + course + slot_date already exists
-  const [existing] = await connection.execute(
-    `SELECT id FROM student_skills 
-     WHERE student_id = ? AND course_name = ? AND last_slot_date = ?`,
-    [student.student_id, courseName, slotDate]
-  );
+  // Normalize course name (Java Script → JavaScript, Type Script → TypeScript)
+  const normalizedCourseName = normalizeCourseName(courseName);
+  
+  // Extract skill level from course name
+  const skillLevel = extractSkillLevel(normalizedCourseName);
+  console.log(`Row ${rowIndex}: Normalized "${courseName}" → "${normalizedCourseName}", skill_level=${skillLevel}`);
 
-  if (existing.length > 0) {
-    // Same date exists - SKIP (don't insert or update)
-    console.log(`Row ${rowIndex}: Skipped - Record already exists for user_id=${lookupValue}, course=${courseName}, date=${slotDate}`);
-    return { success: true, inserted: false, skipped: true };
-  }
+  // Check if record exists for this student + course (regardless of date)
+  const [existing] = await connection.execute(
+    `SELECT id, status, total_attempts, best_score, last_slot_date 
+     FROM student_skills 
+     WHERE student_id = ? AND course_name = ?`,
+    [student.student_id, normalizedCourseName]
+  );
 
   // Get student's current venue allocation
   const [studentVenue] = await connection.execute(
@@ -305,14 +307,46 @@ async function processSkillRow(connection, row, rowIndex, studentMap) {
   const studentVenueId = studentVenue.length > 0 ? studentVenue[0].venue_id : null;
   const facultyId = studentVenue.length > 0 ? studentVenue[0].faculty_id : null;
 
-  // Normalize course name (Java Script → JavaScript, Type Script → TypeScript)
-  const normalizedCourseName = normalizeCourseName(courseName);
-  
-  // Extract skill level from course name
-  const skillLevel = extractSkillLevel(normalizedCourseName);
-  console.log(`Row ${rowIndex}: Normalized "${courseName}" → "${normalizedCourseName}", skill_level=${skillLevel}`);
+  if (existing.length > 0) {
+    const existingRecord = existing[0];
+    
+    // If already Cleared, don't update
+    if (existingRecord.status === 'Cleared') {
+      console.log(`Row ${rowIndex}: Skipped - Student already cleared ${normalizedCourseName}`);
+      return { success: true, inserted: false, skipped: true };
+    }
 
-  // INSERT new record
+    // If same date exists, skip
+    if (existingRecord.last_slot_date === slotDate) {
+      console.log(`Row ${rowIndex}: Skipped - Record already exists for date ${slotDate}`);
+      return { success: true, inserted: false, skipped: true };
+    }
+
+    // Update existing record (Ongoing or Not Cleared)
+    const newAttemptCount = existingRecord.total_attempts + 1;
+    const newBestScore = Math.max(existingRecord.best_score || 0, score);
+
+    await connection.execute(
+      `UPDATE student_skills 
+       SET slot_id = ?,
+           total_attempts = ?,
+           best_score = ?,
+           latest_score = ?,
+           status = ?,
+           last_attendance = ?,
+           last_slot_date = ?,
+           last_start_time = ?,
+           last_end_time = ?,
+           updated_at = NOW()
+       WHERE id = ?`,
+      [slotId, newAttemptCount, newBestScore, score, status, attendance, slotDate, startTime, endTime, existingRecord.id]
+    );
+
+    console.log(`Row ${rowIndex}: Updated - ${rollNumber}, ${normalizedCourseName}, attempt ${newAttemptCount}, status=${status}`);
+    return { success: true, inserted: false, skipped: false, updated: true };
+  }
+
+  // INSERT new record (student hasn't attempted this skill before)
   await connection.execute(
     `INSERT INTO student_skills 
       (slot_id, student_id, year, student_name, student_email, skill_id, course_name, skill_level,
