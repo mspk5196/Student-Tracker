@@ -1044,6 +1044,8 @@ export const getStudentRoadmap = async (req, res) => {
       return name
         .toLowerCase()
         .trim()
+        .replace(/\bjava\s+script\b/gi, 'javascript')  // "Java Script" -> "javascript"
+        .replace(/\btype\s+script\b/gi, 'typescript')  // "Type Script" -> "typescript"
         .replace(/\s+/g, ' ')           // Replace multiple spaces with single space
         .replace(/\s*\/\s*/g, '/')      // Remove spaces around slashes: "HTML /CSS" -> "HTML/CSS"
         .replace(/\s*-\s*/g, '-');      // Remove spaces around dashes
