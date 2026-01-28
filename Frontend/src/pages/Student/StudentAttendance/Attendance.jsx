@@ -128,18 +128,27 @@ const StudentAttendance = () => {
                         let hour = null;
                         let timeDisplay = 'N/A';
                         
-                        // Method 1: Check if record has hour_number field
-                        if (record.hour_number) {
+                        // Method 1: Extract from session_name prefix (S1_, S2_, S3_, S4_)
+                        if (record.session_name) {
+                            const sessionMatch = record.session_name.match(/^S(\d+)_/i);
+                            if (sessionMatch) {
+                                hour = parseInt(sessionMatch[1]);
+                                timeDisplay = `Hour ${hour}`;
+                            }
+                        }
+                        
+                        // Method 2: Check if record has hour_number field
+                        if (!hour && record.hour_number) {
                             hour = parseInt(record.hour_number);
                             timeDisplay = `Hour ${hour}`;
                         }
-                        // Method 2: Check if record has session_number field
-                        else if (record.session_number) {
+                        // Method 3: Check if record has session_number field
+                        else if (!hour && record.session_number) {
                             hour = parseInt(record.session_number);
                             timeDisplay = `Hour ${hour}`;
                         }
-                        // Method 3: Extract from session_name
-                        else if (record.session_name) {
+                        // Method 4: Extract from session_name (other patterns)
+                        else if (!hour && record.session_name) {
                             const hourMatch = record.session_name.match(/Hour[_\s]*(\d+)/i) || 
                                              record.session_name.match(/_(\d+)[hH]/i);
                             if (hourMatch) {
@@ -147,8 +156,8 @@ const StudentAttendance = () => {
                                 timeDisplay = `Hour ${hour}`;
                             }
                         }
-                        // Method 4: Use time field if available
-                        else if (record.time) {
+                        // Method 5: Use time field if available
+                        else if (!hour && record.time) {
                             const timeMatch = record.time.match(/(\d+):/);
                             if (timeMatch) {
                                 hour = Math.ceil(parseInt(timeMatch[1]) / 100 * 4);
@@ -193,21 +202,12 @@ const StudentAttendance = () => {
             acc[record.date] = {};
         }
         
-        // If hour is specified, use it; otherwise find the first available slot
+        // Only add records with valid hour numbers (1-4)
+        // Skip records without proper session/hour information
         if (record.hour && record.hour >= 1 && record.hour <= 4) {
             acc[record.date][record.hour] = record;
         } else {
-            // Find first available slot for this date
-            for (let i = 1; i <= 4; i++) {
-                if (!acc[record.date][i]) {
-                    acc[record.date][i] = {
-                        ...record,
-                        hour: i,
-                        time: `Hour ${i}`
-                    };
-                    break;
-                }
-            }
+            console.warn('⚠️ Attendance record missing valid hour/session number:', record);
         }
         
         return acc;
