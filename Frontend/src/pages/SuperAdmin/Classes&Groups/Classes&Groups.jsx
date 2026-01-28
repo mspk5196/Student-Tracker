@@ -42,6 +42,9 @@ const GroupsClasses = () => {
   const [selectedFile, setSelectedFile] = useState(null);
   const [selectedVenue, setSelectedVenue] = useState(null);
   const [venueStudents, setVenueStudents] = useState([]);
+  const [overwriteMode, setOverwriteMode] = useState(false);
+  const [selectedStudents, setSelectedStudents] = useState([]);
+  const [studentSearchTerm, setStudentSearchTerm] = useState("");
 
   // Faculty search and availability
   const [facultySearch, setFacultySearch] = useState("");
@@ -75,13 +78,14 @@ const GroupsClasses = () => {
   });
 
   const [newStudent, setNewStudent] = useState({
-    name: "",
     reg_no: "",
+    name: "",
     email: "",
     department: "",
-    year: "",
-    semester: ""
+    year: "1",
+    semester: "1"
   });
+  const [showDroppedStudents, setShowDroppedStudents] = useState(false);
 
   // Show Result Modal Function
   const showResult = (type, title, message) => {
@@ -393,9 +397,8 @@ const GroupsClasses = () => {
     const formData = new FormData();
     formData.append("file", selectedFile);
     try {
-      const response = await fetch(
-        `${API_URL}/groups/venues/${selectedVenue.venue_id}/bulk-upload`,
-        {
+      const url = `${API_URL}/groups/venues/${selectedVenue.venue_id}/bulk-upload${overwriteMode ? '?overwrite=true' : ''}`;
+      const response = await fetch(url, {
           method: "POST",
           headers: { Authorization: `Bearer ${token}` },
           body: formData,
@@ -406,6 +409,7 @@ const GroupsClasses = () => {
         setShowBulkUploadModal(false);
         setSelectedFile(null);
         setSelectedVenue(null);
+        setOverwriteMode(false);
         await fetchVenues();
         showResult("success", "Upload Successful", data.message);
       } else {
@@ -423,9 +427,60 @@ const GroupsClasses = () => {
     }
   };
 
+  // Lookup student by roll number for auto-fill
+  const lookupStudent = async (rollNumber) => {
+    if (!rollNumber || rollNumber.trim().length < 2) return;
+    
+    try {
+      const response = await fetch(
+        `${API_URL}/groups/student-lookup/${encodeURIComponent(rollNumber.trim())}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+      const data = await response.json();
+      if (data.success && data.data) {
+        // Auto-fill the form with existing student data
+        setNewStudent(prev => ({
+          ...prev,
+          name: data.data.name || prev.name,
+          email: data.data.email || prev.email,
+          department: data.data.department || prev.department,
+          year: String(data.data.year || prev.year),
+          semester: String(data.data.semester || prev.semester)
+        }));
+        // Show info if student is already in a venue
+        if (data.data.current_venue) {
+          showResult("info", "Student Found", `${data.data.name} is currently in "${data.data.current_venue}". Adding will move them to the new venue.`);
+        }
+      }
+    } catch (err) {
+      // Silently fail - student might not exist yet
+      console.log("Student lookup:", err.message);
+    }
+  };
+
+  // Debounced roll number change handler
+  const handleRollNumberChange = (value) => {
+    setNewStudent(prev => ({ ...prev, reg_no: value }));
+    
+    // Clear timeout if exists
+    if (window.studentLookupTimeout) {
+      clearTimeout(window.studentLookupTimeout);
+    }
+    
+    // Debounce the lookup
+    window.studentLookupTimeout = setTimeout(() => {
+      lookupStudent(value);
+    }, 500);
+  };
+
   const handleAddIndividualStudent = async () => {
-    if (!newStudent.name || !newStudent.reg_no || !newStudent.department || !newStudent.year) {
-      showResult("error", "Missing Information", "Please fill in all required fields (Name, Roll Number, Department, and Year).");
+    if (!newStudent.reg_no) {
+      showResult("error", "Missing Information", "Please enter the Roll Number.");
       return;
     }
 
@@ -445,19 +500,19 @@ const GroupsClasses = () => {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            name: newStudent.name,
+            name: newStudent.name || newStudent.reg_no,
             rollNumber: newStudent.reg_no,
             email: newStudent.email || undefined,
-            department: newStudent.department,
-            year: parseInt(newStudent.year),
-            semester: newStudent.semester ? parseInt(newStudent.semester) : undefined
+            department: newStudent.department || "General",
+            year: parseInt(newStudent.year) || 1,
+            semester: parseInt(newStudent.semester) || 1
           }),
         }
       );
       const data = await response.json();
       if (data.success) {
         setShowAddStudentModal(false);
-        setNewStudent({ name: "", reg_no: "", email: "", department: "", year: "", semester: "" });
+        setNewStudent({ reg_no: "", name: "", email: "", department: "", year: "1", semester: "1" });
         setSelectedVenue(null);
         await fetchVenues();
         showResult("success", "Student Added Successfully", data.message || "Student has been added to the class successfully.");
@@ -476,13 +531,14 @@ const GroupsClasses = () => {
     }
   };
 
-  const handleViewStudents = async (venue) => {
+  const handleViewStudents = async (venue, includeDropped = false) => {
     setSelectedVenue(venue);
     setLoading(true);
     try {
-      const response = await fetch(
-        `${API_URL}/groups/venues/${venue.venue_id}/students`,
-        {
+      const url = includeDropped 
+        ? `${API_URL}/groups/venues/${venue.venue_id}/students?includeDropped=true`
+        : `${API_URL}/groups/venues/${venue.venue_id}/students`;
+      const response = await fetch(url, {
           headers: {
             Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
@@ -493,6 +549,7 @@ const GroupsClasses = () => {
       if (data.success) {
         setVenueStudents(data.data);
         setShowStudentsModal(true);
+        setShowDroppedStudents(includeDropped);
       }
     } catch (err) {
       console.error("Error fetching students:", err);
@@ -503,6 +560,14 @@ const GroupsClasses = () => {
       );
     } finally {
       setLoading(false);
+    }
+  };
+
+  const toggleShowDropped = async () => {
+    const newValue = !showDroppedStudents;
+    setShowDroppedStudents(newValue);
+    if (selectedVenue) {
+      await handleViewStudents(selectedVenue, newValue);
     }
   };
 
@@ -539,6 +604,84 @@ const GroupsClasses = () => {
       );
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleBulkRemoveStudents = async () => {
+    if (selectedStudents.length === 0) {
+      showResult("error", "No Students Selected", "Please select at least one student to remove.");
+      return;
+    }
+
+    if (!window.confirm(`Remove ${selectedStudents.length} selected student(s) from venue?`)) return;
+
+    setLoading(true);
+    try {
+      const response = await fetch(
+        `${API_URL}/groups/venues/${selectedVenue.venue_id}/bulk-remove-students`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ studentIds: selectedStudents }),
+        }
+      );
+
+      const data = await response.json();
+      if (data.success) {
+        setSelectedStudents([]);
+        await handleViewStudents(selectedVenue);
+        await fetchVenues();
+        showResult("success", "Students Removed", data.message);
+      } else {
+        showResult("error", "Removal Failed", data.message);
+      }
+    } catch (err) {
+      console.error("Error removing students:", err);
+      showResult(
+        "error",
+        "Removal Failed",
+        "Failed to remove students. Please try again."
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const toggleStudentSelection = (studentId) => {
+    setSelectedStudents(prev => 
+      prev.includes(studentId) 
+        ? prev.filter(id => id !== studentId)
+        : [...prev, studentId]
+    );
+  };
+
+  // Filter students based on search term
+  const filteredVenueStudents = venueStudents.filter(student => {
+    if (!studentSearchTerm) return true;
+    const search = studentSearchTerm.toLowerCase();
+    return (
+      student.name?.toLowerCase().includes(search) ||
+      student.rollNumber?.toLowerCase().includes(search) ||
+      student.department?.toLowerCase().includes(search)
+    );
+  });
+
+  const toggleSelectAll = () => {
+    // Only select active students (not dropped ones)
+    const activeFilteredIds = filteredVenueStudents
+      .filter(s => s.status === 'Active')
+      .map(s => s.student_id);
+    const allActiveSelected = activeFilteredIds.every(id => selectedStudents.includes(id));
+    
+    if (allActiveSelected && activeFilteredIds.length > 0) {
+      // Deselect all active filtered students
+      setSelectedStudents(prev => prev.filter(id => !activeFilteredIds.includes(id)));
+    } else {
+      // Select all active filtered students
+      setSelectedStudents(prev => [...new Set([...prev, ...activeFilteredIds])]);
     }
   };
 
@@ -1178,28 +1321,20 @@ const GroupsClasses = () => {
                 <label style={s.label}>
                   Select Faculty *
                   <span style={s.labelHint}>
-                    ({availableFaculties.available?.length || 0} available)
+                    ({(availableFaculties.available?.length || 0) + (availableFaculties.assignedToOther?.length || 0)} faculties)
                   </span>
                 </label>
 
                 {loadingFaculties ? (
                   <div style={s.loadingBox}>Loading faculties...</div>
-                ) : availableFaculties.available?.length === 0 ? (
+                ) : (availableFaculties.available?.length === 0 && availableFaculties.assignedToOther?.length === 0) ? (
                   <div style={s.emptyBox}>
                     <Person sx={{ fontSize: 40, color: "#cbd5e1" }} />
-                    <p>No unassigned faculties found</p>
-                    <p
-                      style={{
-                        fontSize: "12px",
-                        color: "#94a3b8",
-                        marginTop: "8px",
-                      }}
-                    >
-                      All faculties are currently assigned to venues
-                    </p>
+                    <p>No faculties found</p>
                   </div>
                 ) : (
                   <div style={s.facultyListContainer}>
+                    {/* Available (unassigned) faculties first */}
                     {availableFaculties.available?.map((faculty) => (
                       <div
                         key={faculty.faculty_id}
@@ -1241,6 +1376,56 @@ const GroupsClasses = () => {
                         </div>
                       </div>
                     ))}
+                    
+                    {/* Faculties assigned to other venues */}
+                    {availableFaculties.assignedToOther?.length > 0 && (
+                      <>
+                        <div style={{ padding: '12px 16px', background: '#fef3c7', borderRadius: '8px', margin: '8px 0', fontSize: '13px', color: '#92400e' }}>
+                          ⚠️ Selecting a faculty below will move them from their current venue
+                        </div>
+                        {availableFaculties.assignedToOther?.map((faculty) => (
+                          <div
+                            key={faculty.faculty_id}
+                            style={{
+                              ...s.facultyListItem,
+                              background: facultyAssignment.faculty_id === faculty.faculty_id ? '#e0f2fe' : '#fff7ed',
+                              ...(facultyAssignment.faculty_id === faculty.faculty_id ? s.facultyListItemSelected : {}),
+                            }}
+                            onClick={() =>
+                              setFacultyAssignment({
+                                ...facultyAssignment,
+                                faculty_id: faculty.faculty_id,
+                              })
+                            }
+                          >
+                            <div style={s.facultyListLeft}>
+                              <div style={{ ...s.avatar, background: '#f97316' }}>
+                                {faculty.faculty_name.charAt(0)}
+                              </div>
+                              <div style={s.facultyListInfo}>
+                                <div style={s.facultyListName}>
+                                  {faculty.faculty_name}
+                                </div>
+                                <div style={s.facultyListDept}>
+                                  {faculty.department} • {faculty.designation}
+                                </div>
+                                <div style={{ fontSize: '11px', color: '#ea580c', marginTop: '2px' }}>
+                                  Currently in: {faculty.venue_names}
+                                </div>
+                              </div>
+                            </div>
+                            <div style={s.facultyListRight}>
+                              <div style={{ ...s.workloadBadgeSmall(1), background: '#fed7aa', color: '#c2410c' }}>
+                                Assigned
+                              </div>
+                              {facultyAssignment.faculty_id === faculty.faculty_id && (
+                                <div style={s.selectedCheckmark}>✓</div>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </>
+                    )}
                   </div>
                 )}
               </div>
@@ -1274,7 +1459,7 @@ const GroupsClasses = () => {
       {showBulkUploadModal && (
         <div
           style={s.modalOverlay}
-          onClick={() => setShowBulkUploadModal(false)}
+          onClick={() => { setShowBulkUploadModal(false); setOverwriteMode(false); }}
         >
           <div style={s.modal} onClick={(e) => e.stopPropagation()}>
             <div style={s.modalHeader}>
@@ -1283,7 +1468,7 @@ const GroupsClasses = () => {
               </h2>
               <button
                 style={s.closeBtn}
-                onClick={() => setShowBulkUploadModal(false)}
+                onClick={() => { setShowBulkUploadModal(false); setOverwriteMode(false); }}
               >
                 <Close sx={{ fontSize: 24, color: "#64748b" }} />
               </button>
@@ -1320,11 +1505,29 @@ const GroupsClasses = () => {
                   <div style={s.fileName}>{selectedFile.name}</div>
                 )}
               </div>
+              <div style={s.formGroup}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={overwriteMode}
+                    onChange={(e) => setOverwriteMode(e.target.checked)}
+                    style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                  />
+                  <span style={{ fontSize: '14px', color: '#374151' }}>
+                    Overwrite existing students (removes all current students and adds new ones)
+                  </span>
+                </label>
+                {overwriteMode && (
+                  <p style={{ fontSize: '12px', color: '#dc2626', marginTop: '8px' }}>
+                    ⚠️ Warning: This will drop all existing students from this venue before adding new ones.
+                  </p>
+                )}
+              </div>
               <div style={s.modalFooter}>
                 <button
                   type="button"
                   style={s.cancelBtn}
-                  onClick={() => setShowBulkUploadModal(false)}
+                  onClick={() => { setShowBulkUploadModal(false); setOverwriteMode(false); }}
                 >
                   Cancel
                 </button>
@@ -1362,11 +1565,22 @@ const GroupsClasses = () => {
             </div>
             <div style={s.form}>
               <div style={s.formGroup}>
-                <label style={s.label}>Student Name *</label>
+                <label style={s.label}>Roll Number / Registration Number *</label>
                 <input
                   type="text"
                   style={s.input}
-                  placeholder="Enter student name"
+                  placeholder="Enter roll number (auto-fills if student exists)"
+                  value={newStudent.reg_no}
+                  onChange={(e) => handleRollNumberChange(e.target.value)}
+                  autoFocus
+                />
+              </div>
+              <div style={s.formGroup}>
+                <label style={s.label}>Name (optional)</label>
+                <input
+                  type="text"
+                  style={s.input}
+                  placeholder="Enter student name (defaults to roll number)"
                   value={newStudent.name}
                   onChange={(e) =>
                     setNewStudent({ ...newStudent, name: e.target.value })
@@ -1374,76 +1588,45 @@ const GroupsClasses = () => {
                 />
               </div>
               <div style={s.formGroup}>
-                <label style={s.label}>Registration Number / Roll Number *</label>
-                <input
-                  type="text"
-                  style={s.input}
-                  placeholder="Enter registration number"
-                  value={newStudent.reg_no}
-                  onChange={(e) =>
-                    setNewStudent({ ...newStudent, reg_no: e.target.value })
-                  }
-                />
-              </div>
-              <div style={s.formGroup}>
-                <label style={s.label}>Email Address</label>
+                <label style={s.label}>Email (optional)</label>
                 <input
                   type="email"
                   style={s.input}
-                  placeholder="Enter email address (optional)"
+                  placeholder="Auto-generated if empty"
                   value={newStudent.email}
                   onChange={(e) =>
                     setNewStudent({ ...newStudent, email: e.target.value })
                   }
                 />
               </div>
-              <div style={s.formGroup}>
-                <label style={s.label}>Department *</label>
-                <input
-                  type="text"
-                  style={s.input}
-                  placeholder="Enter department (e.g., Computer Science)"
-                  value={newStudent.department}
-                  onChange={(e) =>
-                    setNewStudent({ ...newStudent, department: e.target.value })
-                  }
-                />
-              </div>
-              <div style={s.formGroup}>
-                <label style={s.label}>Year *</label>
-                <select
-                  style={s.input}
-                  value={newStudent.year}
-                  onChange={(e) =>
-                    setNewStudent({ ...newStudent, year: e.target.value })
-                  }
-                >
-                  <option value="">Select Year</option>
-                  <option value="1">1st Year</option>
-                  <option value="2">2nd Year</option>
-                  <option value="3">3rd Year</option>
-                  <option value="4">4th Year</option>
-                </select>
-              </div>
-              <div style={s.formGroup}>
-                <label style={s.label}>Semester</label>
-                <select
-                  style={s.input}
-                  value={newStudent.semester}
-                  onChange={(e) =>
-                    setNewStudent({ ...newStudent, semester: e.target.value })
-                  }
-                >
-                  <option value="">Select Semester (optional)</option>
-                  <option value="1">Semester 1</option>
-                  <option value="2">Semester 2</option>
-                  <option value="3">Semester 3</option>
-                  <option value="4">Semester 4</option>
-                  <option value="5">Semester 5</option>
-                  <option value="6">Semester 6</option>
-                  <option value="7">Semester 7</option>
-                  <option value="8">Semester 8</option>
-                </select>
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <div style={{ ...s.formGroup, flex: 1 }}>
+                  <label style={s.label}>Department</label>
+                  <input
+                    type="text"
+                    style={s.input}
+                    placeholder="General"
+                    value={newStudent.department}
+                    onChange={(e) =>
+                      setNewStudent({ ...newStudent, department: e.target.value })
+                    }
+                  />
+                </div>
+                <div style={{ ...s.formGroup, flex: 1 }}>
+                  <label style={s.label}>Year</label>
+                  <select
+                    style={s.input}
+                    value={newStudent.year}
+                    onChange={(e) =>
+                      setNewStudent({ ...newStudent, year: e.target.value })
+                    }
+                  >
+                    <option value="1">1st Year</option>
+                    <option value="2">2nd Year</option>
+                    <option value="3">3rd Year</option>
+                    <option value="4">4th Year</option>
+                  </select>
+                </div>
               </div>
               <div style={s.modalFooter}>
                 <button
@@ -1451,7 +1634,7 @@ const GroupsClasses = () => {
                   style={s.cancelBtn}
                   onClick={() => {
                     setShowAddStudentModal(false);
-                    setNewStudent({ name: "", reg_no: "", email: "", department: "", year: "", semester: "" });
+                    setNewStudent({ reg_no: "", name: "", email: "", department: "", year: "1", semester: "1" });
                   }}
                 >
                   Cancel
@@ -1460,7 +1643,7 @@ const GroupsClasses = () => {
                   type="button"
                   style={s.submitBtn}
                   onClick={handleAddIndividualStudent}
-                  disabled={loading || !newStudent.name || !newStudent.reg_no || !newStudent.department || !newStudent.year}
+                  disabled={loading || !newStudent.reg_no}
                 >
                   {loading ? "Adding..." : "Add Student"}
                 </button>
@@ -1472,7 +1655,7 @@ const GroupsClasses = () => {
 
       {/* View Students Modal */}
       {showStudentsModal && (
-        <div style={s.modalOverlay} onClick={() => setShowStudentsModal(false)}>
+        <div style={s.modalOverlay} onClick={() => { setShowStudentsModal(false); setSelectedStudents([]); setStudentSearchTerm(""); }}>
           <div style={s.modalLarge} onClick={(e) => e.stopPropagation()}>
             <div style={s.modalHeader}>
               <h2 style={s.modalTitle}>
@@ -1480,47 +1663,155 @@ const GroupsClasses = () => {
               </h2>
               <button
                 style={s.closeBtn}
-                onClick={() => setShowStudentsModal(false)}
+                onClick={() => { setShowStudentsModal(false); setSelectedStudents([]); setStudentSearchTerm(""); }}
               >
                 <Close sx={{ fontSize: 24, color: "#64748b" }} />
               </button>
             </div>
+            {/* Search and Bulk Actions */}
+            <div style={{ padding: '0 24px 16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {/* Search Box */}
+              <div style={{ position: 'relative' }}>
+                <Search sx={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', fontSize: 20 }} />
+                <input
+                  type="text"
+                  placeholder="Search by name, roll number, or department..."
+                  value={studentSearchTerm}
+                  onChange={(e) => setStudentSearchTerm(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px 10px 40px',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '8px',
+                    fontSize: '14px',
+                    outline: 'none',
+                    boxSizing: 'border-box',
+                  }}
+                />
+              </div>
+              {/* Stats, Toggle Dropped, and Bulk Remove */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                  <span style={{ fontSize: '14px', color: '#64748b' }}>
+                    {selectedStudents.length > 0 
+                      ? `${selectedStudents.length} selected` 
+                      : `${filteredVenueStudents.filter(s => s.status === 'Active').length} active${showDroppedStudents ? `, ${filteredVenueStudents.filter(s => s.status === 'Dropped').length} dropped` : ''}`}
+                  </span>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', color: '#64748b', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={showDroppedStudents}
+                      onChange={toggleShowDropped}
+                      style={{ cursor: 'pointer' }}
+                    />
+                    Show dropped students
+                  </label>
+                </div>
+                {selectedStudents.length > 0 && (
+                  <button
+                    style={{
+                      ...s.removeBtn,
+                      backgroundColor: '#dc2626',
+                      color: 'white',
+                      padding: '8px 16px',
+                    }}
+                    onClick={handleBulkRemoveStudents}
+                  >
+                    <Delete sx={{ fontSize: 16 }} />
+                    Remove Selected ({selectedStudents.length})
+                  </button>
+                )}
+              </div>
+            </div>
             <div style={s.studentsListContainer}>
               {venueStudents.length === 0 ? (
                 <div style={s.emptyState}>No students allocated yet</div>
+              ) : filteredVenueStudents.length === 0 ? (
+                <div style={s.emptyState}>No students match your search</div>
               ) : (
                 <table style={s.studentsTable}>
                   <thead>
                     <tr style={s.trHead}>
+                      <th style={{ ...s.th, width: '40px' }}>
+                        <input
+                          type="checkbox"
+                          checked={filteredVenueStudents.filter(s => s.status === 'Active').length > 0 && filteredVenueStudents.filter(s => s.status === 'Active').every(s => selectedStudents.includes(s.student_id))}
+                          onChange={toggleSelectAll}
+                          style={{ cursor: 'pointer' }}
+                        />
+                      </th>
                       <th style={s.th}>Roll Number</th>
                       <th style={s.th}>Name</th>
                       <th style={s.th}>Department</th>
                       <th style={s.th}>Year/Sem</th>
+                      {showDroppedStudents && <th style={s.th}>Status</th>}
                       <th style={s.th}>Action</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {venueStudents.map((student) => (
-                      <tr key={student.student_id} style={s.trBody}>
-                        <td style={s.td}>{student.rollNumber}</td>
-                        <td style={s.td}>{student.name}</td>
-                        <td style={s.td}>{student.department}</td>
-                        <td style={s.td}>
-                          {student.year}/{student.semester}
-                        </td>
-                        <td style={s.td}>
-                          <button
-                            style={s.removeBtn}
-                            onClick={() =>
-                              handleRemoveStudent(student.student_id)
-                            }
-                          >
-                            <Delete sx={{ fontSize: 16 }} />
-                            Remove
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
+                    {filteredVenueStudents.map((student) => {
+                      const isDropped = student.status === 'Dropped';
+                      return (
+                        <tr 
+                          key={student.student_id} 
+                          style={{
+                            ...s.trBody,
+                            backgroundColor: isDropped 
+                              ? '#fef2f2' 
+                              : selectedStudents.includes(student.student_id) 
+                                ? '#eff6ff' 
+                                : 'transparent',
+                            opacity: isDropped ? 0.7 : 1,
+                          }}
+                        >
+                          <td style={s.td}>
+                            {!isDropped && (
+                              <input
+                                type="checkbox"
+                                checked={selectedStudents.includes(student.student_id)}
+                                onChange={() => toggleStudentSelection(student.student_id)}
+                                style={{ cursor: 'pointer' }}
+                              />
+                            )}
+                          </td>
+                          <td style={{ ...s.td, color: isDropped ? '#9ca3af' : 'inherit' }}>{student.rollNumber}</td>
+                          <td style={{ ...s.td, color: isDropped ? '#9ca3af' : 'inherit' }}>{student.name}</td>
+                          <td style={{ ...s.td, color: isDropped ? '#9ca3af' : 'inherit' }}>{student.department}</td>
+                          <td style={{ ...s.td, color: isDropped ? '#9ca3af' : 'inherit' }}>
+                            {student.year}/{student.semester}
+                          </td>
+                          {showDroppedStudents && (
+                            <td style={s.td}>
+                              <span style={{
+                                padding: '2px 8px',
+                                borderRadius: '12px',
+                                fontSize: '12px',
+                                fontWeight: '500',
+                                backgroundColor: isDropped ? '#fee2e2' : '#dcfce7',
+                                color: isDropped ? '#dc2626' : '#16a34a',
+                              }}>
+                                {student.status}
+                              </span>
+                            </td>
+                          )}
+                          <td style={s.td}>
+                            {isDropped ? (
+                              <span style={{ fontSize: '12px', color: '#9ca3af' }}>View only</span>
+                            ) : (
+                              <button
+                                style={s.removeBtn}
+                                onClick={() =>
+                                  handleRemoveStudent(student.student_id)
+                                }
+                              >
+                                <Delete sx={{ fontSize: 16 }} />
+                                Remove
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               )}
