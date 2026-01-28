@@ -7,7 +7,8 @@ import {
   Check,
   X,
   AlertCircle,
-  Loader
+  Loader,
+  Edit2
 } from 'lucide-react';
 import useAuthStore from '../../../../../store/useAuthStore';
 
@@ -20,6 +21,8 @@ const SkillOrderManager = ({ selectedCourseType = 'frontend' }) => {
   const [saving, setSaving] = useState(false);
   const [availableSkills, setAvailableSkills] = useState([]);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingSkill, setEditingSkill] = useState(null);
   const [newSkill, setNewSkill] = useState({
     skill_name: '',
     is_prerequisite: true,
@@ -174,6 +177,44 @@ const SkillOrderManager = ({ selectedCourseType = 'frontend' }) => {
     }
   };
 
+  const handleEditSkill = async () => {
+    if (!editingSkill.skill_name.trim()) {
+      showMessage('error', 'Please enter a skill name');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const response = await fetch(`${API_URL}/skill-order/${editingSkill.id}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          skill_name: editingSkill.skill_name.trim(),
+          is_prerequisite: editingSkill.is_prerequisite,
+          description: editingSkill.description.trim() || null
+        })
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        showMessage('success', 'Skill updated successfully');
+        setShowEditModal(false);
+        setEditingSkill(null);
+        fetchSkillOrder();
+      } else {
+        showMessage('error', data.message || 'Failed to update skill');
+      }
+    } catch (error) {
+      console.error('Error updating skill:', error);
+      showMessage('error', 'Failed to update skill');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   // Drag and drop handlers
   const handleDragStart = (e, index) => {
     setDraggedItem(index);
@@ -324,6 +365,17 @@ const SkillOrderManager = ({ selectedCourseType = 'frontend' }) => {
               </label>
               
               <button
+                onClick={() => {
+                  setEditingSkill({ ...skill });
+                  setShowEditModal(true);
+                }}
+                style={styles.editButton}
+                title="Edit skill"
+              >
+                <Edit2 size={16} />
+              </button>
+              
+              <button
                 onClick={() => handleDeleteSkill(skill.id)}
                 style={styles.deleteButton}
                 title="Remove skill"
@@ -412,6 +464,89 @@ const SkillOrderManager = ({ selectedCourseType = 'frontend' }) => {
               >
                 {saving && <Loader size={16} style={{ animation: 'spin 1s linear infinite' }} />}
                 Add Skill
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Skill Modal */}
+      {showEditModal && editingSkill && (
+        <div style={styles.modalOverlay}>
+          <div style={styles.modal}>
+            <div style={styles.modalHeader}>
+              <h3 style={styles.modalTitle}>Edit Skill</h3>
+              <button
+                onClick={() => {
+                  setShowEditModal(false);
+                  setEditingSkill(null);
+                }}
+                style={styles.modalCloseButton}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div style={styles.modalBody}>
+              <div style={styles.formGroup}>
+                <label style={styles.label}>
+                  Skill Name *
+                </label>
+                <input
+                  type="text"
+                  value={editingSkill.skill_name}
+                  onChange={(e) => setEditingSkill(prev => ({ ...prev, skill_name: e.target.value }))}
+                  style={styles.input}
+                  placeholder="e.g., JavaScript, React, Node.js"
+                />
+              </div>
+
+              <div style={styles.formGroup}>
+                <label style={styles.label}>
+                  Description (optional)
+                </label>
+                <textarea
+                  value={editingSkill.description || ''}
+                  onChange={(e) => setEditingSkill(prev => ({ ...prev, description: e.target.value }))}
+                  style={styles.textarea}
+                  placeholder="Brief description of this skill"
+                  rows={2}
+                />
+              </div>
+
+              <label style={styles.checkboxLabel}>
+                <input
+                  type="checkbox"
+                  checked={editingSkill.is_prerequisite}
+                  onChange={(e) => setEditingSkill(prev => ({ ...prev, is_prerequisite: e.target.checked }))}
+                  style={styles.checkbox}
+                />
+                <span style={styles.checkboxText}>
+                  Requires previous skill to be cleared (prerequisite)
+                </span>
+              </label>
+            </div>
+
+            <div style={styles.modalFooter}>
+              <button
+                onClick={() => {
+                  setShowEditModal(false);
+                  setEditingSkill(null);
+                }}
+                style={styles.cancelButton}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleEditSkill}
+                disabled={saving || !editingSkill.skill_name.trim()}
+                style={{
+                  ...styles.primaryButton,
+                  ...(saving || !editingSkill.skill_name.trim() ? styles.disabledButton : {})
+                }}
+              >
+                {saving && <Loader size={16} style={{ animation: 'spin 1s linear infinite' }} />}
+                Update Skill
               </button>
             </div>
           </div>
@@ -587,6 +722,18 @@ const styles = {
   checkboxText: {
     fontSize: '14px',
     color: '#4b5563',
+  },
+  editButton: {
+    padding: '8px',
+    backgroundColor: 'transparent',
+    border: 'none',
+    borderRadius: '8px',
+    color: '#3b82f6',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    transition: 'all 0.2s ease',
   },
   deleteButton: {
     padding: '8px',

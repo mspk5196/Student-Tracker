@@ -26,6 +26,19 @@ function romanToNumber(roman) {
 }
 
 /**
+ * Normalize course name to match skill_order format
+ * Converts: "Java Script" → "JavaScript", "Type Script" → "TypeScript"
+ */
+function normalizeCourseName(courseName) {
+  if (!courseName) return courseName;
+  
+  return courseName
+    .replace(/\bjava\s+script\b/gi, 'JavaScript')
+    .replace(/\btype\s+script\b/gi, 'TypeScript')
+    .trim();
+}
+
+/**
  * Extract skill level from course name
  * Examples:
  * - "HTML / CSS - Level 1" → 1
@@ -292,9 +305,12 @@ async function processSkillRow(connection, row, rowIndex, studentMap) {
   const studentVenueId = studentVenue.length > 0 ? studentVenue[0].venue_id : null;
   const facultyId = studentVenue.length > 0 ? studentVenue[0].faculty_id : null;
 
+  // Normalize course name (Java Script → JavaScript, Type Script → TypeScript)
+  const normalizedCourseName = normalizeCourseName(courseName);
+  
   // Extract skill level from course name
-  const skillLevel = extractSkillLevel(courseName);
-  console.log(`Row ${rowIndex}: Extracted skill_level=${skillLevel} from course="${courseName}"`);
+  const skillLevel = extractSkillLevel(normalizedCourseName);
+  console.log(`Row ${rowIndex}: Normalized "${courseName}" → "${normalizedCourseName}", skill_level=${skillLevel}`);
 
   // INSERT new record
   await connection.execute(
@@ -304,12 +320,12 @@ async function processSkillRow(connection, row, rowIndex, studentMap) {
        latest_score, status, last_attendance, last_slot_date, last_start_time, 
        last_end_time, created_at, updated_at)
      VALUES (?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
-    [slotId, student.student_id, year, studentName, studentEmail, courseName, skillLevel,
+    [slotId, student.student_id, year, studentName, studentEmail, normalizedCourseName, skillLevel,
      excelVenueName, studentVenueId, facultyId, attempt, score, score, status, 
      attendance, slotDate, startTime, endTime]
   );
 
-  console.log(`Row ${rowIndex}: Inserted - ${rollNumber}, ${courseName}, level=${skillLevel}, ${slotDate}`);
+  console.log(`Row ${rowIndex}: Inserted - ${rollNumber}, ${normalizedCourseName}, level=${skillLevel}, ${slotDate}`);
   return { success: true, inserted: true, skipped: false };
 }
 
