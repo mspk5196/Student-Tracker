@@ -962,19 +962,49 @@ export const getStudentTasks = async (req, res) => {
         .replace(/\s*-\s*/g, '-');      // Remove spaces around dashes
     };
 
+    // Helper function to check if a student skill matches a skill order entry
+    // Uses flexible keyword-based matching to handle naming variations
+    const skillMatches = (studentSkillName, orderSkillName) => {
+      const studentNorm = normalizeSkillName(studentSkillName);
+      const orderNorm = normalizeSkillName(orderSkillName);
+      
+      // Direct match
+      if (studentNorm === orderNorm) return true;
+      
+      // Extract keywords from both (split by common separators)
+      const studentKeywords = studentNorm.split(/[\s\/,.-]+/).filter(k => k.length > 2);
+      const orderKeywords = orderNorm.split(/[\s\/,.-]+/).filter(k => k.length > 2);
+      
+      // Check if most keywords from orderSkill appear in studentSkill
+      if (orderKeywords.length === 0) return false;
+      
+      const matchingKeywords = orderKeywords.filter(ok => 
+        studentKeywords.some(sk => sk.includes(ok) || ok.includes(sk))
+      );
+      
+      // If 50% or more of the order skill keywords match, consider it a match
+      return matchingKeywords.length >= Math.ceil(orderKeywords.length * 0.5);
+    };
+
     // Create sets for cleared and ongoing skills (normalized)
     const clearedSkillsSet = new Set();
     const clearedSkillsMap = new Map();
+    const clearedSkillsList = [];
+    
     studentSkills.forEach(skill => {
       const normalizedName = normalizeSkillName(skill.course_name);
       if (skill.status === 'Cleared') {
         clearedSkillsSet.add(skill.course_name); // Keep original for logging
         clearedSkillsMap.set(normalizedName, skill);
+        clearedSkillsList.push(skill);
       }
     });
 
+    console.log('========== STUDENT TASKS SKILL PROGRESSION ==========');
+    console.log('Student ID:', student_id, 'Venue:', currentVenueId);
     console.log('Student cleared skills:', Array.from(clearedSkillsSet));
     console.log('Normalized cleared skills:', Array.from(clearedSkillsMap.keys()));
+    console.log('Skill order entries:', orderedSkills.map(s => s.skill_name));
 
     // Build skill progression with unlock status
     const skillProgression = [];
@@ -983,7 +1013,20 @@ export const getStudentTasks = async (req, res) => {
     
     for (const skill of orderedSkills) {
       const normalizedSkillName = normalizeSkillName(skill.skill_name);
-      const isCleared = clearedSkillsMap.has(normalizedSkillName);
+      
+      // Check with flexible matching - exact match first, then keyword matching
+      let isCleared = clearedSkillsMap.has(normalizedSkillName);
+      
+      // If no exact match, try flexible matching
+      if (!isCleared) {
+        const matchedSkill = clearedSkillsList.find(s => skillMatches(s.course_name, skill.skill_name));
+        if (matchedSkill) {
+          isCleared = true;
+          // Add to map for future lookups
+          clearedSkillsMap.set(normalizedSkillName, matchedSkill);
+          console.log(`Skill "${skill.skill_name}" MATCHED with cleared skill "${matchedSkill.course_name}" via flexible matching`);
+        }
+      }
       
       // Initialize course progress tracker
       if (!courseProgress[skill.course_type]) {
@@ -1036,11 +1079,12 @@ export const getStudentTasks = async (req, res) => {
       // previousCleared tracking is done above in the if-else block
     }
 
-    console.log('Skill progression summary:');
+    console.log('\n--- Skill Progression Summary ---');
     skillProgression.forEach(s => {
-      console.log(`  ${s.skill_name} (${s.course_type}): ${s.status} - unlocked: ${!s.is_locked}`);
+      console.log(`${s.skill_name} (${s.course_type}): ${s.status} | Cleared: ${s.is_cleared} | Locked: ${s.is_locked} | Current: ${s.is_current}`);
     });
     console.log('Unlocked skills set:', Array.from(unlockedSkills));
+    console.log('======================================================\n');
 
     // Get all tasks from ALL venues the student has been in (match by task title for cross-venue)
     // Priority: Current venue tasks first, then historical submissions from other venues

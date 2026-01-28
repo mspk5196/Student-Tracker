@@ -1038,29 +1038,65 @@ export const getStudentRoadmap = async (req, res) => {
     `, [student_id]);
 
     // Helper function to normalize skill names for comparison
+    // Removes extra spaces, normalizes slashes, converts to lowercase
     const normalizeSkillName = (name) => {
       if (!name) return '';
       return name
         .toLowerCase()
         .trim()
-        .replace(/\s+/g, '')           // Remove all spaces
-        .replace(/[\/\-_]/g, '');      // Remove slashes, dashes, underscores
+        .replace(/\s+/g, ' ')           // Replace multiple spaces with single space
+        .replace(/\s*\/\s*/g, '/')      // Remove spaces around slashes: "HTML /CSS" -> "HTML/CSS"
+        .replace(/\s*-\s*/g, '-');      // Remove spaces around dashes
+    };
+
+    // Helper function to check if a student skill matches a skill order entry
+    // Uses flexible keyword-based matching to handle naming variations
+    const skillMatches = (studentSkillName, orderSkillName) => {
+      const studentNorm = normalizeSkillName(studentSkillName);
+      const orderNorm = normalizeSkillName(orderSkillName);
+      
+      // Direct match
+      if (studentNorm === orderNorm) return true;
+      
+      // Extract keywords from both (split by common separators)
+      const studentKeywords = studentNorm.split(/[\s\/,.-]+/).filter(k => k.length > 2);
+      const orderKeywords = orderNorm.split(/[\s\/,.-]+/).filter(k => k.length > 2);
+      
+      // Check if most keywords from orderSkill appear in studentSkill
+      // For "Git/GitHub", keywords are ["git", "github"]
+      // For "Version control-Git , Github Level 0", keywords are ["version", "control", "git", "github", "level"]
+      if (orderKeywords.length === 0) return false;
+      
+      const matchingKeywords = orderKeywords.filter(ok => 
+        studentKeywords.some(sk => sk.includes(ok) || ok.includes(sk))
+      );
+      
+      // If 50% or more of the order skill keywords match, consider it a match
+      return matchingKeywords.length >= Math.ceil(orderKeywords.length * 0.5);
     };
 
     // Create a map of student's cleared skills (normalize to lowercase)
     const clearedSkillsMap = new Map();
     const ongoingSkillsMap = new Map();
+    const clearedSkillsList = []; // Keep list for flexible matching
+    const ongoingSkillsList = [];
+    
     studentSkills.forEach(skill => {
       const normalizedName = normalizeSkillName(skill.course_name);
       if (skill.status === 'Cleared') {
         clearedSkillsMap.set(normalizedName, skill);
+        clearedSkillsList.push(skill);
       } else if (skill.status === 'Ongoing' || skill.status === 'Not Cleared') {
         ongoingSkillsMap.set(normalizedName, skill);
+        ongoingSkillsList.push(skill);
       }
     });
 
+    console.log('========== STUDENT ROADMAP SKILL PROGRESSION ==========');
+    console.log('Student ID:', student_id, 'Venue:', venue_id);
     console.log('Student skills from DB:', studentSkills.map(s => ({ name: s.course_name, status: s.status })));
     console.log('Cleared skills (normalized):', Array.from(clearedSkillsMap.keys()));
+    console.log('Skill order entries:', orderedSkills.map(s => s.skill_name));
 
     // Build skill progression with unlock status
     const skillProgression = [];
@@ -1068,10 +1104,28 @@ export const getStudentRoadmap = async (req, res) => {
     
     for (const skill of orderedSkills) {
       const skillNameNormalized = normalizeSkillName(skill.skill_name);
-      const isCleared = clearedSkillsMap.has(skillNameNormalized);
-      const isOngoing = ongoingSkillsMap.has(skillNameNormalized);
       
-      console.log(`Skill "${skill.skill_name}" -> normalized: "${skillNameNormalized}", isCleared: ${isCleared}`);
+      // Check with flexible matching - exact match first, then keyword matching
+      let isCleared = clearedSkillsMap.has(skillNameNormalized);
+      let isOngoing = ongoingSkillsMap.has(skillNameNormalized);
+      let matchedSkill = null;
+      
+      // If no exact match, try flexible matching
+      if (!isCleared && !isOngoing) {
+        matchedSkill = clearedSkillsList.find(s => skillMatches(s.course_name, skill.skill_name));
+        if (matchedSkill) {
+          isCleared = true;
+          console.log(`Skill "${skill.skill_name}" MATCHED with cleared skill "${matchedSkill.course_name}" via flexible matching`);
+        } else {
+          matchedSkill = ongoingSkillsList.find(s => skillMatches(s.course_name, skill.skill_name));
+          if (matchedSkill) {
+            isOngoing = true;
+            console.log(`Skill "${skill.skill_name}" MATCHED with ongoing skill "${matchedSkill.course_name}" via flexible matching`);
+          }
+        }
+      }
+      
+      console.log(`Skill "${skill.skill_name}" -> normalized: "${skillNameNormalized}", isCleared: ${isCleared}, isOngoing: ${isOngoing}`);
       
       // Initialize course progress tracker
       if (!courseProgress[skill.course_type]) {
@@ -1080,9 +1134,15 @@ export const getStudentRoadmap = async (req, res) => {
       
       const courseTracker = courseProgress[skill.course_type];
       
-      // A skill is locked if it requires prerequisite and previous skill in same course is not cleared
-      const isLocked = skill.is_prerequisite && !courseTracker.previousCleared;
-      const isUnlocked = !isLocked;
+      // A skill is unlocked if:
+      // 1. It's already cleared by the student (regardless of prerequisites), OR
+      // 2. It doesn't require a prerequisite (!skill.is_prerequisite), OR
+      // 3. Previous skill in same course is cleared (normal progression)
+      // This allows students who cleared a skill directly to proceed
+      const isUnlockedByClearing = isCleared;
+      const isUnlockedByPrerequisite = !skill.is_prerequisite || courseTracker.previousCleared;
+      const isUnlocked = isUnlockedByClearing || isUnlockedByPrerequisite;
+      const isLocked = !isUnlocked;
       
       // Track the first unlocked but not cleared skill as "current"
       const isCurrent = isUnlocked && !isCleared && !courseTracker.currentUnlocked;
@@ -1090,6 +1150,12 @@ export const getStudentRoadmap = async (req, res) => {
         courseTracker.currentUnlocked = skill.skill_name;
       }
 
+      // Get best score from matched skill
+      const bestScore = matchedSkill?.best_score || 
+                       clearedSkillsMap.get(skillNameNormalized)?.best_score || 
+                       ongoingSkillsMap.get(skillNameNormalized)?.best_score || 
+                       null;
+      
       skillProgression.push({
         skill_order_id: skill.skill_order_id,
         skill_name: skill.skill_name,
@@ -1100,14 +1166,27 @@ export const getStudentRoadmap = async (req, res) => {
         is_cleared: isCleared,
         is_locked: isLocked,
         is_current: isCurrent,
-        best_score: clearedSkillsMap.get(skillNameNormalized)?.best_score || ongoingSkillsMap.get(skillNameNormalized)?.best_score || null
+        best_score: bestScore,
+        matched_with: matchedSkill?.course_name || null
       });
 
       // Update tracker for next iteration
-      courseTracker.previousCleared = isCleared;
+      // If this skill is cleared, mark the next skill as unlockable
+      if (isCleared) {
+        courseTracker.previousCleared = true;
+      } else {
+        // Only block next skills if this one is unlocked but not cleared yet
+        if (isUnlocked) {
+          courseTracker.previousCleared = false;
+        }
+      }
     }
 
-    console.log('Skill progression:', skillProgression.map(s => ({ name: s.skill_name, cleared: s.is_cleared, locked: s.is_locked })));
+    console.log('\n--- Skill Progression Summary ---');
+    skillProgression.forEach(s => {
+      console.log(`${s.skill_name} (${s.course_type}): ${s.status} | Cleared: ${s.is_cleared} | Locked: ${s.is_locked} | Current: ${s.is_current}${s.matched_with ? ` | Matched: "${s.matched_with}"` : ''}`);
+    });
+    console.log('======================================================\n');
 
     // Get all roadmap modules for the student's venue
     let modulesQuery = `

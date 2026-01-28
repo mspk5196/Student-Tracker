@@ -229,12 +229,12 @@ export const getOrCreateSession = async (req, res) => {
   const connection = await db.getConnection();
   
   try {
-    const { sessionName, date, timeSlot } = req.body;
+    const { sessionName, date, timeSlot, venueId } = req.body;
 
-    if (!sessionName || !date || !timeSlot) {
+    if (!sessionName || !date || !timeSlot || !venueId) {
       return res.status(400).json({ 
         success: false, 
-        message: 'Missing required fields: sessionName, date, timeSlot' 
+        message: 'Missing required fields: sessionName, date, timeSlot, venueId' 
       });
     }
 
@@ -248,11 +248,9 @@ export const getOrCreateSession = async (req, res) => {
     
     const sessionNum = timeSlotMapping[timeSlot] || 'S1';
 
-    // Clean up session name and include session number
-    const cleanSessionName = sessionName.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '');
-    const cleanTimeSlot = timeSlot.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_:-]/g, '');
-    const fullSessionName = `${sessionNum}_${cleanSessionName}_${date}_${cleanTimeSlot}`;
-
+    // Create consistent session name based on venue_id, date, and session number
+    // This ensures faculty and admin see the same session for the same venue/date/time
+    const fullSessionName = `${sessionNum}_Venue${venueId}_${date}`;
 
     // Check if session already exists
     const [existingSession] = await connection.query(

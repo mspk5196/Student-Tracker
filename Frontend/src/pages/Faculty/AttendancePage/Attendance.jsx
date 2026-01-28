@@ -148,9 +148,10 @@ const AttendanceManagement = () => {
         }
 
         const sessionData = {
-            sessionName: `${selectedVenue.venue_name}_${user.name || 'User'}_${date}`,
+            sessionName: `Venue${selectedVenue.venue_id}_${date}`,
             date,
-            timeSlot
+            timeSlot,
+            venueId: selectedVenue.venue_id
         };
 
 
@@ -184,8 +185,6 @@ const AttendanceManagement = () => {
     const loadExistingAttendance = async (sessionIdToFetch, studentsList) => {
         if (!selectedVenue) return;
 
-        
-
         try {
             const response = await fetch(
                 `${API_URL}/attendance/session/${sessionIdToFetch}/${selectedVenue.venue_id}`,
@@ -198,10 +197,8 @@ const AttendanceManagement = () => {
             );
 
             const data = await response.json();
-           
 
             if (data.success && Object.keys(data.data).length > 0) {
-              
                 // Merge attendance with students
                 const updatedStudents = studentsList.map(student => {
                     const existingRecord = data.data[student.student_id];
@@ -216,9 +213,9 @@ const AttendanceManagement = () => {
                 });
 
                 setStudents(updatedStudents);
-            } 
+            }
         } catch (err) {
-            console.error(' Error fetching existing attendance:', err);
+            console.error('Error fetching existing attendance:', err);
         }
     };
 

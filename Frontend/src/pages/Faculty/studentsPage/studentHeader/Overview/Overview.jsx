@@ -39,12 +39,12 @@ const Overview = ({ studentId }) => {
   }, [studentData]);
 
   const linePath = useMemo(() => {
-    if (!studentData?.weeklyActivity || studentData.weeklyActivity.length === 0) return '';
+    if (!studentData?.weeklyActivity || studentData.weeklyActivity.length === 0) return 'M0,160';
     
     return studentData.weeklyActivity
       .map((d, i) => {
-        const x = (i * 100) / (studentData.weeklyActivity.length - 1);
-        const y = 160 - d.value * 1.5;
+        const x = (i * 100) / Math.max(1, studentData.weeklyActivity.length - 1);
+        const y = 160 - (d.value || 0) * 1.5;
         return `${i === 0 ? 'M' : 'L'}${x},${y}`;
       })
       .join(' ');

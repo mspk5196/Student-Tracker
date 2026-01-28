@@ -37,6 +37,7 @@ const AssignmentDashboard = ({ selectedVenueId, venueName, venues, selectedCours
   const [files, setFiles] = useState([]);
   const [skillFilter, setSkillFilter] = useState('');
   const [openMenuId, setOpenMenuId] = useState(null);
+  const [skillOptions, setSkillOptions] = useState([]);
 
   // Auto-populate venue from header selection
   useEffect(() => {
@@ -44,6 +45,32 @@ const AssignmentDashboard = ({ selectedVenueId, venueName, venues, selectedCours
       setGroup(selectedVenueId);
     }
   }, [selectedVenueId]);
+
+  // Fetch skill options from skill_order table
+  useEffect(() => {
+    const fetchSkills = async () => {
+      try {
+        const url = selectedCourseType 
+          ? `${API_URL}/skill-order?course_type=${selectedCourseType}`
+          : `${API_URL}/skill-order`;
+        
+        const response = await fetch(url, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        const data = await response.json();
+        if (data.success) {
+          setSkillOptions(data.data || []);
+        }
+      } catch (err) {
+        console.error('Error fetching skills:', err);
+      }
+    };
+    
+    fetchSkills();
+  }, [selectedCourseType, token, API_URL]);
 
   // Fetch assignments for selected venue
   useEffect(() => {
@@ -358,14 +385,25 @@ const AssignmentDashboard = ({ selectedVenueId, venueName, venues, selectedCours
             </div>
 
             <div style={styles.fieldGroup}>
-              <label style={styles.fieldLabel}>Skill Filter </label>
-              <input
-                style={styles.textInput}
-                value={skillFilter}
-                onChange={e => setSkillFilter(e.target.value)}
-                placeholder="e.g., HTML/CSS, JavaScript, React. . ."
-                disabled={loading}
-              />
+              <label style={styles.fieldLabel}>Skill Filter</label>
+              <div style={styles.relativeWrapper}>
+                <select
+                  style={styles.selectInput}
+                  value={skillFilter}
+                  onChange={e => setSkillFilter(e.target.value)}
+                  disabled={loading}
+                >
+                  <option value="">No skill filter (optional)</option>
+                  {skillOptions
+                    .filter(skill => !selectedCourseType || skill.course_type === selectedCourseType)
+                    .map(skill => (
+                      <option key={skill.id} value={skill.skill_name}>
+                        {skill.skill_name} ({skill.course_type})
+                      </option>
+                    ))}
+                </select>
+                <ChevronDown size={16} style={styles.dropdownIcon} />
+              </div>
             </div>
 
             {/* STUDY MATERIAL */}

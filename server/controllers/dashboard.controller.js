@@ -250,6 +250,7 @@ export const getAlerts = async (req, res) => {
     let allAlerts = [
       ...lowAttendanceAlerts.map(a => ({
         id: a.roll_number || a.id,
+        student_id: a.id,
         name: a.name,
         group: a.group_name,
         issue: `${a.issue} (${a.attendance_percentage}%)`,
@@ -260,6 +261,7 @@ export const getAlerts = async (req, res) => {
       })),
       ...overdueTasksAlerts.map(a => ({
         id: a.roll_number || a.id,
+        student_id: a.id,
         name: a.name,
         group: a.group_name,
         issue: a.issue,
@@ -269,6 +271,7 @@ export const getAlerts = async (req, res) => {
       })),
       ...consecutiveAbsenceAlerts.map(a => ({
         id: a.roll_number || a.id,
+        student_id: a.id,
         name: a.name,
         group: a.group_name,
         issue: a.issue,

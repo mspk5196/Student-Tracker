@@ -333,7 +333,7 @@ const EducationDashboard = () => {
                         </td>
                         <td style={styles.td}>
                           <button 
-                            onClick={() => navigate(`/students/${encodeIdSimple(row.id)}`)} 
+                            onClick={() => navigate(`/students/${encodeIdSimple(row.student_id)}`)} 
                             style={styles.actionBtn}
                           >
                             View Profile

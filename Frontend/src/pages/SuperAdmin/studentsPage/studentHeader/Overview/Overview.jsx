@@ -29,22 +29,22 @@ const Overview = ({ studentId }) => {
   const circ = 377;
   
   const completedPct = useMemo(() => {
-    if (!studentData) return 0;
+    if (!studentData || !studentData.taskStatus?.total) return 0;
     return (studentData.taskStatus.completed / studentData.taskStatus.total) * circ;
   }, [studentData]);
 
   const progressPct = useMemo(() => {
-    if (!studentData) return 0;
+    if (!studentData || !studentData.taskStatus?.total) return 0;
     return (studentData.taskStatus.inProgress / studentData.taskStatus.total) * circ;
   }, [studentData]);
 
   const linePath = useMemo(() => {
-    if (!studentData?.weeklyActivity || studentData.weeklyActivity.length === 0) return '';
+    if (!studentData?.weeklyActivity || studentData.weeklyActivity.length === 0) return 'M0,160';
     
     return studentData.weeklyActivity
       .map((d, i) => {
-        const x = (i * 100) / (studentData.weeklyActivity.length - 1);
-        const y = 160 - d.value * 1.5;
+        const x = (i * 100) / Math.max(1, studentData.weeklyActivity.length - 1);
+        const y = 160 - (d.value || 0) * 1.5;
         return `${i === 0 ? 'M' : 'L'}${x},${y}`;
       })
       .join(' ');
@@ -217,15 +217,18 @@ const Overview = ({ studentId }) => {
                       transition: 'stroke-dashoffset 2s ease-in-out',
                     }}
                   />
-                  {studentData.weeklyActivity.map((d, i) => (
-                    <circle
-                      key={i}
-                      cx={`${(i * 100) / (studentData.weeklyActivity.length - 1)}%`}
-                      cy={160 - d.value * 1.5}
-                      r={4.5}
-                      fill="#2563eb"
-                    />
-                  ))}
+                  {studentData.weeklyActivity.map((d, i) => {
+                    const xPercent = (i * 100) / Math.max(1, studentData.weeklyActivity.length - 1);
+                    return (
+                      <circle
+                        key={i}
+                        cx={`${xPercent}%`}
+                        cy={160 - (d.value || 0) * 1.5}
+                        r={4.5}
+                        fill="#2563eb"
+                      />
+                    );
+                  })}
                 </svg>
                 <div style={styles.chartLabels}>
                   {studentData.weeklyActivity.map((d, i) => (

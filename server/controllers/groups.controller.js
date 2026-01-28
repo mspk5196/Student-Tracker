@@ -554,12 +554,150 @@ export const createVenue = async (req, res) => {
       VALUES (?, ?, ?, ?, 'Mon-Fri', '09:00-17:00', ?, 'General', 'Active', NOW())
     `, [groupCode, groupName, venueId, assigned_faculty_id || null, capacity || 50]);
 
-    // Copy existing roadmap modules from other venues to this new venue
-    console.log(`[CREATE VENUE] Copying existing roadmaps to new venue ${venueId}`);
+    // Copy existing roadmap modules that were created for "all venues" to this new venue
+    console.log(`[CREATE VENUE] Copying existing "all venues" roadmaps to new venue ${venueId}`);
     
-    // Get all unique roadmap modules (by day and course_type) from existing venues
+    // Get all roadmap groups (modules created with apply_to_all_venues)
+    // A group_id indicates the module was created for multiple venues
+    const [roadmapGroups] = await connection.query(`
+      SELECT DISTINCT group_id
+      FROM roadmap
+      WHERE group_id IS NOT NULL AND group_id != ''
+    `);
+
+    let copiedCount = 0;
+
+    if (roadmapGroups.length > 0) {
+      console.log(`[CREATE VENUE] Found ${roadmapGroups.length} roadmap group(s) to copy`);
+      
+      // Use the assigned faculty for this venue, or get a default faculty
+      let roadmapFacultyId = assigned_faculty_id;
+      
+      if (!roadmapFacultyId) {
+        const [venueData] = await connection.query('SELECT assigned_faculty_id FROM venue WHERE venue_id = ?', [venueId]);
+        if (venueData.length > 0 && venueData[0].assigned_faculty_id) {
+          roadmapFacultyId = venueData[0].assigned_faculty_id;
+        } else {
+          // Get any active faculty as fallback
+          const [anyFaculty] = await connection.query('SELECT faculty_id FROM faculties LIMIT 1');
+          if (anyFaculty.length > 0) {
+            roadmapFacultyId = anyFaculty[0].faculty_id;
+          }
+        }
+      }
+      
+      // For each group, copy one representative module (they're all the same within a group)
+      for (const group of roadmapGroups) {
+        // Get a representative roadmap from this group
+        const [groupRoadmaps] = await connection.query(`
+          SELECT 
+            day,
+            title,
+            description,
+            course_type,
+            learning_objectives,
+            module_order,
+            status,
+            group_id
+          FROM roadmap
+          WHERE group_id = ?
+          LIMIT 1
+        `, [group.group_id]);
+
+        if (groupRoadmaps.length > 0) {
+          const roadmap = groupRoadmaps[0];
+          
+          // Check if this roadmap already exists for this venue (avoid duplicates)
+          const [existing] = await connection.query(`
+            SELECT roadmap_id FROM roadmap
+            WHERE venue_id = ? AND day = ? AND course_type = ?
+          `, [venueId, roadmap.day, roadmap.course_type]);
+
+          if (existing.length === 0) {
+            // Insert the roadmap module for the new venue with the same group_id
+            const [roadmapResult] = await connection.query(`
+              INSERT INTO roadmap (
+                venue_id, 
+                faculty_id, 
+                day, 
+                title, 
+                description, 
+                course_type, 
+                learning_objectives, 
+                module_order, 
+                status, 
+                group_id,
+                is_template, 
+                created_at
+              )
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, NOW())
+            `, [
+              venueId,
+              roadmapFacultyId,
+              roadmap.day,
+              roadmap.title,
+              roadmap.description,
+              roadmap.course_type,
+              roadmap.learning_objectives,
+              roadmap.module_order,
+              roadmap.status,
+              roadmap.group_id
+            ]);
+
+            const newRoadmapId = roadmapResult.insertId;
+
+            // Copy resources from the source roadmap
+            const [sourceRoadmap] = await connection.query(`
+              SELECT roadmap_id FROM roadmap 
+              WHERE group_id = ? AND roadmap_id != ?
+              LIMIT 1
+            `, [roadmap.group_id, newRoadmapId]);
+
+            if (sourceRoadmap.length > 0) {
+              const [resources] = await connection.query(`
+                SELECT resource_name, resource_type, resource_url, file_path, file_size
+                FROM roadmap_resources
+                WHERE roadmap_id = ?
+              `, [sourceRoadmap[0].roadmap_id]);
+
+              for (const resource of resources) {
+                await connection.query(`
+                  INSERT INTO roadmap_resources (roadmap_id, resource_name, resource_type, resource_url, file_path, file_size, uploaded_at)
+                  VALUES (?, ?, ?, ?, ?, ?, NOW())
+                `, [
+                  newRoadmapId,
+                  resource.resource_name,
+                  resource.resource_type,
+                  resource.resource_url,
+                  resource.file_path,
+                  resource.file_size
+                ]);
+              }
+
+              if (resources.length > 0) {
+                console.log(`[CREATE VENUE] Copied ${resources.length} resource(s) for roadmap "${roadmap.title}"`);
+              }
+            }
+            
+            copiedCount++;
+            console.log(`[CREATE VENUE] Copied roadmap "${roadmap.title}" (Day ${roadmap.day}, ${roadmap.course_type}) to venue ${venueId}`);
+          } else {
+            console.log(`[CREATE VENUE] Roadmap for Day ${roadmap.day} (${roadmap.course_type}) already exists in venue ${venueId}, skipping`);
+          }
+        }
+      }
+      
+      console.log(`[CREATE VENUE] Successfully copied ${copiedCount} roadmap module(s) from groups to venue ${venueId}`);
+    } else {
+      console.log(`[CREATE VENUE] No roadmap groups found to copy`);
+    }
+
+    // ALSO copy existing roadmaps from any existing venue (for legacy roadmaps without group_id)
+    // This ensures new venues get the same curriculum as existing venues
+    console.log(`[CREATE VENUE] Checking for existing roadmaps to replicate...`);
+    
     const [existingRoadmaps] = await connection.query(`
-      SELECT DISTINCT
+      SELECT 
         day,
         title,
         description,
@@ -568,62 +706,346 @@ export const createVenue = async (req, res) => {
         module_order,
         status
       FROM roadmap
-      WHERE is_template = 0
-      GROUP BY day, course_type
-      ORDER BY day, course_type
+      WHERE (group_id IS NULL OR group_id = '')
+      GROUP BY day, course_type, title, description, learning_objectives, module_order, status
+      ORDER BY course_type, day
     `);
 
     if (existingRoadmaps.length > 0) {
-      console.log(`[CREATE VENUE] Found ${existingRoadmaps.length} unique roadmap module(s) to copy`);
+      console.log(`[CREATE VENUE] Found ${existingRoadmaps.length} existing roadmap(s) to replicate`);
       
-      // Use the assigned faculty for this venue, or null if none
-      const roadmapFacultyId = assigned_faculty_id || null;
-      
-      // Insert each roadmap module for the new venue
+      let roadmapFacultyId = assigned_faculty_id;
+      if (!roadmapFacultyId) {
+        const [anyFaculty] = await connection.query('SELECT faculty_id FROM faculties LIMIT 1');
+        if (anyFaculty.length > 0) {
+          roadmapFacultyId = anyFaculty[0].faculty_id;
+        }
+      }
+
       for (const roadmap of existingRoadmaps) {
-        await connection.query(`
-          INSERT INTO roadmap (
-            venue_id, 
-            faculty_id, 
-            day, 
-            title, 
-            description, 
-            course_type, 
-            learning_objectives, 
-            module_order, 
-            status, 
-            is_template, 
-            created_at
-          )
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, NOW())
-        `, [
-          venueId,
-          roadmapFacultyId,
-          roadmap.day,
-          roadmap.title,
-          roadmap.description,
-          roadmap.course_type,
-          roadmap.learning_objectives,
-          roadmap.module_order,
-          roadmap.status
-        ]);
+        // Check if already exists
+        const [existing] = await connection.query(`
+          SELECT roadmap_id FROM roadmap
+          WHERE venue_id = ? AND day = ? AND course_type = ?
+        `, [venueId, roadmap.day, roadmap.course_type]);
+
+        if (existing.length === 0) {
+          const [roadmapResult] = await connection.query(`
+            INSERT INTO roadmap (
+              venue_id, 
+              faculty_id, 
+              day, 
+              title, 
+              description, 
+              course_type, 
+              learning_objectives, 
+              module_order, 
+              status, 
+              is_template, 
+              created_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, NOW())
+          `, [
+            venueId,
+            roadmapFacultyId,
+            roadmap.day,
+            roadmap.title,
+            roadmap.description,
+            roadmap.course_type,
+            roadmap.learning_objectives,
+            roadmap.module_order,
+            roadmap.status
+          ]);
+
+          const newRoadmapId = roadmapResult.insertId;
+
+          // Copy resources from any source roadmap with the same day/course_type
+          const [sourceRoadmap] = await connection.query(`
+            SELECT roadmap_id FROM roadmap 
+            WHERE day = ? AND course_type = ? AND roadmap_id != ?
+            LIMIT 1
+          `, [roadmap.day, roadmap.course_type, newRoadmapId]);
+
+          if (sourceRoadmap.length > 0) {
+            const [resources] = await connection.query(`
+              SELECT resource_name, resource_type, resource_url, file_path, file_size
+              FROM roadmap_resources
+              WHERE roadmap_id = ?
+            `, [sourceRoadmap[0].roadmap_id]);
+
+            for (const resource of resources) {
+              await connection.query(`
+                INSERT INTO roadmap_resources (roadmap_id, resource_name, resource_type, resource_url, file_path, file_size, uploaded_at)
+                VALUES (?, ?, ?, ?, ?, ?, NOW())
+              `, [
+                newRoadmapId,
+                resource.resource_name,
+                resource.resource_type,
+                resource.resource_url,
+                resource.file_path,
+                resource.file_size
+              ]);
+            }
+
+            if (resources.length > 0) {
+              console.log(`[CREATE VENUE] Copied ${resources.length} resource(s) for roadmap "${roadmap.title}"`);
+            }
+          }
+          
+          copiedCount++;
+          console.log(`[CREATE VENUE] Replicated roadmap "${roadmap.title}" (Day ${roadmap.day}) to venue ${venueId}`);
+        }
+      }
+    }
+
+    console.log(`[CREATE VENUE] Total roadmaps copied: ${copiedCount}`);
+
+    // Copy existing tasks that were created for "all venues" to this new venue
+    console.log(`[CREATE VENUE] Copying existing "all venues" tasks to new venue ${venueId}`);
+    
+    // Get all task groups (tasks created with apply_to_all_venues)
+    // A group_id indicates the task was created for multiple venues
+    const [taskGroups] = await connection.query(`
+      SELECT DISTINCT group_id
+      FROM tasks
+      WHERE group_id IS NOT NULL AND group_id != ''
+    `);
+
+    let copiedTaskCount = 0;
+
+    if (taskGroups.length > 0) {
+      console.log(`[CREATE VENUE] Found ${taskGroups.length} task group(s) to copy`);
+      
+      // Use the assigned faculty for this venue, or get a default faculty
+      let taskFacultyId = assigned_faculty_id;
+      
+      if (!taskFacultyId) {
+        const [venueData] = await connection.query('SELECT assigned_faculty_id FROM venue WHERE venue_id = ?', [venueId]);
+        if (venueData.length > 0 && venueData[0].assigned_faculty_id) {
+          taskFacultyId = venueData[0].assigned_faculty_id;
+        } else {
+          // Get any active faculty as fallback
+          const [anyFaculty] = await connection.query('SELECT faculty_id FROM faculties LIMIT 1');
+          if (anyFaculty.length > 0) {
+            taskFacultyId = anyFaculty[0].faculty_id;
+          }
+        }
       }
       
-      console.log(`[CREATE VENUE] Successfully copied ${existingRoadmaps.length} roadmap module(s) to venue ${venueId}`);
+      // For each group, copy one representative task (they're all the same within a group)
+      for (const group of taskGroups) {
+        // Get a representative task from this group
+        const [groupTasks] = await connection.query(`
+          SELECT 
+            title,
+            description,
+            day,
+            due_date,
+            max_score,
+            material_type,
+            external_url,
+            skill_filter,
+            course_type,
+            status,
+            group_id
+          FROM tasks
+          WHERE group_id = ?
+          LIMIT 1
+        `, [group.group_id]);
+
+        if (groupTasks.length > 0) {
+          const task = groupTasks[0];
+          
+          // Check if this task already exists for this venue (avoid duplicates)
+          const [existingTask] = await connection.query(`
+            SELECT task_id FROM tasks
+            WHERE venue_id = ? AND title = ? AND day = ?
+          `, [venueId, task.title, task.day]);
+
+          if (existingTask.length === 0) {
+            // Insert the task for the new venue with the same group_id
+            const [taskResult] = await connection.query(`
+              INSERT INTO tasks (
+                venue_id, 
+                faculty_id, 
+                title,
+                description,
+                day, 
+                due_date,
+                max_score,
+                material_type,
+                external_url,
+                skill_filter,
+                course_type,
+                status,
+                group_id,
+                is_template, 
+                created_at
+              )
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, NOW())
+            `, [
+              venueId,
+              taskFacultyId,
+              task.title,
+              task.description,
+              task.day,
+              task.due_date,
+              task.max_score,
+              task.material_type,
+              task.external_url,
+              task.skill_filter,
+              task.course_type,
+              task.status,
+              task.group_id
+            ]);
+
+            const newTaskId = taskResult.insertId;
+
+            // Create task submissions for all students in this venue
+            const [students] = await connection.query(`
+              SELECT DISTINCT s.student_id
+              FROM students s
+              INNER JOIN group_students gs ON s.student_id = gs.student_id AND gs.status = 'Active'
+              INNER JOIN \`groups\` g ON gs.group_id = g.group_id
+              WHERE g.venue_id = ?
+            `, [venueId]);
+
+            if (students.length > 0) {
+              for (const student of students) {
+                await connection.query(`
+                  INSERT INTO task_submissions (task_id, student_id, status, created_at)
+                  VALUES (?, ?, 'Pending', NOW())
+                `, [newTaskId, student.student_id]);
+              }
+              console.log(`[CREATE VENUE] Copied task "${task.title}" (Day ${task.day}) to venue ${venueId} with ${students.length} student(s)`);
+            } else {
+              console.log(`[CREATE VENUE] Copied task "${task.title}" (Day ${task.day}) to venue ${venueId} (no students yet)`);
+            }
+            
+            copiedTaskCount++;
+          } else {
+            console.log(`[CREATE VENUE] Task "${task.title}" (Day ${task.day}) already exists in venue ${venueId}, skipping`);
+          }
+        }
+      }
+      
+      console.log(`[CREATE VENUE] Successfully copied ${copiedTaskCount} task(s) from groups to venue ${venueId}`);
     } else {
-      console.log(`[CREATE VENUE] No existing roadmaps found to copy`);
+      console.log(`[CREATE VENUE] No task groups found to copy`);
     }
+
+    // ALSO copy existing tasks from any existing venue (for legacy tasks without group_id)
+    console.log(`[CREATE VENUE] Checking for existing tasks to replicate...`);
+    
+    const [existingTasks] = await connection.query(`
+      SELECT 
+        title,
+        description,
+        day,
+        due_date,
+        max_score,
+        material_type,
+        external_url,
+        skill_filter,
+        course_type,
+        status
+      FROM tasks
+      WHERE (group_id IS NULL OR group_id = '')
+      GROUP BY title, day, course_type, description, due_date, max_score, material_type, external_url, skill_filter, status
+      ORDER BY course_type, day
+    `);
+
+    if (existingTasks.length > 0) {
+      console.log(`[CREATE VENUE] Found ${existingTasks.length} existing task(s) to replicate`);
+      
+      let taskFacultyId = assigned_faculty_id;
+      if (!taskFacultyId) {
+        const [anyFaculty] = await connection.query('SELECT faculty_id FROM faculties LIMIT 1');
+        if (anyFaculty.length > 0) {
+          taskFacultyId = anyFaculty[0].faculty_id;
+        }
+      }
+
+      for (const task of existingTasks) {
+        // Check if already exists
+        const [existingTask] = await connection.query(`
+          SELECT task_id FROM tasks
+          WHERE venue_id = ? AND title = ? AND day = ?
+        `, [venueId, task.title, task.day]);
+
+        if (existingTask.length === 0) {
+          const [taskResult] = await connection.query(`
+            INSERT INTO tasks (
+              venue_id, 
+              faculty_id, 
+              title,
+              description,
+              day, 
+              due_date,
+              max_score,
+              material_type,
+              external_url,
+              skill_filter,
+              course_type,
+              status,
+              is_template, 
+              created_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, NOW())
+          `, [
+            venueId,
+            taskFacultyId,
+            task.title,
+            task.description,
+            task.day,
+            task.due_date,
+            task.max_score,
+            task.material_type,
+            task.external_url,
+            task.skill_filter,
+            task.course_type,
+            task.status
+          ]);
+
+          const newTaskId = taskResult.insertId;
+
+          // Create task submissions for students in this venue
+          const [students] = await connection.query(`
+            SELECT DISTINCT s.student_id
+            FROM students s
+            INNER JOIN group_students gs ON s.student_id = gs.student_id AND gs.status = 'Active'
+            INNER JOIN \`groups\` g ON gs.group_id = g.group_id
+            WHERE g.venue_id = ?
+          `, [venueId]);
+
+          if (students.length > 0) {
+            for (const student of students) {
+              await connection.query(`
+                INSERT INTO task_submissions (task_id, student_id, status, created_at)
+                VALUES (?, ?, 'Pending', NOW())
+              `, [newTaskId, student.student_id]);
+            }
+          }
+          
+          copiedTaskCount++;
+          console.log(`[CREATE VENUE] Replicated task "${task.title}" (Day ${task.day}) to venue ${venueId}`);
+        }
+      }
+    }
+
+    console.log(`[CREATE VENUE] Total tasks copied: ${copiedTaskCount}`);
 
     await connection.commit();
 
     res.status(201).json({ 
       success: true, 
-      message: existingRoadmaps.length > 0 
-        ? `Venue created successfully with ${existingRoadmaps.length} roadmap module(s)!`
+      message: copiedCount > 0 || copiedTaskCount > 0
+        ? `Venue created successfully with ${copiedCount} roadmap(s) and ${copiedTaskCount} task(s)!`
         : 'Venue created successfully!',
       data: { 
         venue_id: venueId,
-        roadmaps_copied: existingRoadmaps.length
+        roadmaps_copied: copiedCount,
+        tasks_copied: copiedTaskCount
       }
     });
 
