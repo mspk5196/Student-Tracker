@@ -905,29 +905,240 @@ const StudentDashboard = () => {
           align-self: start;
         }
 
+        /* Tablet styles */
         @media (max-width: 1200px) {
-          .main-grid { grid-template-columns: 1fr; }
-          .stats-row { grid-template-columns: repeat(2, 1fr); gap: 16px; }
-          .left-content { position: relative; top: 0; }
+          .main-grid { 
+            grid-template-columns: 1fr; 
+            gap: 24px; 
+          }
+          .stats-row { 
+            grid-template-columns: repeat(2, 1fr); 
+            gap: 16px; 
+          }
+          .left-content { 
+            position: relative; 
+            top: 0; 
+          }
+          .sidebar {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+          }
+          .dashboard-wrapper { 
+            padding: 20px; 
+          }
         }
 
+        /* Mobile landscape */
+        @media (max-width: 768px) {
+          .dashboard-wrapper { 
+            padding: 16px; 
+          }
+          .header h1 { 
+            font-size: 18px; 
+          }
+          .stats-row { 
+            grid-template-columns: repeat(2, 1fr); 
+            gap: 12px; 
+            margin-bottom: 32px;
+          }
+          .stat-card { 
+            padding: 16px; 
+            min-height: 100px; 
+          }
+          .stat-val { 
+            font-size: 24px; 
+          }
+          .stat-top { 
+            font-size: 12px; 
+            margin-bottom: 10px; 
+          }
+          .stat-icon { 
+            width: 32px; 
+            height: 32px; 
+          }
+          .stat-sub { 
+            font-size: 11px; 
+          }
+          .section-label { 
+            flex-direction: column; 
+            align-items: flex-start; 
+            gap: 8px; 
+            margin-bottom: 16px;
+          }
+          .section-label h2 { 
+            font-size: 18px; 
+          }
+          .data-table { 
+            min-width: 500px; 
+          }
+          .data-table th, .data-table td { 
+            padding: 12px 14px; 
+            font-size: 13px; 
+          }
+          .sidebar {
+            grid-template-columns: 1fr;
+            gap: 20px;
+          }
+          .graph-card {
+            padding: 20px;
+            margin-bottom: 20px;
+          }
+          .main-grid {
+            gap: 20px;
+          }
+        }
+
+        /* Mobile portrait */
         @media (max-width: 640px) {
-          .dashboard-wrapper { padding: 16px; }
-          .header h1 { font-size: 18px; }
-          .stats-row { grid-template-columns: repeat(2, 1fr); gap: 12px; }
-          .stat-card { padding: 16px; min-height: auto; }
-          .stat-val { font-size: 24px; }
-          .stat-top { font-size: 12px; margin-bottom: 8px; }
-          .stat-icon { width: 32px; height: 32px; }
-          .stat-sub { font-size: 11px; }
-          .section-label { flex-direction: column; align-items: flex-start; gap: 8px; }
-          .section-label h2 { font-size: 18px; }
-          .data-table { min-width: 400px; }
-          .data-table th, .data-table td { padding: 12px 14px; font-size: 13px; }
+          .dashboard-wrapper { 
+            padding: 12px; 
+          }
+          .header h1 { 
+            font-size: 16px; 
+            line-height: 1.4;
+          }
+          .stats-row { 
+            grid-template-columns: 1fr 1fr; 
+            gap: 10px; 
+            margin-bottom: 28px;
+          }
+          .stat-card { 
+            padding: 14px; 
+            min-height: 90px; 
+          }
+          .stat-val { 
+            font-size: 20px; 
+          }
+          .stat-top { 
+            font-size: 11px; 
+            margin-bottom: 8px; 
+          }
+          .stat-icon { 
+            width: 28px; 
+            height: 28px; 
+          }
+          .stat-sub { 
+            font-size: 10px; 
+          }
+          .section-label h2 { 
+            font-size: 16px; 
+          }
+          .section-label p {
+            font-size: 13px;
+          }
+          .data-table th, .data-table td { 
+            padding: 10px 12px; 
+            font-size: 12px; 
+          }
+          .graph-card {
+            padding: 16px;
+            margin-bottom: 16px;
+          }
+          .sb-title h3 {
+            font-size: 15px;
+          }
+          .main-grid {
+            gap: 16px;
+          }
+          .table-card {
+            border-radius: 12px;
+          }
         }
 
+        /* Small mobile */
         @media (max-width: 480px) {
-          .stats-row { grid-template-columns: 1fr; }
+          .dashboard-wrapper { 
+            padding: 8px; 
+          }
+          .stats-row { 
+            grid-template-columns: 1fr; 
+            gap: 8px;
+            margin-bottom: 24px;
+          }
+          .stat-card { 
+            padding: 12px; 
+            min-height: 80px; 
+          }
+          .stat-val { 
+            font-size: 18px; 
+          }
+          .stat-top { 
+            font-size: 10px; 
+            margin-bottom: 8px; 
+          }
+          .stat-icon { 
+            width: 24px; 
+            height: 24px; 
+          }
+          .header > div { 
+            justify-content: center; 
+            text-align: center; 
+            flex-direction: column;
+            gap: 8px;
+          }
+          .header h1 { 
+            font-size: 14px; 
+            text-align: center;
+          }
+          .section-label {
+            margin-bottom: 12px;
+          }
+          .section-label h2 { 
+            font-size: 14px; 
+          }
+          .section-label p {
+            font-size: 12px;
+          }
+          .data-table { 
+            min-width: 400px; 
+          }
+          .data-table th, .data-table td { 
+            padding: 8px 10px; 
+            font-size: 11px; 
+          }
+          .graph-card {
+            padding: 12px;
+            margin-bottom: 12px;
+          }
+          .sb-title h3 {
+            font-size: 14px;
+          }
+          .main-grid {
+            gap: 12px;
+          }
+        }
+
+        /* Extra small screens */
+        @media (max-width: 360px) {
+          .dashboard-wrapper { 
+            padding: 6px; 
+          }
+          .header h1 { 
+            font-size: 13px; 
+          }
+          .stat-card { 
+            padding: 10px; 
+            min-height: 70px; 
+          }
+          .stat-val { 
+            font-size: 16px; 
+          }
+          .data-table th, .data-table td { 
+            padding: 6px 8px; 
+            font-size: 10px; 
+          }
+          .section-label h2 { 
+            font-size: 13px; 
+          }
+          .graph-card {
+            padding: 10px;
+            margin-bottom: 10px;
+          }
+          .sb-title h3 {
+            font-size: 13px;
+          }
+        }
           .header > div { justify-content: center; text-align: center; }
         }
         
