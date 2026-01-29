@@ -18,7 +18,8 @@ import {
   Layout,
   Server,
   ArrowLeft,
-  Loader
+  Loader,
+  Lock
 } from "lucide-react";
 import useAuthStore from "../../../store/useAuthStore";
 
@@ -1340,7 +1341,7 @@ const TasksAssignments = () => {
                         </div>
                       </div>
                     </>
-                  ) : selectedTask.status === "submitted" ? (
+                  ) : (selectedTask.status === "submitted" || (selectedTask.fileName && selectedTask.status !== "revision")) ? (
                     <div
                       className="submission-area"
                       style={{ background: "#f0f9ff", borderColor: "#bae6fd" }}
@@ -1366,21 +1367,52 @@ const TasksAssignments = () => {
                             }
                           </p>
                         </div>
-                        {selectedTask.fileName && (
-                          <div className="resource-btn bg-white">
-                            {selectedTask.fileName.startsWith('http') ? (
-                              <>
-                                <Link size={18} className="text-blue-500" />
-                                Submitted Link
-                              </>
-                            ) : (
-                              <>
-                                <FileText size={18} className="text-blue-500" />
-                                {selectedTask.fileName}
-                              </>
-                            )}
-                          </div>
-                        )}
+                        <div style={{ display: 'flex', gap: '12px' }}>
+                          {selectedTask.fileName && selectedTask.filePath && (
+                            <a
+                              href={`${API_URL}/${(() => {
+                                const normalized = String(selectedTask.filePath)
+                                  .replace(/\\/g, '/')
+                                  .replace(/^\/+/, '');
+                                return normalized.startsWith('uploads/') ? normalized : `uploads/${normalized}`;
+                              })()}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="resource-btn bg-white"
+                              download
+                            >
+                              <FileText size={18} className="text-blue-500" />
+                              {selectedTask.fileName}
+                              <Download size={14} className="text-gray-400 ms-1" />
+                            </a>
+                          )}
+                          {selectedTask.linkUrl && (
+                            <a
+                              href={selectedTask.linkUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="resource-btn bg-white"
+                            >
+                              <Link size={18} className="text-blue-500" />
+                              View Link
+                              <ExternalLink size={14} className="text-gray-400 ms-1" />
+                            </a>
+                          )}
+                        </div>
+                      </div>
+                      <div style={{
+                        marginTop: '16px',
+                        padding: '12px',
+                        background: '#eff6ff',
+                        borderRadius: '8px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        fontSize: '14px',
+                        color: '#1e40af'
+                      }}>
+                        <Lock size={16} />
+                        <span>Upload locked. Waiting for faculty review. You can resubmit only if revision is required.</span>
                       </div>
                     </div>
                   ) : (

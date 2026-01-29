@@ -1318,9 +1318,10 @@ export const getStudentRoadmap = async (req, res) => {
 
       // Determine if this module/skill is completed
       if (skillEntry) {
-        module.is_completed = skillEntry.is_cleared;
+        // Module is completed if skill is cleared (is_cleared = 1)
+        module.is_completed = Boolean(skillEntry.is_cleared);
         module.matched_skill = skillEntry.skill_name;
-        console.log(`Module "${module.title}" matched skill "${skillEntry.skill_name}", is_completed: ${module.is_completed}`);
+        console.log(`Module "${module.title}" matched skill "${skillEntry.skill_name}", is_cleared: ${skillEntry.is_cleared}, is_completed: ${module.is_completed}`);
       } else {
         // Check if any cleared skill matches the module title
         const isCleared = Array.from(clearedSkillsNormalized).some(skillName => 
@@ -1352,8 +1353,14 @@ export const getStudentRoadmap = async (req, res) => {
       } else {
         // Check if ALL previous modules are completed
         const previousModules = courseModules.slice(0, moduleIndex);
-        const allPreviousCompleted = previousModules.every(m => m.is_completed);
+        const allPreviousCompleted = previousModules.every(m => Boolean(m.is_completed));
         module.is_locked = !allPreviousCompleted;
+        
+        // Debug logging
+        if (!allPreviousCompleted) {
+          const incompleteModules = previousModules.filter(m => !m.is_completed).map(m => m.title);
+          console.log(`Module "${module.title}" is LOCKED. Incomplete prerequisites: ${incompleteModules.join(', ')}`);
+        }
       }
 
       // Set current status
