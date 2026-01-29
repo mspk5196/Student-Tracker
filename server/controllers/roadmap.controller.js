@@ -1174,15 +1174,17 @@ export const getStudentRoadmap = async (req, res) => {
       
       const courseTracker = courseProgress[skill.course_type];
       
-      // A skill is unlocked if:
-      // 1. It's already cleared by the student (regardless of prerequisites), OR
-      // 2. It doesn't require a prerequisite (!skill.is_prerequisite), OR
-      // 3. Previous skill in same course is cleared (normal progression)
-      // This allows students who cleared a skill directly to proceed
+      // STRICT SEQUENTIAL UNLOCKING:
+      // A skill is unlocked ONLY if:
+      // 1. It's already cleared by the student (they can always access cleared content), OR
+      // 2. ALL previous skills in the same course are cleared
+      // This ensures strict sequential progression
       const isUnlockedByClearing = isCleared;
-      const isUnlockedByPrerequisite = !skill.is_prerequisite || courseTracker.previousCleared;
-      const isUnlocked = isUnlockedByClearing || isUnlockedByPrerequisite;
+      const isUnlockedBySequence = courseTracker.previousCleared;
+      const isUnlocked = isUnlockedByClearing || isUnlockedBySequence;
       const isLocked = !isUnlocked;
+      
+      console.log(`Skill "${skill.skill_name}": previousCleared=${courseTracker.previousCleared}, isCleared=${isCleared}, isUnlocked=${isUnlocked}, isLocked=${isLocked}`);
       
       // Track the first unlocked but not cleared skill as "current"
       const isCurrent = isUnlocked && !isCleared && !courseTracker.currentUnlocked;

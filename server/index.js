@@ -42,8 +42,15 @@ app.use(cors({
   credentials: true // Allow cookies
 }));
 app.use(cookieParser()); // Parse cookies
-app.use(express.json({ limit: '10mb' })); // Limit JSON payload size
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(express.json({ limit: '50mb' })); // Increased limit for large uploads
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+
+// Increase timeout for large file uploads (5 minutes)
+app.use((req, res, next) => {
+  req.setTimeout(300000); // 5 minutes
+  res.setTimeout(300000); // 5 minutes
+  next();
+});
 
 // Optional API prefix (e.g. "/pbl" in production)
 const API_PREFIX = process.env.API_PREFIX || '';

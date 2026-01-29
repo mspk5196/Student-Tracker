@@ -201,24 +201,40 @@ export const uploadSkillReport = async (req, res) => {
     let insertedCount = 0;
     let skippedCount = 0;
     const errors = [];
+    
+    const BATCH_SIZE = 100; // Process in batches to avoid timeout
+    const totalBatches = Math.ceil(data.length / BATCH_SIZE);
+    
+    console.log(`[SKILL REPORT UPLOAD] Processing ${data.length} records in ${totalBatches} batches`);
 
-    // Process each row
-    for (let i = 0; i < data.length; i++) {
-      const row = data[i];
-      const rowIndex = i + 2; // Excel row number (1-indexed + header)
+    // Process each row in batches
+    for (let batchNum = 0; batchNum < totalBatches; batchNum++) {
+      const batchStart = batchNum * BATCH_SIZE;
+      const batchEnd = Math.min(batchStart + BATCH_SIZE, data.length);
+      const batch = data.slice(batchStart, batchEnd);
+      
+      console.log(`[SKILL REPORT UPLOAD] Processing batch ${batchNum + 1}/${totalBatches} (rows ${batchStart + 2}-${batchEnd + 1})`);
+      
+      for (let i = 0; i < batch.length; i++) {
+        const row = batch[i];
+        const rowIndex = batchStart + i + 2; // Excel row number (1-indexed + header)
 
-      try {
-        const result = await processSkillRow(connection, row, rowIndex, studentMap);
-        if (result.success) {
-          processedCount++;
-          if (result.inserted) insertedCount++;
-          if (result.skipped) skippedCount++;
-        } else {
-          errors.push({ row: rowIndex, message: result.error });
+        try {
+          const result = await processSkillRow(connection, row, rowIndex, studentMap);
+          if (result.success) {
+            processedCount++;
+            if (result.inserted) insertedCount++;
+            if (result.skipped) skippedCount++;
+          } else {
+            errors.push({ row: rowIndex, message: result.error });
+          }
+        } catch (error) {
+          errors.push({ row: rowIndex, message: error.message });
         }
-      } catch (error) {
-        errors.push({ row: rowIndex, message: error.message });
       }
+      
+      // Log progress every batch
+      console.log(`[SKILL REPORT UPLOAD] Batch ${batchNum + 1} complete - Processed: ${processedCount}, Inserted: ${insertedCount}, Skipped: ${skippedCount}, Errors: ${errors.length}`);
     }
 
     await connection.commit();

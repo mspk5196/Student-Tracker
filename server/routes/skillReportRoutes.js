@@ -24,7 +24,9 @@ const upload = multer({
       cb(new Error('Only Excel files are allowed'), false);
     }
   },
-  limits: { fileSize: 10 * 1024 * 1024 }
+  limits: { 
+    fileSize: 50 * 1024 * 1024  // Increased to 50MB for large Excel files
+  }
 });
 
 // Admin routes
@@ -44,7 +46,7 @@ router.use((err, req, res, next) => {
     if (err.code === 'LIMIT_FILE_SIZE') {
       return res.status(400).json({
         success: false,
-        message: 'File size exceeds the limit of 10MB'
+        message: 'File size exceeds the limit of 50MB'
       });
     }
     if (err.code === 'LIMIT_UNEXPECTED_FILE') {
