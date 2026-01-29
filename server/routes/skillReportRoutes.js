@@ -25,7 +25,7 @@ const upload = multer({
     }
   },
   limits: { 
-    fileSize: 50 * 1024 * 1024  // Increased to 50MB for large Excel files
+    fileSize: 100 * 1024 * 1024  // Increased to 100MB for very large Excel files (5000+ records)
   }
 });
 
@@ -46,7 +46,7 @@ router.use((err, req, res, next) => {
     if (err.code === 'LIMIT_FILE_SIZE') {
       return res.status(400).json({
         success: false,
-        message: 'File size exceeds the limit of 50MB'
+        message: 'File size exceeds the limit of 100MB'
       });
     }
     if (err.code === 'LIMIT_UNEXPECTED_FILE') {

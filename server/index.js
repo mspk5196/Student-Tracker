@@ -42,13 +42,13 @@ app.use(cors({
   credentials: true // Allow cookies
 }));
 app.use(cookieParser()); // Parse cookies
-app.use(express.json({ limit: '50mb' })); // Increased limit for large uploads
-app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+app.use(express.json({ limit: '100mb' })); // Increased limit for very large uploads
+app.use(express.urlencoded({ extended: true, limit: '100mb' }));
 
-// Increase timeout for large file uploads (5 minutes)
+// Increase timeout for large file uploads (10 minutes for 5000+ records)
 app.use((req, res, next) => {
-  req.setTimeout(300000); // 5 minutes
-  res.setTimeout(300000); // 5 minutes
+  req.setTimeout(600000); // 10 minutes
+  res.setTimeout(600000); // 10 minutes
   next();
 });
 

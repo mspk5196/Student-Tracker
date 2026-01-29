@@ -138,6 +138,12 @@ export const uploadSkillReport = async (req, res) => {
 
   try {
     console.log('[SKILL REPORT UPLOAD] Parsing Excel file...');
+    
+    // Set connection timeout for large uploads
+    await connection.query('SET SESSION wait_timeout = 600'); // 10 minutes
+    await connection.query('SET SESSION interactive_timeout = 600');
+    await connection.query('SET SESSION max_allowed_packet = 67108864'); // 64MB
+    
     // Parse Excel
     const workbook = xlsx.read(req.file.buffer, { type: 'buffer' });
     const sheetName = workbook.SheetNames[0];
@@ -154,11 +160,11 @@ export const uploadSkillReport = async (req, res) => {
       });
     }
 
-    if (data.length > 5000) {
+    if (data.length > 10000) {
       console.error(`[SKILL REPORT UPLOAD] Too many records: ${data.length}`);
       return res.status(400).json({ 
         success: false,
-        message: 'Maximum 5000 records allowed per upload' 
+        message: `Maximum 10,000 records allowed per upload. Your file has ${data.length} records. Please split into multiple files.` 
       });
     }
     
@@ -204,8 +210,9 @@ export const uploadSkillReport = async (req, res) => {
     
     const BATCH_SIZE = 100; // Process in batches to avoid timeout
     const totalBatches = Math.ceil(data.length / BATCH_SIZE);
+    const COMMIT_FREQUENCY = 3; // Commit every 3 batches (300 records) for 5000+ records
     
-    console.log(`[SKILL REPORT UPLOAD] Processing ${data.length} records in ${totalBatches} batches`);
+    console.log(`[SKILL REPORT UPLOAD] Processing ${data.length} records in ${totalBatches} batches (committing every ${COMMIT_FREQUENCY} batches)`);
 
     // Process each row in batches
     for (let batchNum = 0; batchNum < totalBatches; batchNum++) {
@@ -229,7 +236,20 @@ export const uploadSkillReport = async (req, res) => {
             errors.push({ row: rowIndex, message: result.error });
           }
         } catch (error) {
+          console.error(`[SKILL REPORT UPLOAD] Error processing row ${rowIndex}:`, error.message);
           errors.push({ row: rowIndex, message: error.message });
+        }
+      }
+      
+      // Commit every 500 records to avoid long transactions
+      // Commit every COMMIT_FREQUENCY batches (300 records)
+      if ((batchNum + 1) % COMMIT_FREQUENCY === 0 || batchNum === totalBatches - 1) {
+        await connection.commit();
+        console.log(`[SKILL REPORT UPLOAD] Transaction committed at batch ${batchNum + 1} (${(batchNum + 1) * BATCH_SIZE} records processed)`);
+        
+        // Start new transaction if not the last batch
+        if (batchNum < totalBatches - 1) {
+          await connection.beginTransaction();
         }
       }
       
@@ -251,23 +271,46 @@ export const uploadSkillReport = async (req, res) => {
         inserted: insertedCount,
         skipped: skippedCount,
         errors: errors.length,
-        errorDetails: errors.slice(0, 50),
-        columnsDetected: columnNames
+        errorDetails: errors.length > 0 ? errors : undefined
       }
     });
 
   } catch (error) {
-    await connection.rollback();
+    // Rollback transaction on error
+    try {
+      await connection.rollback();
+      console.error('[SKILL REPORT UPLOAD] Transaction rolled back');
+    } catch (rollbackError) {
+      console.error('[SKILL REPORT UPLOAD] Rollback error:', rollbackError.message);
+    }
+    
     console.error('[SKILL REPORT UPLOAD] Upload error:', error);
+    console.error('[SKILL REPORT UPLOAD] Error code:', error.code);
+    console.error('[SKILL REPORT UPLOAD] Error message:', error.message);
     console.error('[SKILL REPORT UPLOAD] Error stack:', error.stack);
+    
+    // Check for specific MySQL errors
+    let errorMessage = 'Failed to process upload';
+    if (error.code === 'ER_NET_PACKET_TOO_LARGE') {
+      errorMessage = 'Data packet too large. Try uploading in batches of 5000 records.';
+    } else if (error.code === 'ECONNRESET' || error.code === 'ETIMEDOUT') {
+      errorMessage = 'Connection timeout. The upload is too large or took too long. Try smaller batches (5000 records).';
+    } else if (error.code === 'ER_LOCK_WAIT_TIMEOUT') {
+      errorMessage = 'Database lock timeout. Please try again in a few moments or upload during off-peak hours.';
+    } else if (error.code === 'ER_TOO_MANY_ROWS') {
+      errorMessage = 'Too many records. Maximum 10,000 records per upload.';
+    }
+    
     res.status(500).json({ 
       success: false,
-      message: 'Failed to process upload',
+      message: errorMessage,
       error: error.message,
+      errorCode: error.code,
       details: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   } finally {
     connection.release();
+    console.log('[SKILL REPORT UPLOAD] Database connection released');
   }
 };
 
