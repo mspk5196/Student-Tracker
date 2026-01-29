@@ -134,10 +134,10 @@ export const uploadSkillReport = async (req, res) => {
   try {
     console.log('[SKILL REPORT UPLOAD] Parsing Excel file...');
     
-    // Set connection timeout for large uploads
-    await connection.query('SET SESSION wait_timeout = 600'); // 10 minutes
+    // Set connection timeout for large uploads (10 minutes)
+    await connection.query('SET SESSION wait_timeout = 600');
     await connection.query('SET SESSION interactive_timeout = 600');
-    await connection.query('SET SESSION max_allowed_packet = 67108864'); // 64MB
+    // Note: max_allowed_packet is read-only at SESSION level, must be set in MySQL config (my.ini/my.cnf)
     
     // Parse Excel
     const workbook = xlsx.read(req.file.buffer, { type: 'buffer' });
