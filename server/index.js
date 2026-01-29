@@ -46,10 +46,11 @@ app.use(cookieParser()); // Parse cookies
 // Conditional body parser - skip for file upload routes
 app.use((req, res, next) => {
   // Skip body parsing for file upload routes (multer handles it)
-  if (req.path.includes('/upload') || 
-      req.path.includes('/submit') ||
-      req.path.includes('/resources')) {
-    console.log(`[BODY PARSER] Skipping body parser for upload route: ${req.method} ${req.path}`);
+  const fullPath = req.originalUrl || req.url;
+  if (fullPath.includes('/upload') || 
+      fullPath.includes('/submit') ||
+      fullPath.includes('/resources')) {
+    console.log(`[BODY PARSER] Skipping body parser for upload route: ${req.method} ${fullPath}`);
     return next();
   }
   express.json({ limit: '100mb' })(req, res, next);

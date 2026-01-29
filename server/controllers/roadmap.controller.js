@@ -1076,14 +1076,12 @@ export const getStudentRoadmap = async (req, res) => {
     `, [student_id]);
 
     // Helper function to normalize skill names for comparison
-    // Removes extra spaces, normalizes slashes, converts to lowercase
+    // Removes extra spaces, normalizes slashes
     const normalizeSkillName = (name) => {
       if (!name) return '';
       return name
         .toLowerCase()
         .trim()
-        .replace(/\bjava\s+script\b/gi, 'javascript')  // "Java Script" -> "javascript"
-        .replace(/\btype\s+script\b/gi, 'typescript')  // "Type Script" -> "typescript"
         .replace(/\s+/g, ' ')           // Replace multiple spaces with single space
         .replace(/\s*\/\s*/g, '/')      // Remove spaces around slashes: "HTML /CSS" -> "HTML/CSS"
         .replace(/\s*-\s*/g, '-');      // Remove spaces around dashes

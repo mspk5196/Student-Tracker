@@ -26,16 +26,11 @@ function romanToNumber(roman) {
 }
 
 /**
- * Normalize course name to match skill_order format
- * Converts: "Java Script" → "JavaScript", "Type Script" → "TypeScript"
+ * Normalize course name - just trim whitespace
  */
 function normalizeCourseName(courseName) {
   if (!courseName) return courseName;
-  
-  return courseName
-    .replace(/\bjava\s+script\b/gi, 'JavaScript')
-    .replace(/\btype\s+script\b/gi, 'TypeScript')
-    .trim();
+  return courseName.trim();
 }
 
 /**
@@ -383,7 +378,7 @@ async function processSkillRow(connection, row, rowIndex, studentMap) {
     return { success: false, error: `Row ${rowIndex}: Student not found - Excel user_id "${lookupValue}" does not match any users.ID in database` };
   }
 
-  // Normalize course name (Java Script → JavaScript, Type Script → TypeScript)
+  // Normalize course name (trim whitespace only)
   const normalizedCourseName = normalizeCourseName(courseName);
   
   // Extract skill level from course name
