@@ -1462,6 +1462,10 @@ export const bulkUploadStudentsToVenue = async (req, res) => {
     let studentsSkipped = 0;
     const errors = [];
     const successfulStudents = [];
+    
+    console.log(`=== BULK UPLOAD TO VENUE ${venueId} ===`);
+    console.log(`Total rows in Excel: ${data.length}`);
+    console.log(`Overwrite mode: ${overwrite}`);
 
     for (let i = 0; i < data.length; i++) {
       const row = data[i];
@@ -1473,9 +1477,13 @@ export const bulkUploadStudentsToVenue = async (req, res) => {
       const department = row.department || row.Department || row.dept;
       const year = row.year || row.Year;
       const semester = row.semester || row.Semester;
+      
+      console.log(`\n--- Processing Row ${i + 2} ---`);
+      console.log(`Roll Number: ${rollNumber}, Name: ${name}, Email: ${email}`);
 
       // Only rollNumber is required
       if (!rollNumber || String(rollNumber).trim() === '') {
+        console.log(`Row ${i + 2}: SKIPPED - Missing roll number`);
         errors.push(`Row ${i + 1}: Missing roll number/registration number`);
         studentsSkipped++;
         continue;
@@ -1492,6 +1500,8 @@ export const bulkUploadStudentsToVenue = async (req, res) => {
           'SELECT user_id FROM users WHERE email = ? OR ID = ?',
           [studentEmail.toLowerCase(), rollNumberStr]
         );
+        
+        console.log(`User lookup result: ${existingUser.length > 0 ? `Found user_id ${existingUser[0].user_id}` : 'No existing user'}`);
 
         let userId;
         let studentId;
@@ -1506,7 +1516,7 @@ export const bulkUploadStudentsToVenue = async (req, res) => {
           );
 
           userId = userResult.insertId;
-         
+          console.log(`Created new user with user_id: ${userId}`);
 
           // Insert student record
           const [studentResult] = await connection.query(
@@ -1515,10 +1525,11 @@ export const bulkUploadStudentsToVenue = async (req, res) => {
           );
 
           studentId = studentResult.insertId;
+          console.log(`Created new student with student_id: ${studentId}`);
           
         } else {
           userId = existingUser[0].user_id;
-          
+          console.log(`Using existing user_id: ${userId}`);
 
           // Check if student record exists
           const [student] = await connection.query(
@@ -1527,16 +1538,16 @@ export const bulkUploadStudentsToVenue = async (req, res) => {
           );
 
           if (student.length === 0) {
-           
+            console.log(`Student record not found, creating new student record`);
             const [studentResult] = await connection.query(
               'INSERT INTO students (user_id, year, semester, assigned_faculty_id) VALUES (?, ?, ?, ?)',
               [userId, year || 1, semester || 1, venue.assigned_faculty_id || 0]
             );
             studentId = studentResult.insertId;
-          
+            console.log(`Created new student with student_id: ${studentId}`);
           } else {
             studentId = student[0].student_id;
-            
+            console.log(`Using existing student_id: ${studentId}`);
           }
         }
 
@@ -1547,9 +1558,12 @@ export const bulkUploadStudentsToVenue = async (req, res) => {
           INNER JOIN \`groups\` g ON gs.group_id = g.group_id
           WHERE gs.student_id = ? AND g.venue_id = ? AND gs.status = 'Active'
         `, [studentId, venueId]);
+        
+        console.log(`Existing allocation check: ${existingAllocation.length > 0 ? 'ALREADY ALLOCATED TO THIS VENUE' : 'Not in this venue'}`);
 
         if (existingAllocation.length > 0) {
           studentsSkipped++;
+          console.log(`Row ${i + 2}: SKIPPED - Already in this venue`);
           errors.push(`${studentName} (${rollNumberStr}) already allocated to this venue`);
           continue;
         }
@@ -1562,12 +1576,15 @@ export const bulkUploadStudentsToVenue = async (req, res) => {
           INNER JOIN venue v ON g.venue_id = v.venue_id
           WHERE gs.student_id = ? AND gs.status = 'Active'
         `, [studentId]);
+        
+        console.log(`Other venue check: ${otherVenueAllocation.length > 0 ? `Found in ${otherVenueAllocation[0].venue_name}` : 'Not in any other venue'}`);
 
         if (otherVenueAllocation.length > 0) {
           // Drop student from old venue (preserves history)
           await connection.query(`
             UPDATE group_students SET status = 'Dropped' WHERE id = ?
           `, [otherVenueAllocation[0].id]);
+          console.log(`Moved student from ${otherVenueAllocation[0].venue_name} to this venue`);
           errors.push(`${studentName} (${rollNumberStr}) moved from ${otherVenueAllocation[0].venue_name}`);
         }
 
@@ -1578,6 +1595,8 @@ export const bulkUploadStudentsToVenue = async (req, res) => {
           INNER JOIN \`groups\` g ON gs.group_id = g.group_id
           WHERE gs.student_id = ? AND g.venue_id = ? AND gs.status != 'Active'
         `, [studentId, venueId]);
+        
+        console.log(`Previous allocation check: ${previousAllocation.length > 0 ? 'Found inactive record - will reactivate' : 'No previous allocation'}`);
 
         let groupStudentsId = null;
         if (previousAllocation.length > 0) {
@@ -1587,6 +1606,7 @@ export const bulkUploadStudentsToVenue = async (req, res) => {
             [previousAllocation[0].id]
           );
           groupStudentsId = previousAllocation[0].id;
+          console.log(`Reactivated previous allocation with id: ${groupStudentsId}`);
         } else {
           // Insert into group_students
           const [insertResult] = await connection.query(
@@ -1594,9 +1614,11 @@ export const bulkUploadStudentsToVenue = async (req, res) => {
             [groupId, studentId]
           );
           groupStudentsId = insertResult.insertId;
+          console.log(`Created new allocation with id: ${groupStudentsId}`);
         }
         
         studentsAdded++;
+        console.log(`Row ${i + 2}: SUCCESS - Student added to venue`);
         successfulStudents.push({
           name: studentName,
           email: studentEmail,
@@ -1617,6 +1639,10 @@ export const bulkUploadStudentsToVenue = async (req, res) => {
     }
 
     await connection.commit();
+    
+    console.log(`\n=== BULK UPLOAD COMPLETE ===`);
+    console.log(`Added: ${studentsAdded}, Skipped: ${studentsSkipped}, Dropped: ${droppedCount}`);
+    console.log(`Errors: ${errors.length}`);
 
     const overwriteMsg = overwrite && droppedCount > 0 ? ` (Replaced ${droppedCount} existing students)` : '';
     res.status(201).json({ 

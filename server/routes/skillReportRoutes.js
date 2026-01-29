@@ -38,4 +38,44 @@ router.post('/faculty/search', authenticate, searchStudentSkillReports);
 // Student routes
 router.get('/student/my-reports', authenticate, getSkillReportsForStudent); 
 
+// Error handling middleware for multer errors
+router.use((err, req, res, next) => {
+  if (err instanceof multer.MulterError) {
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({
+        success: false,
+        message: 'File size exceeds the limit of 10MB'
+      });
+    }
+    if (err.code === 'LIMIT_UNEXPECTED_FILE') {
+      return res.status(400).json({
+        success: false,
+        message: 'Unexpected file field'
+      });
+    }
+    return res.status(400).json({
+      success: false,
+      message: err.message || 'File upload error'
+    });
+  }
+  
+  if (err.message === 'Only Excel files are allowed') {
+    return res.status(400).json({
+      success: false,
+      message: 'Only Excel files (.xlsx, .xls) are allowed'
+    });
+  }
+  
+  // Other errors
+  if (err) {
+    console.error('Skill report route error:', err);
+    return res.status(500).json({
+      success: false,
+      message: err.message || 'An error occurred'
+    });
+  }
+  
+  next();
+});
+
 export default router;

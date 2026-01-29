@@ -113,30 +113,70 @@ function extractSkillLevel(courseName) {
  * - Skill level is extracted from course_name
  */
 export const uploadSkillReport = async (req, res) => {
+  console.log('[SKILL REPORT UPLOAD] Starting upload...');
+  console.log('[SKILL REPORT UPLOAD] User:', req.user?.user_id, 'Role:', req.user?.role);
+  console.log('[SKILL REPORT UPLOAD] File:', req.file ? `${req.file.originalname} (${req.file.size} bytes)` : 'No file');
+  
   // Check admin role
   if (req.user.role !== 'admin') {
-    return res.status(403).json({ message: 'Only admins can upload skill reports' });
+    console.error('[SKILL REPORT UPLOAD] Access denied - not admin');
+    return res.status(403).json({ 
+      success: false,
+      message: 'Only admins can upload skill reports' 
+    });
   }
 
   if (!req.file) {
-    return res.status(400).json({ message: 'No file uploaded' });
+    console.error('[SKILL REPORT UPLOAD] No file uploaded');
+    return res.status(400).json({ 
+      success: false,
+      message: 'No file uploaded. Please select an Excel file.' 
+    });
   }
 
   const connection = await db.getConnection();
 
   try {
+    console.log('[SKILL REPORT UPLOAD] Parsing Excel file...');
     // Parse Excel
     const workbook = xlsx.read(req.file.buffer, { type: 'buffer' });
     const sheetName = workbook.SheetNames[0];
     const worksheet = workbook.Sheets[sheetName];
     const data = xlsx.utils.sheet_to_json(worksheet);
+    
+    console.log(`[SKILL REPORT UPLOAD] Excel parsed - ${data.length} rows found`);
 
     if (data.length === 0) {
-      return res.status(400).json({ message: 'Excel file is empty' });
+      console.error('[SKILL REPORT UPLOAD] Excel file is empty');
+      return res.status(400).json({ 
+        success: false,
+        message: 'Excel file is empty. Please add data to the spreadsheet.' 
+      });
     }
 
     if (data.length > 5000) {
-      return res.status(400).json({ message: 'Maximum 5000 records allowed per upload' });
+      console.error(`[SKILL REPORT UPLOAD] Too many records: ${data.length}`);
+      return res.status(400).json({ 
+        success: false,
+        message: 'Maximum 5000 records allowed per upload' 
+      });
+    }
+    
+    // Log Excel columns for debugging
+    const firstRow = data[0];
+    const columnNames = firstRow ? Object.keys(firstRow) : [];
+    console.log('[SKILL REPORT UPLOAD] Excel columns detected:', columnNames);
+
+    // Validate required columns
+    const requiredColumns = ['user_id', 'course_name', 'status'];
+    const missingColumns = requiredColumns.filter(col => !columnNames.includes(col));
+    if (missingColumns.length > 0) {
+      console.error('[SKILL REPORT UPLOAD] Missing required columns:', missingColumns);
+      return res.status(400).json({
+        success: false,
+        message: `Missing required columns: ${missingColumns.join(', ')}. Please check your Excel file format.`,
+        detectedColumns: columnNames
+      });
     }
 
     // Pre-fetch student lookups for performance
@@ -182,13 +222,12 @@ export const uploadSkillReport = async (req, res) => {
     }
 
     await connection.commit();
-
-    // Log Excel columns for debugging
-    const firstRow = data[0];
-    const columnNames = firstRow ? Object.keys(firstRow) : [];
-    console.log('Excel columns detected:', columnNames);
+    
+    console.log('[SKILL REPORT UPLOAD] Upload completed successfully');
+    console.log(`[SKILL REPORT UPLOAD] Summary - Total: ${data.length}, Processed: ${processedCount}, Inserted: ${insertedCount}, Skipped: ${skippedCount}, Errors: ${errors.length}`);
 
     res.status(200).json({
+      success: true,
       message: 'Skill reports uploaded successfully',
       summary: {
         totalRecords: data.length,
@@ -203,8 +242,14 @@ export const uploadSkillReport = async (req, res) => {
 
   } catch (error) {
     await connection.rollback();
-    console.error('Upload error:', error);
-    res.status(500).json({ message: 'Failed to process upload', error: error.message });
+    console.error('[SKILL REPORT UPLOAD] Upload error:', error);
+    console.error('[SKILL REPORT UPLOAD] Error stack:', error.stack);
+    res.status(500).json({ 
+      success: false,
+      message: 'Failed to process upload',
+      error: error.message,
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   } finally {
     connection.release();
   }
