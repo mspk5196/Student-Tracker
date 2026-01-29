@@ -43,25 +43,37 @@ app.use(cors({
 }));
 app.use(cookieParser()); // Parse cookies
 
-// Conditional body parser - skip for file upload routes
+// Conditional body parser - skip COMPLETELY for file upload routes
 app.use((req, res, next) => {
-  // Skip body parsing for file upload routes (multer handles it)
   const fullPath = req.originalUrl || req.url;
+  
+  // Skip ALL body parsing for file upload routes (multer handles it)
   if (fullPath.includes('/upload') || 
       fullPath.includes('/submit') ||
       fullPath.includes('/resources')) {
-    console.log(`[BODY PARSER] Skipping body parser for upload route: ${req.method} ${fullPath}`);
+    console.log(`[BODY PARSER] ✓ Bypassing ALL body parsers for: ${req.method} ${fullPath}`);
     return next();
   }
-  express.json({ limit: '100mb' })(req, res, next);
+  
+  // Apply body parsers for non-upload routes
+  express.json({ limit: '100mb' })(req, res, (err) => {
+    if (err) {
+      console.error('[BODY PARSER] JSON parsing error:', err.message);
+      return res.status(413).json({ success: false, message: 'Request entity too large' });
+    }
+    express.urlencoded({ extended: true, limit: '100mb' })(req, res, next);
+  });
 });
-
-app.use(express.urlencoded({ extended: true, limit: '100mb' }));
 
 // Increase timeout for large file uploads (10 minutes for 5000+ records)
 app.use((req, res, next) => {
   req.setTimeout(600000); // 10 minutes
   res.setTimeout(600000); // 10 minutes
+  
+  // Log request details for debugging
+  if (req.originalUrl.includes('/upload')) {
+    console.log(`[SERVER] Upload request - Size: ${req.headers['content-length']} bytes, Type: ${req.headers['content-type']}`);
+  }
   next();
 });
 

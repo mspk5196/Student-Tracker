@@ -15,6 +15,7 @@ const storage = multer.memoryStorage();
 const upload = multer({
   storage,
   fileFilter: (req, file, cb) => {
+    console.log(`[MULTER] File received: ${file.originalname}, size: ${file.size}, type: ${file.mimetype}`);
     if (
       file.mimetype === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
       file.mimetype === 'application/vnd.ms-excel'
@@ -25,12 +26,17 @@ const upload = multer({
     }
   },
   limits: { 
-    fileSize: 100 * 1024 * 1024  // Increased to 100MB for very large Excel files (5000+ records)
+    fileSize: 500 * 1024 * 1024  // 500MB - very large limit for bulk uploads
   }
 });
 
 // Admin routes
-router.post('/upload', authenticate, upload.single('file'), uploadSkillReport);
+router.post('/upload', authenticate, (req, res, next) => {
+  console.log(`[SKILL REPORT ROUTE] Upload request received: ${req.method} ${req.originalUrl}`);
+  console.log(`[SKILL REPORT ROUTE] Content-Type: ${req.headers['content-type']}`);
+  console.log(`[SKILL REPORT ROUTE] Content-Length: ${req.headers['content-length']}`);
+  next();
+}, upload.single('file'), uploadSkillReport);
 
 // Faculty routes
 router.get('/faculty/venues', authenticate, getFacultyVenues);
@@ -44,7 +50,7 @@ router.get('/student/my-reports', authenticate, getSkillReportsForStudent);
 router.use((err, req, res, next) => {
   console.error('[SKILL REPORT ROUTE] Error:', err.message);
   console.error('[SKILL REPORT ROUTE] Error code:', err.code);
-  
+  5
   if (err instanceof multer.MulterError) {
     if (err.code === 'LIMIT_FILE_SIZE') {
       return res.status(400).json({
