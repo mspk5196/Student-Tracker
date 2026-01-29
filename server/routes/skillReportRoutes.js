@@ -42,6 +42,9 @@ router.get('/student/my-reports', authenticate, getSkillReportsForStudent);
 
 // Error handling middleware for multer errors
 router.use((err, req, res, next) => {
+  console.error('[SKILL REPORT ROUTE] Error:', err.message);
+  console.error('[SKILL REPORT ROUTE] Error code:', err.code);
+  
   if (err instanceof multer.MulterError) {
     if (err.code === 'LIMIT_FILE_SIZE') {
       return res.status(400).json({
