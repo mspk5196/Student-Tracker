@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import useAuthStore from '../../../../../store/useAuthStore';
+import { apiGet } from '../../../../../utils/api';
 import { BorderAllRounded, RoundedCorner } from '@mui/icons-material';
 
 const Overview = ({ studentId }) => {
-  const { token } = useAuthStore();
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
   const [studentData, setStudentData] = useState(null);
@@ -51,10 +50,10 @@ const Overview = ({ studentId }) => {
   }, [studentData?.weeklyActivity]);
 
   useEffect(() => {
-    if (token && studentId) {
+    if (studentId) {
       fetchOverviewData();
     }
-  }, [token, studentId]);
+  }, [studentId]);
 
   useEffect(() => {
     if (studentData) {
@@ -90,12 +89,7 @@ const Overview = ({ studentId }) => {
   const fetchOverviewData = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`${API_URL}/students/${studentId}/overview`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
+      const response = await apiGet(`/students/${studentId}/overview`);
 
       const data = await response.json();
       if (data.success) {

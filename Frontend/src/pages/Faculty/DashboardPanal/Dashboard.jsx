@@ -18,13 +18,10 @@ const api = axios.create({
     }
 });
 
-// Add request interceptor to include token
+// Add request interceptor to include credentials for cookies
 api.interceptors.request.use(
     (config) => {
-        const token = localStorage.getItem('token');
-        if (token) {
-            config.headers.Authorization = `Bearer ${token}`;
-        }
+        config.withCredentials = true;
         return config;
     },
     (error) => {
@@ -296,10 +293,9 @@ const Dashboard = () => {
 
     // Check authentication on mount
     useEffect(() => {
-        const token = localStorage.getItem('token');
         const storedUser = localStorage.getItem('user');
         
-        if (!token || !storedUser) {
+        if (!storedUser) {
             window.location.href = '/login';
         } else {
             try {
@@ -359,8 +355,8 @@ const Dashboard = () => {
                 });
             } catch (err) {
                 console.error('Failed to load dashboard:', err);
-                console.error('Error details:', err.response?.data);
-                setError(err.response?.data?.message || err.message || 'Failed to load dashboard data');
+                console.error('Error details:', err);
+                setError(err.message || 'Failed to load dashboard data');
                 
                 // If it's an auth error, redirect to login
                 if (err.response?.status === 401) {
@@ -602,7 +598,7 @@ const Dashboard = () => {
                         onClick={() => {
                             console.log('API Base URL:', API_BASE);
                             console.log('Full API URL:', api.defaults.baseURL);
-                            console.log('Token exists:', !!localStorage.getItem('token'));
+                            console.log('Using cookie authentication');
                             alert(`API URL: ${api.defaults.baseURL}\n\nCheck browser console for details.`);
                         }}
                         style={{

@@ -19,26 +19,13 @@ const Login = () => {
   /* ================= GOOGLE LOGIN ================= */
   const handleGoogleSuccess = async (response) => {
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/auth/google`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ credential: response.credential }),
-      });
-
-      if (!res.ok) {
-        alert("User not authorized");
-        return;
-      }
-
-      const data = await res.json();
-
-      // Login with JWT token - this will fetch user data automatically
-      const result = await login(data.token);
+      // Login with Google credential - backend will set httpOnly cookie
+      const result = await login(response.credential);
 
       if (result.success) {
         navigate("/"); // single entry point
       } else {
-        alert("Failed to load user data. Please try again.");
+        alert("Failed to authenticate. Please try again.");
       }
     } catch (err) {
       console.error("Login failed:", err);

@@ -14,6 +14,7 @@ import {
 } from '@mui/icons-material';
 import useAuthStore from '../../../store/useAuthStore';
 import { encodeIdSimple } from '../../../utils/idEncoder';
+import { apiGet } from '../../../utils/api';
 
 // --- Custom Hook for Responsive Logic ---
 const useWindowSize = () => {
@@ -40,7 +41,6 @@ const EducationDashboard = () => {
   const [error, setError] = useState('');
   const navigate = useNavigate();
   
-  const { token } = useAuthStore();
   const API_URL = import.meta.env.VITE_API_URL;
 
   // State for data
@@ -68,12 +68,7 @@ const EducationDashboard = () => {
   const fetchDashboardMetrics = async () => {
     try {
       setLoading(prev => ({ ...prev, metrics: true }));
-      const response = await fetch(`${API_URL}/dashboard/metrics`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
+      const response = await apiGet('/dashboard/metrics');
       
       if (!response.ok) throw new Error('Failed to fetch metrics');
       
@@ -104,12 +99,7 @@ const EducationDashboard = () => {
         sortOrder: filterParams.sortOrder
       }).toString();
 
-      const response = await fetch(`${API_URL}/dashboard/alerts?${queryParams}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
+      const response = await apiGet(`/dashboard/alerts?${queryParams}`);
       
       if (!response.ok) throw new Error('Failed to fetch alerts');
       
@@ -128,11 +118,9 @@ const EducationDashboard = () => {
 
   // Load all data on component mount
   useEffect(() => {
-    if (token) {
-      fetchDashboardMetrics();
-      fetchAlerts(1);
-    }
-  }, [token]);
+    fetchDashboardMetrics();
+    fetchAlerts(1);
+  }, []);
 
   // Handle page change
   const handlePageChange = (pageNumber) => {

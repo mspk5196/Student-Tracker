@@ -24,7 +24,7 @@ import useAuthStore from "../../../store/useAuthStore";
 
 const TasksAssignments = () => {
   const API_URL = import.meta.env.VITE_API_URL;
-  const { token, user } = useAuthStore();
+  const { user } = useAuthStore();
   const [activeFilter, setActiveFilter] = useState("all");
   const [selectedTaskId, setSelectedTaskId] = useState(null);
   const [selectedCourse, setSelectedCourse] = useState(null); // New state for course selection
@@ -57,9 +57,7 @@ const TasksAssignments = () => {
           : `${API_URL}/tasks/student`;
           
         const response = await fetch(url, {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
+          credentials: 'include' // Use httpOnly cookies
         });
         
         const data = await response.json();
@@ -108,10 +106,10 @@ const TasksAssignments = () => {
       }
     };
     
-    if (token) {
+    if (user) {
       fetchTasks();
     }
-  }, [token, API_URL, selectedCourse]);
+  }, [user, API_URL, selectedCourse]);
 
   const filteredTasks = tasks.filter((t) => {
     // First Filter by Course
@@ -151,6 +149,34 @@ const TasksAssignments = () => {
       return;
     }
 
+    // Validate link URL on frontend
+    if (linkUrl.trim()) {
+      const urlString = linkUrl.trim();
+      
+      // Block dangerous protocols
+      if (/^(javascript|data|file|vbscript|about):/i.test(urlString)) {
+        setSubmitMessage("Invalid URL: Only http and https links are allowed");
+        setTimeout(() => setSubmitMessage(""), 3000);
+        return;
+      }
+
+      // Ensure URL starts with http:// or https://
+      if (!/^https?:\/\//i.test(urlString)) {
+        setSubmitMessage("URL must start with http:// or https://");
+        setTimeout(() => setSubmitMessage(""), 3000);
+        return;
+      }
+
+      // Basic URL validation
+      try {
+        new URL(urlString);
+      } catch (err) {
+        setSubmitMessage("Invalid URL format");
+        setTimeout(() => setSubmitMessage(""), 3000);
+        return;
+      }
+    }
+
     setSubmitting(true);
     try {
       const formData = new FormData();
@@ -165,9 +191,7 @@ const TasksAssignments = () => {
 
       const response = await fetch(`${API_URL}/tasks/${selectedTaskId}/submit`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
+        credentials: 'include', // Use httpOnly cookies
         body: formData
       });
 
@@ -181,7 +205,7 @@ const TasksAssignments = () => {
         
         // Refresh tasks
         const tasksResponse = await fetch(`${API_URL}/tasks/student`, {
-          headers: { 'Authorization': `Bearer ${token}` }
+          credentials: 'include'
         });
         const tasksData = await tasksResponse.json();
         if (tasksData.success && tasksData.data) {

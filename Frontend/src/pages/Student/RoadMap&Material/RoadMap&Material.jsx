@@ -15,10 +15,11 @@ import {
   Download
 } from "lucide-react";
 import useAuthStore from "../../../store/useAuthStore";
+import { apiGet } from '../../../utils/api';
 
 const StudentRoadmap = () => {
   const API_URL = import.meta.env.VITE_API_URL;
-  const { token, user } = useAuthStore();
+  const { user } = useAuthStore();
   const [roadmapData, setRoadmapData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedNodeId, setSelectedNodeId] = useState(null);
@@ -173,11 +174,8 @@ const StudentRoadmap = () => {
   const fetchRoadmapData = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`${API_URL}/roadmap/student?course_type=${selectedCourse}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Cache-Control': 'no-cache'
-        }
+      const response = await apiGet(`/roadmap/student?course_type=${selectedCourse}`, {
+        headers: { 'Cache-Control': 'no-cache' }
       });
 
       if (!response.ok) {
@@ -230,13 +228,8 @@ const StudentRoadmap = () => {
           let skills = [];
           if (studentId) {
             try {
-              const skillsRes = await fetch(
-                `${API_URL}/skill-completion/students/${studentId}${venueId ? `?venueId=${venueId}` : ''}`,
-                {
-                  headers: {
-                    Authorization: `Bearer ${token}`,
-                  },
-                }
+              const skillsRes = await apiGet(
+                `/skill-completion/students/${studentId}${venueId ? `?venueId=${venueId}` : ''}`
               );
               if (skillsRes.ok) {
                 const skillsJson = await skillsRes.json();
@@ -313,11 +306,7 @@ const StudentRoadmap = () => {
 
   const downloadResource = async (resource) => {
     try {
-      const response = await fetch(`${API_URL}/roadmap/resources/download/${resource.resource_id}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
+      const response = await apiGet(`/roadmap/resources/download/${resource.resource_id}`);
 
       if (!response.ok) throw new Error('Download failed');
 

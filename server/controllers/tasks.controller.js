@@ -3,6 +3,71 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 
+/**
+ * Sanitize filename to prevent security vulnerabilities:
+ * - Path traversal (../, ../../, ./, etc.)
+ * - Command injection (backticks, ${})
+ * - Special characters that could be exploited
+ * - Double extensions (.pdf.exe, .docx.js)
+ * - Multiple dots before extension
+ */
+function sanitizeFilename(filename) {
+  if (!filename) return 'file';
+  
+  // Get the file extension first (only the last extension)
+  const ext = path.extname(filename).toLowerCase();
+  
+  // Get filename without extension
+  let baseName = path.basename(filename, ext);
+  
+  // Remove ALL dots, slashes, backslashes from basename (prevent double extensions)
+  baseName = baseName.replace(/[.\\\/]/g, '_');
+  
+  // Remove dangerous characters: backticks, $, {}, semicolons, pipes, etc.
+  baseName = baseName.replace(/[`${};<>|&"'\n\r\t@#%^*+=\[\]()]/g, '');
+  
+  // Remove any path components
+  baseName = baseName.replace(/\.\./g, '');
+  
+  // Only allow alphanumeric, underscore, hyphen, and space
+  baseName = baseName.replace(/[^a-zA-Z0-9_\-\s]/g, '');
+  
+  // Limit basename length
+  if (baseName.length > 100) {
+    baseName = baseName.substring(0, 100);
+  }
+  
+  // Ensure basename is not empty
+  if (!baseName || baseName.trim() === '') {
+    baseName = 'file';
+  }
+  
+  // Return sanitized name with ONLY ONE extension
+  return baseName.trim() + ext;
+}
+
+/**
+ * Validate file content matches declared MIME type
+ */
+const ALLOWED_MIMETYPES = {
+  'application/pdf': ['.pdf'],
+  'image/png': ['.png'],
+  'image/jpeg': ['.jpg', '.jpeg'],
+  'image/svg+xml': ['.svg'],
+  'video/mp4': ['.mp4'],
+  'video/webm': ['.webm'],
+  'application/zip': ['.zip'],
+  'text/plain': ['.txt', '.c', '.cpp', '.py', '.js', '.java'],
+  'text/x-c': ['.c'],
+  'text/x-c++': ['.cpp'],
+  'text/x-python': ['.py'],
+  'text/javascript': ['.js'],
+  'application/javascript': ['.js'],
+  'text/x-java': ['.java'],
+  'application/msword': ['.doc'],
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx']
+};
+
 // Configure multer for file uploads
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -13,27 +78,100 @@ const storage = multer.diskStorage({
     cb(null, uploadDir);
   },
   filename: (req, file, cb) => {
+    const sanitizedOriginal = sanitizeFilename(file.originalname);
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, uniqueSuffix + path.extname(file.originalname));
+    const ext = path.extname(sanitizedOriginal).toLowerCase();
+    cb(null, uniqueSuffix + ext);
   }
 });
 
+// Faculty/Admin upload - allows multiple file types
 export const upload = multer({
   storage: storage,
-  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB limit
+  limits: { 
+    fileSize: 10 * 1024 * 1024, // 10MB limit (reduced for security)
+    files: 5 // Maximum 5 files per upload
+  },
   fileFilter: (req, file, cb) => {
-    const allowedTypes = /pdf|svg|png|jpg|jpeg|mp4|webm|zip|cpp|py|js|java|c|txt|doc|docx/;
-    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
-    const mimetype = allowedTypes.test(file.mimetype) || 
-                     file.mimetype === 'text/x-c++src' || 
-                     file.mimetype === 'text/x-python' ||
-                     file.mimetype === 'text/plain';
+    // Sanitize filename first
+    const sanitizedName = sanitizeFilename(file.originalname);
+    const ext = path.extname(sanitizedName).toLowerCase();
     
-    if (extname || mimetype) {
-      cb(null, true);
-    } else {
-      cb(new Error('Only documents, images, videos, and code files are allowed'));
+    // Block dangerous file types
+    const dangerousExts = ['.exe', '.bat', '.sh', '.cmd', '.com', '.pif', '.scr', '.vbs', '.jar', '.dll', '.app', '.deb', '.rpm'];
+    if (dangerousExts.includes(ext)) {
+      return cb(new Error('Executable files are not allowed'));
     }
+    
+    // Block dangerous MIME types
+    const dangerousMimes = [
+      'application/x-msdownload',
+      'application/x-executable',
+      'application/x-sh',
+      'application/x-httpd-php',
+      'text/html',
+      'text/x-sh'
+    ];
+    if (dangerousMimes.includes(file.mimetype)) {
+      return cb(new Error('This file type is not allowed for security reasons'));
+    }
+    
+    // Validate MIME type matches extension
+    const allowedExts = Object.values(ALLOWED_MIMETYPES).flat();
+    if (!allowedExts.includes(ext)) {
+      return cb(new Error(`File type ${ext} is not allowed. Allowed: PDF, images, videos, code files, documents`));
+    }
+    
+    // Validate MIME type is in whitelist
+    const mimeAllowed = Object.keys(ALLOWED_MIMETYPES).includes(file.mimetype);
+    if (!mimeAllowed) {
+      return cb(new Error('Invalid file content type'));
+    }
+    
+    // Validate extension matches MIME type
+    const expectedExts = ALLOWED_MIMETYPES[file.mimetype];
+    if (expectedExts && !expectedExts.includes(ext)) {
+      return cb(new Error('File extension does not match content type'));
+    }
+    
+    cb(null, true);
+  }
+});
+
+// Student upload - ONLY PDF and DOCX allowed (strict security)
+export const studentUpload = multer({
+  storage: storage,
+  limits: { 
+    fileSize: 5 * 1024 * 1024, // 5MB limit for students
+    files: 1 // Students can only upload 1 file at a time
+  },
+  fileFilter: (req, file, cb) => {
+    const sanitizedName = sanitizeFilename(file.originalname);
+    const ext = path.extname(sanitizedName).toLowerCase();
+    
+    // STRICT: Only PDF and DOCX allowed for students
+    const allowedExts = ['.pdf', '.docx'];
+    const allowedMimes = {
+      'application/pdf': '.pdf',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': '.docx'
+    };
+    
+    // Check extension
+    if (!allowedExts.includes(ext)) {
+      return cb(new Error('Students can only upload PDF or DOCX files'));
+    }
+    
+    // Check MIME type
+    if (!Object.keys(allowedMimes).includes(file.mimetype)) {
+      return cb(new Error('Invalid file type. Only PDF and DOCX documents are allowed'));
+    }
+    
+    // Verify extension matches MIME type
+    if (allowedMimes[file.mimetype] !== ext) {
+      return cb(new Error('File extension does not match document type'));
+    }
+    
+    cb(null, true);
   }
 });
 
@@ -1398,7 +1536,7 @@ export const submitTask = async (req, res) => {
 
     // Check if already submitted
     const [existing] = await db.query(`
-      SELECT submission_id FROM task_submissions 
+      SELECT submission_id, file_path FROM task_submissions 
       WHERE task_id = ? AND student_id = ?
     `, [task_id, student_id]);
 
@@ -1416,12 +1554,63 @@ export const submitTask = async (req, res) => {
       });
     }
 
+    // Validate link URL for security
+    if (hasLink) {
+      const urlString = link_url.trim();
+      
+      // Block dangerous protocols
+      const dangerousProtocols = /^(javascript|data|file|vbscript|about):/i;
+      if (dangerousProtocols.test(urlString)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid URL protocol. Only http and https are allowed.'
+        });
+      }
+
+      // Ensure URL starts with http:// or https://
+      if (!/^https?:\/\//i.test(urlString)) {
+        return res.status(400).json({
+          success: false,
+          message: 'URL must start with http:// or https://'
+        });
+      }
+
+      // Basic URL validation
+      try {
+        const url = new URL(urlString);
+        // Additional check - ensure protocol is http or https
+        if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+          return res.status(400).json({
+            success: false,
+            message: 'Only HTTP and HTTPS URLs are allowed'
+          });
+        }
+      } catch (err) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid URL format'
+        });
+      }
+    }
+
     if (existing.length > 0) {
       // Update existing submission - support both file and link
       const updateFields = [];
       const updateValues = [];
 
-      if (hasFile) {
+      // Delete old file if new file is uploaded
+      if (hasFile && existing[0].file_path) {
+        const oldFilePath = existing[0].file_path;
+        if (fs.existsSync(oldFilePath)) {
+          try {
+            fs.unlinkSync(oldFilePath);
+            console.log(`Deleted old file: ${oldFilePath}`);
+          } catch (err) {
+            console.error(`Failed to delete old file: ${oldFilePath}`, err);
+            // Continue with update even if deletion fails
+          }
+        }
+        
         updateFields.push('file_name = ?', 'file_path = ?');
         updateValues.push(file.originalname, file.path);
       }
@@ -1482,36 +1671,54 @@ export const submitTask = async (req, res) => {
   }
 };
 
-// Download submission file
+// Download or preview submission file
 export const downloadSubmission = async (req, res) => {
   try {
     const { submission_id } = req.params;
+    const { mode } = req.query; // ?mode=preview or ?mode=download
     const user_id = req.user.user_id;
+    const userRole = req.userRole || req.user.role;
 
-    // Get student_id and verify ownership
-    const [student] = await db.query(`
-      SELECT s.student_id 
-      FROM students s
-      WHERE s.user_id = ?
-    `, [user_id]);
+    let student_id = null;
 
-    if (student.length === 0) {
-      return res.status(403).json({
-        success: false,
-        message: 'Unauthorized'
-      });
+    // If student, get their student_id
+    if (userRole === 'student') {
+      const [student] = await db.query(`
+        SELECT s.student_id 
+        FROM students s
+        WHERE s.user_id = ?
+      `, [user_id]);
+
+      if (student.length === 0) {
+        return res.status(403).json({
+          success: false,
+          message: 'Student record not found'
+        });
+      }
+      student_id = student[0].student_id;
     }
 
-    const [submission] = await db.query(`
-      SELECT file_path, submission_type 
+    // Build query based on role
+    let query = `
+      SELECT file_path, file_name, submission_type 
       FROM task_submissions 
-      WHERE submission_id = ? AND student_id = ?
-    `, [submission_id, student[0].student_id]);
+      WHERE submission_id = ?
+    `;
+    const params = [submission_id];
+
+    // Students can only access their own submissions
+    if (userRole === 'student') {
+      query += ` AND student_id = ?`;
+      params.push(student_id);
+    }
+    // Faculty and admin can access any submission (already verified by middleware)
+
+    const [submission] = await db.query(query, params);
 
     if (submission.length === 0) {
       return res.status(404).json({
         success: false,
-        message: 'Submission not found'
+        message: 'Submission not found or access denied'
       });
     }
 
@@ -1522,12 +1729,51 @@ export const downloadSubmission = async (req, res) => {
       });
     }
 
-    res.download(submission[0].file_path);
+    const filePath = submission[0].file_path;
+    const fileName = submission[0].file_name || path.basename(filePath);
+
+    // Check if file exists
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({
+        success: false,
+        message: 'File not found on server'
+      });
+    }
+
+    // Determine content type
+    const ext = path.extname(fileName).toLowerCase();
+    const mimeTypes = {
+      '.pdf': 'application/pdf',
+      '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      '.doc': 'application/msword',
+      '.txt': 'text/plain',
+      '.png': 'image/png',
+      '.jpg': 'image/jpeg',
+      '.jpeg': 'image/jpeg'
+    };
+
+    const contentType = mimeTypes[ext] || 'application/octet-stream';
+
+    // Set headers for preview (inline) or download
+    // Faculty and admin ALWAYS get preview mode, students can choose
+    if (userRole === 'student' && mode === 'download') {
+      // Students can download their own files if they request it
+      res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+    } else {
+      // Faculty/Admin ALWAYS preview, students default to preview
+      res.setHeader('Content-Disposition', `inline; filename="${fileName}"`);
+    }
+
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    
+    // Send file
+    res.sendFile(path.resolve(filePath));
   } catch (error) {
-    console.error('Error downloading submission:', error);
+    console.error('Error accessing submission file:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to download file'
+      message: 'Failed to access file'
     });
   }
 };

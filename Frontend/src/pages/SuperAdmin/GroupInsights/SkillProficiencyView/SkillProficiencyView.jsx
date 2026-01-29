@@ -1,12 +1,8 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { CheckCircle, XCircle, Clock, TrendingUp, Award, Target, Plus, X, ChevronLeft, ChevronRight } from 'lucide-react';
-import axios from 'axios';
-import useAuthStore from '../../../../store/useAuthStore';
-
-const API_URL = import.meta.env.VITE_API_URL;
+import { apiPost } from '../../../../utils/api';
 
 const SkillProficiencyView = ({ selectedVenue, selectedVenueName, facultyName, initialSkill = '' }) => {
-  const { token } = useAuthStore();
   
   // Selected skill (single dropdown selection)
   const [selectedSkill, setSelectedSkill] = useState(initialSkill);
@@ -58,25 +54,23 @@ const SkillProficiencyView = ({ selectedVenue, selectedVenueName, facultyName, i
     if (!selectedSkill) {
       // Just fetch to get available skills
       try {
-        const response = await axios.post(
-          `${API_URL}/skill-reports/faculty/venue/reports`,
-          {
-            venueId: selectedVenue,
-            page: 1,
-            limit: 1, // Minimal fetch just to get available skills
-            sortBy: 'last_slot_date',
-            sortOrder: 'DESC',
-          },
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
+        const response = await apiPost('/skill-reports/faculty/venue/reports', {
+          venueId: selectedVenue,
+          page: 1,
+          limit: 1, // Minimal fetch just to get available skills
+          sortBy: 'last_slot_date',
+          sortOrder: 'DESC',
+        });
+        
+        const data = await response.json();
         
         // Set available skills from API response
-        if (response.data.availableSkills) {
-          setAvailableSkills(response.data.availableSkills.map((name, idx) => ({ id: idx + 1, name })));
+        if (data.availableSkills) {
+          setAvailableSkills(data.availableSkills.map((name, idx) => ({ id: idx + 1, name })));
         }
         // Store venue students for "Not Attempted" calculation
-        if (response.data.venueStudents) {
-          setVenueStudents(response.data.venueStudents);
+        if (data.venueStudents) {
+          setVenueStudents(data.venueStudents);
         }
         setSkillReports([]);
         setTotalRecords(0);
@@ -96,49 +90,56 @@ const SkillProficiencyView = ({ selectedVenue, selectedVenueName, facultyName, i
       else if (statusFilter === 'Not Cleared') statusParam = 'Not Cleared';
       else if (statusFilter === 'Ongoing') statusParam = 'Ongoing';
       
-      const response = await axios.post(
-        `${API_URL}/skill-reports/faculty/venue/reports`,
-        {
-          venueId: selectedVenue,
-          page: currentPage,
-          limit: itemsPerPage,
-          sortBy: 'last_slot_date',
-          sortOrder: 'DESC',
-          skill: selectedSkill, // Pass selected skill for server-side filtering
-          status: statusParam,
-          search: debouncedSearch || undefined,
-        },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      const response = await apiPost('/skill-reports/faculty/venue/reports', {
+        venueId: selectedVenue,
+        page: currentPage,
+        limit: itemsPerPage,
+        sortBy: 'last_slot_date',
+        sortOrder: 'DESC',
+        skill: selectedSkill, // Pass selected skill for server-side filtering
+        status: statusParam,
+        search: debouncedSearch || undefined,
+      });
       
-      setSkillReports(response.data.reports || []);
-      setTotalRecords(response.data.pagination?.total || 0);
-      setTotalPages(response.data.pagination?.totalPages || 1);
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Failed to fetch skill reports');
+      }
+      
+      const data = await response.json();
+      
+      if (!data) {
+        throw new Error('No data received from server');
+      }
+      
+      setSkillReports(data.reports || []);
+      setTotalRecords(data.pagination?.total || 0);
+      setTotalPages(data.pagination?.totalPages || 1);
       
       // Set available skills from API response
-      if (response.data.availableSkills) {
-        setAvailableSkills(response.data.availableSkills.map((name, idx) => ({ id: idx + 1, name })));
+      if (data.availableSkills) {
+        setAvailableSkills(data.availableSkills.map((name, idx) => ({ id: idx + 1, name })));
       }
       
       // Store venue students for "Not Attempted" calculation
-      if (response.data.venueStudents) {
-        setVenueStudents(response.data.venueStudents);
+      if (data.venueStudents) {
+        setVenueStudents(data.venueStudents);
       }
       
       // Set stats from API response (backend returns 'statistics')
-      if (response.data.statistics) {
-        const totalVenueStudents = response.data.venueStudents?.length || 0;
+      if (data.statistics) {
+        const totalVenueStudents = data.venueStudents?.length || 0;
         // Use statistics.total which is the count of unique students who have attempted this skill
-        const attemptedCount = response.data.statistics.total || 0;
+        const attemptedCount = data.statistics.total || 0;
         const notAttemptedCount = Math.max(0, totalVenueStudents - attemptedCount);
         
         setSkillStats({
           totalStudents: totalVenueStudents, // Total students in venue
-          cleared: response.data.statistics.cleared || 0,
-          notCleared: response.data.statistics.not_cleared || 0,
-          ongoing: response.data.statistics.ongoing || 0,
+          cleared: data.statistics.cleared || 0,
+          notCleared: data.statistics.not_cleared || 0,
+          ongoing: data.statistics.ongoing || 0,
           notAttempted: notAttemptedCount,
-          avgBestScore: response.data.statistics.avg_best_score || 0
+          avgBestScore: data.statistics.avg_best_score || 0
         });
       }
     } catch (err) {
@@ -147,7 +148,7 @@ const SkillProficiencyView = ({ selectedVenue, selectedVenueName, facultyName, i
     } finally {
       setLoading(false);
     }
-  }, [selectedVenue, selectedSkill, currentPage, itemsPerPage, statusFilter, debouncedSearch, token]);
+  }, [selectedVenue, selectedSkill, currentPage, itemsPerPage, statusFilter, debouncedSearch]);
 
   // Fetch data when dependencies change
   useEffect(() => {

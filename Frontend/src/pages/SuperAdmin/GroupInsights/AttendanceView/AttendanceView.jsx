@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import { apiGet } from '../../../../utils/api';
 import { ClipboardList, Clock } from 'lucide-react';
-
-const API_URL = import.meta.env.VITE_API_URL;
 
 // Sessions - 4 per day with actual time boundaries
 const SESSIONS = [
@@ -120,8 +118,6 @@ const AttendanceView = ({ selectedVenue, selectedVenueName, selectedDate, setSel
       setError('');
       
       try {
-        const token = localStorage.getItem('token');
-        
         // Fetch students in the venue with their attendance for the selected date/session
         const params = new URLSearchParams({
           date: selectedDate,
@@ -134,16 +130,14 @@ const AttendanceView = ({ selectedVenue, selectedVenueName, selectedDate, setSel
           session: selectedSession 
         });
         
-        const response = await axios.get(
-          `${API_URL}/attendance/venue/${selectedVenue}/details?${params}`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
+        const response = await apiGet(`/attendance/venue/${selectedVenue}/details?${params}`);
+        const data = await response.json();
         
-        console.log('Attendance response:', response.data);
+        console.log('Attendance response:', data);
         
-        if (response.data.success) {
-          setStudents(response.data.data?.students || []);
-          setAttendanceData(response.data.data?.summary || null);
+        if (data.success) {
+          setStudents(data.data?.students || []);
+          setAttendanceData(data.data?.summary || null);
         }
       } catch (err) {
         console.error('Error fetching attendance:', err);

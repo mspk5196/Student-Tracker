@@ -1,11 +1,10 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import useAuthStore from '../../../../store/useAuthStore';
+import { apiGet, apiPost } from '../../../../utils/api';
 import { Link } from 'react-router-dom';
 import { debounce } from 'lodash';
 import { encodeIdSimple } from '../../../../utils/idEncoder';
 
 const StudentsPage = () => {
-  const { token } = useAuthStore();
   const API_URL = import.meta.env.VITE_API_URL;
 
   // Responsive state
@@ -36,12 +35,7 @@ const StudentsPage = () => {
 
   const fetchFilters = async () => {
     try {
-      const response = await fetch(`${API_URL}/students/filters`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
+      const response = await apiGet('/students/filters');
 
       const data = await response.json();
       if (data.success) {
@@ -66,12 +60,7 @@ const StudentsPage = () => {
         year: yr
       });
 
-      const response = await fetch(`${API_URL}/students?${params}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
+      const response = await apiGet(`/students?${params}`);
 
       const data = await response.json();
 
@@ -100,11 +89,9 @@ const StudentsPage = () => {
   );
 
   useEffect(() => {
-    if (token) {
-      fetchFilters();
-      fetchStudents();
-    }
-  }, [token]);
+    fetchFilters();
+    fetchStudents();
+  }, []);
 
   useEffect(() => {
     if (search) {

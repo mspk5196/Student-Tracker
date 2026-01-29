@@ -16,58 +16,35 @@ import {
   Award,
   ListChecks,
 } from "lucide-react";
-import useAuthStore from "../../../store/useAuthStore";
-
-// API Configuration
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
-
-const getAuthHeaders = (token) => ({
-  'Content-Type': 'application/json',
-  Authorization: `Bearer ${token}`,
-});
+import { apiGet } from "../../../utils/api";
 
 // API Functions
-const getStudentDashboardStats = async (token) => {
-  const response = await fetch(`${API_URL}/dashboard/stats`, {
-    method: 'GET',
-    headers: getAuthHeaders(token),
-  });
+const getStudentDashboardStats = async () => {
+  const response = await apiGet('/dashboard/stats');
   if (!response.ok) throw new Error('Failed to fetch dashboard stats');
   return response.json();
 };
 
-const getStudentRecentAssignments = async (token) => {
-  const response = await fetch(`${API_URL}/assignments/recent`, {
-    method: 'GET',
-    headers: getAuthHeaders(token),
-  });
+const getStudentRecentAssignments = async () => {
+  const response = await apiGet('/assignments/recent');
   if (!response.ok) throw new Error('Failed to fetch recent assignments');
   return response.json();
 };
 
-const getStudentSubjectWiseAttendance = async (token) => {
-  const response = await fetch(`${API_URL}/attendance/subject-wise`, {
-    method: 'GET',
-    headers: getAuthHeaders(token),
-  });
+const getStudentSubjectWiseAttendance = async () => {
+  const response = await apiGet('/attendance/subject-wise');
   if (!response.ok) throw new Error('Failed to fetch subject-wise attendance');
   return response.json();
 };
 
-const getStudentActivityHeatmap = async (token, year = new Date().getFullYear()) => {
-  const response = await fetch(`${API_URL}/activity/heatmap?year=${year}`, {
-    method: 'GET',
-    headers: getAuthHeaders(token),
-  });
+const getStudentActivityHeatmap = async (year = new Date().getFullYear()) => {
+  const response = await apiGet(`/activity/heatmap?year=${year}`);
   if (!response.ok) throw new Error('Failed to fetch activity heatmap');
   return response.json();
 };
 
-const getStudentTaskCompletionStats = async (token) => {
-  const response = await fetch(`${API_URL}/dashboard/task-completion-stats`, {
-    method: 'GET',
-    headers: getAuthHeaders(token),
-  });
+const getStudentTaskCompletionStats = async () => {
+  const response = await apiGet('/dashboard/task-completion-stats');
   if (!response.ok) throw new Error('Failed to fetch task completion stats');
   return response.json();
 };
@@ -707,8 +684,6 @@ const DonutChart = ({ data, loading }) => {
 };
 
 const StudentDashboard = () => {
-  const { token } = useAuthStore();
-  
   // State for dynamic data
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
@@ -730,15 +705,13 @@ const StudentDashboard = () => {
   // Fetch dashboard stats
   useEffect(() => {
     const fetchDashboardData = async () => {
-      if (!token) return;
-      
       setLoading(true);
       try {
         const [statsRes, assignmentsRes, attendanceRes, taskCompletionRes] = await Promise.all([
-          getStudentDashboardStats(token).catch(() => ({ success: false })),
-          getStudentRecentAssignments(token).catch(() => ({ success: false, data: [] })),
-          getStudentSubjectWiseAttendance(token).catch(() => ({ success: false, data: [] })),
-          getStudentTaskCompletionStats(token).catch(() => ({ success: false, data: { completed: 0, pending: 0, overdue: 0 } })),
+          getStudentDashboardStats().catch(() => ({ success: false })),
+          getStudentRecentAssignments().catch(() => ({ success: false, data: [] })),
+          getStudentSubjectWiseAttendance().catch(() => ({ success: false, data: [] })),
+          getStudentTaskCompletionStats().catch(() => ({ success: false, data: { completed: 0, pending: 0, overdue: 0 } })),
         ]);
 
         if (statsRes.success) {
@@ -784,16 +757,14 @@ const StudentDashboard = () => {
     };
 
     fetchDashboardData();
-  }, [token]);
+  }, []);
 
   // Fetch heatmap data separately (allows year change)
   useEffect(() => {
     const fetchHeatmapData = async () => {
-      if (!token) return;
-      
       setHeatmapLoading(true);
       try {
-        const heatmapRes = await getStudentActivityHeatmap(token, selectedYear);
+        const heatmapRes = await getStudentActivityHeatmap(selectedYear);
         if (heatmapRes.success) {
           setHeatmapData(heatmapRes.data || []);
         }
@@ -806,7 +777,7 @@ const StudentDashboard = () => {
     };
 
     fetchHeatmapData();
-  }, [token, selectedYear]);
+  }, [selectedYear]);
 
   // Build stats cards dynamically
   const statsCards = [

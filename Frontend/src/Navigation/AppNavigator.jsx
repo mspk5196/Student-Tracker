@@ -54,6 +54,23 @@ import StudentDashboard from "../pages/Student/Dashboard/StudentDashboard";
 
 const AppNavigator = () => {
   const user = useAuthStore((s) => s.user);
+  const isRestoring = useAuthStore((s) => s.isRestoring);
+
+  // Show loading screen while restoring authentication
+  if (isRestoring) {
+    return (
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        height: '100vh',
+        fontSize: '18px',
+        color: '#666'
+      }}>
+        Loading...
+      </div>
+    );
+  }
 
   return (
     <BrowserRouter basename="/pbl/">

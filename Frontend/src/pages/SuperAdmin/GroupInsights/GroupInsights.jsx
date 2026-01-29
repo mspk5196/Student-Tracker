@@ -3,13 +3,13 @@ import { useSearchParams } from 'react-router-dom';
 import AttendanceView from './AttendanceView/AttendanceView';
 import SkillProficiencyView from './SkillProficiencyView/SkillProficiencyView';
 import useAuthStore from '../../../store/useAuthStore';
-import axios from 'axios';
+import { apiGet } from '../../../utils/api';
 import { MapPin, BarChart3 } from 'lucide-react';
 
 const API_URL = import.meta.env.VITE_API_URL;
 
 const GroupInsights = () => {
-  const { user, token } = useAuthStore();
+  const { user } = useAuthStore();
   const [searchParams, setSearchParams] = useSearchParams();
   
   // Get URL parameters
@@ -30,23 +30,20 @@ const GroupInsights = () => {
   // Fetch venues based on role (admin sees all, faculty sees only assigned)
   useEffect(() => {
     const fetchVenues = async () => {
-      if (!token) return;
-      
       setVenuesLoading(true);
       try {
         // Use different endpoint based on user role
         const endpoint = user?.role === 'admin' 
-          ? `${API_URL}/groups/venues`
-          : `${API_URL}/skill-reports/faculty/venues`;
+          ? '/groups/venues'
+          : '/skill-reports/faculty/venues';
         
-        const response = await axios.get(endpoint, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
+        const response = await apiGet(endpoint);
+        const data = await response.json();
         
         // Handle different response structures
         const venueList = user?.role === 'admin'
-          ? response.data.data || []
-          : response.data.venues || [];
+          ? data.data || []
+          : data.venues || [];
         
         setVenues(venueList);
         
@@ -62,7 +59,7 @@ const GroupInsights = () => {
     };
     
     fetchVenues();
-  }, [token, user?.role]);
+  }, [user?.role]);
 
   // Clear URL parameters after initial load
   useEffect(() => {

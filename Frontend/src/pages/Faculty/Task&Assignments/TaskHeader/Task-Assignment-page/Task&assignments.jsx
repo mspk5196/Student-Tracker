@@ -1,5 +1,6 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
+import { apiGet, apiPost, apiPut } from '../../../../../utils/api';
 import {
     PlusCircle,
     Search,
@@ -17,7 +18,7 @@ import useAuthStore from '../../../../../store/useAuthStore';
 
 const AssignmentDashboard = ({ selectedVenueId, venueName, venues, selectedCourseType }) => {
   const navigate = useNavigate();
-  const { token, user } = useAuthStore();
+  const { user } = useAuthStore();
   const API_URL = import.meta.env.VITE_API_URL;
 
   const [assignments, setAssignments] = useState([]);
@@ -50,15 +51,11 @@ const AssignmentDashboard = ({ selectedVenueId, venueName, venues, selectedCours
   useEffect(() => {
     const fetchSkills = async () => {
       try {
-        const url = selectedCourseType 
-          ? `${API_URL}/skill-order?course_type=${selectedCourseType}`
-          : `${API_URL}/skill-order`;
+        const endpoint = selectedCourseType 
+          ? `/skill-order?course_type=${selectedCourseType}`
+          : '/skill-order';
         
-        const response = await fetch(url, {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
+        const response = await apiGet(endpoint);
         
         const data = await response.json();
         if (data.success) {
@@ -70,7 +67,7 @@ const AssignmentDashboard = ({ selectedVenueId, venueName, venues, selectedCours
     };
     
     fetchSkills();
-  }, [selectedCourseType, token, API_URL]);
+  }, [selectedCourseType, API_URL]);
 
   // Fetch assignments for selected venue
   useEffect(() => {
@@ -81,18 +78,11 @@ const AssignmentDashboard = ({ selectedVenueId, venueName, venues, selectedCours
 
       try {
         // Handle 'all' venues - fetch from all venues
-        const url = selectedVenueId === 'all'
-          ? `${API_URL}/tasks/all-venues?status=${statusFilter}`
-          : `${API_URL}/tasks/venue/${selectedVenueId}?status=${statusFilter}`;
+        const endpoint = selectedVenueId === 'all'
+          ? `/tasks/all-venues?status=${statusFilter}`
+          : `/tasks/venue/${selectedVenueId}?status=${statusFilter}`;
         
-        const response = await fetch(url,
-          {
-            headers: {
-              'Authorization': `Bearer ${token}`,
-              'Content-Type': 'application/json'
-            }
-          }
-        );
+        const response = await apiGet(endpoint);
 
         const data = await response.json();
 
@@ -119,7 +109,7 @@ const AssignmentDashboard = ({ selectedVenueId, venueName, venues, selectedCours
     };
 
     fetchAssignments();
-  }, [selectedVenueId, statusFilter, token, API_URL]);
+  }, [selectedVenueId, statusFilter, API_URL]);
 
   /* -------- FILTER LOGIC -------- */
   const filteredAssignments = useMemo(() => {
@@ -193,8 +183,9 @@ const AssignmentDashboard = ({ selectedVenueId, venueName, venues, selectedCours
       const response = await fetch(`${API_URL}/tasks/create`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': 'Bearer cookie'
         },
+        credentials: 'include',
         body: formData
       });
 
@@ -210,14 +201,8 @@ const AssignmentDashboard = ({ selectedVenueId, venueName, venues, selectedCours
 
         // Refresh assignments list only if not "all venues"
         if (!isAllVenues && selectedVenueId) {
-          const refreshResponse = await fetch(
-            `${API_URL}/tasks/venue/${selectedVenueId}?status=${statusFilter}`,
-            {
-              headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-              }
-            }
+          const refreshResponse = await apiGet(
+            `/tasks/venue/${selectedVenueId}?status=${statusFilter}`
           );
 
           const refreshData = await refreshResponse.json();
@@ -252,14 +237,7 @@ const AssignmentDashboard = ({ selectedVenueId, venueName, venues, selectedCours
     const newStatus = currentStatus === 'Active' ? 'Inactive' : 'Active';
 
     try {
-      const response = await fetch(`${API_URL}/tasks/status/${id}`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ status: newStatus })
-      });
+      const response = await apiPut(`/tasks/status/${id}`, { status: newStatus });
 
       const data = await response.json();
 

@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from "react";
+import { apiGet, apiPut } from '../../../utils/api';
 // Material Icons
 import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
 import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
@@ -22,7 +23,7 @@ import ReportsHeader from "./ReportsHeader";
 const ReportsAnalytics = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { token, user } = useAuthStore();
+  const { user } = useAuthStore();
   const API_URL = import.meta.env.VITE_API_URL;
 
   // --- States ---
@@ -50,16 +51,11 @@ const ReportsAnalytics = () => {
   // Fetch venues on mount
   useEffect(() => {
     const fetchVenues = async () => {
-      if (!user || !token) return;
+      if (!user) return;
 
       setVenuesLoading(true);
       try {
-        const response = await fetch(`${API_URL}/tasks/venues`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-        });
+        const response = await apiGet('/tasks/venues');
 
         const data = await response.json();
 
@@ -75,7 +71,7 @@ const ReportsAnalytics = () => {
     };
 
     fetchVenues();
-  }, [user, token, API_URL]);
+  }, [user, API_URL]);
 
   // Fetch tasks when venue changes
   useEffect(() => {
@@ -84,14 +80,8 @@ const ReportsAnalytics = () => {
 
       setTasksLoading(true);
       try {
-        const response = await fetch(
-          `${API_URL}/tasks/venue/${selectedVenueId}`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-              "Content-Type": "application/json",
-            },
-          },
+        const response = await apiGet(
+          `/tasks/venue/${selectedVenueId}`
         );
 
         const data = await response.json();
@@ -113,7 +103,7 @@ const ReportsAnalytics = () => {
     };
 
     fetchTasks();
-  }, [selectedVenueId, token, API_URL]);
+  }, [selectedVenueId, API_URL]);
 
   // Fetch submissions when task changes
   useEffect(() => {
@@ -128,14 +118,8 @@ const ReportsAnalytics = () => {
       try {
         const statusParam = encodeURIComponent(filters.status);
         const searchParam = encodeURIComponent(searchTerm);
-        const response = await fetch(
-          `${API_URL}/tasks/submissions/${selectedTaskId}?status=${statusParam}&search=${searchParam}&page=${currentPage}&limit=${itemsPerPage}`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-              "Content-Type": "application/json",
-            },
-          },
+        const response = await apiGet(
+          `/tasks/submissions/${selectedTaskId}?status=${statusParam}&search=${searchParam}&page=${currentPage}&limit=${itemsPerPage}`
         );
 
         const data = await response.json();
@@ -187,7 +171,7 @@ const ReportsAnalytics = () => {
     };
 
     fetchSubmissions();
-  }, [selectedTaskId, currentPage, filters.status, searchTerm, token, API_URL]);
+  }, [selectedTaskId, currentPage, filters.status, searchTerm, API_URL]);
 
   // Format date without AM0/PM0 issue
   const formatDate = (dateString) => {
@@ -279,18 +263,9 @@ const ReportsAnalytics = () => {
       }
 
       try {
-        const response = await fetch(
-          `${API_URL}/tasks/grade/${submission.submission_id}`,
-          {
-            method: "PUT",
-            headers: {
-              Authorization: `Bearer ${token}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              grade: Number(submission.grade),
-            }),
-          },
+        const response = await apiPut(
+          `/tasks/grade/${submission.submission_id}`,
+          { grade: Number(submission.grade) }
         );
 
         const data = await response.json();

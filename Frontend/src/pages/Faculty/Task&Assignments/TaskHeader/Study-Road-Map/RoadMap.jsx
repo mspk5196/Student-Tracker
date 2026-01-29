@@ -13,6 +13,7 @@ import {
   Video,
 } from "lucide-react";
 import useAuthStore from "../../../../../store/useAuthStore";
+import { apiGet, apiPost, apiPut, apiDelete } from "../../../../../utils/api";
 
 const StudyRoadmap = ({
   selectedVenueId,
@@ -23,7 +24,7 @@ const StudyRoadmap = ({
   selectedCourseType = "frontend",
 }) => {
   const API_URL = import.meta.env.VITE_API_URL;
-  const { token, user } = useAuthStore();
+  const { user } = useAuthStore();
 
   const [roadmap, setRoadmap] = useState([]);
   const [editingId, setEditingId] = useState(null);
@@ -69,14 +70,7 @@ const StudyRoadmap = ({
         // Fetch modules for all venues grouped
         setLoading(true);
         try {
-          const response = await fetch(`${API_URL}/roadmap/all-venues`, {
-            headers: {
-              Authorization: `Bearer ${token}`,
-              "Content-Type": "application/json",
-            },
-          });
-
-          const data = await response.json();
+          const data = await apiGet('/roadmap/all-venues');
 
           if (data.success) {
             setAllVenuesModules(data.data || []);
@@ -95,17 +89,7 @@ const StudyRoadmap = ({
 
       setLoading(true);
       try {
-        const response = await fetch(
-          `${API_URL}/roadmap/venue/${selectedVenueId}`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-              "Content-Type": "application/json",
-            },
-          },
-        );
-
-        const data = await response.json();
+        const data = await apiGet(`/roadmap/venue/${selectedVenueId}`);
 
         if (data.success) {
           setRoadmap(data.data);
@@ -125,7 +109,7 @@ const StudyRoadmap = ({
       fetchRoadmapData();
       setEditingId(null);
     }
-  }, [selectedVenueId, token, API_URL, isActiveTab]);
+  }, [selectedVenueId, API_URL, isActiveTab]);
 
   // Handle add day trigger from parent
   useEffect(() => {
@@ -215,16 +199,7 @@ const StudyRoadmap = ({
       };
 
       // Send to backend
-      const response = await fetch(`${API_URL}/roadmap`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(newDay),
-      });
-
-      const data = await response.json();
+      const data = await apiPost('/roadmap', newDay);
 
       if (data.success) {
         if (data.data.venues_count > 1 || isAllVenues) {
@@ -241,13 +216,7 @@ const StudyRoadmap = ({
           });
           // Refresh all venues modules
           if (isAllVenues) {
-            const response = await fetch(`${API_URL}/roadmap/all-venues`, {
-              headers: {
-                Authorization: `Bearer ${token}`,
-                "Content-Type": "application/json",
-              },
-            });
-            const refreshData = await response.json();
+            const refreshData = await apiGet('/roadmap/all-venues');
             if (refreshData.success) {
               setAllVenuesModules(refreshData.data);
             }
@@ -369,21 +338,12 @@ const StudyRoadmap = ({
 
   const saveEdit = async (id) => {
     try {
-      const response = await fetch(`${API_URL}/roadmap/${id}`, {
-        method: "PUT",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          title: editData.title,
-          description: editData.description,
-          learning_objectives: editData.learning_objectives,
-          status: "published",
-        }),
+      const data = await apiPut(`/roadmap/${id}`, {
+        title: editData.title,
+        description: editData.description,
+        learning_objectives: editData.learning_objectives,
+        status: "published",
       });
-
-      const data = await response.json();
 
       if (data.success) {
         const updatedRoadmap = roadmap.map((item) =>
@@ -427,21 +387,12 @@ const StudyRoadmap = ({
 
   const saveEditGroup = async (group_id) => {
     try {
-      const response = await fetch(`${API_URL}/roadmap/group/${group_id}`, {
-        method: "PUT",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          title: editData.title,
-          description: editData.description,
-          learning_objectives: editData.learning_objectives,
-          status: "published",
-        }),
+      const data = await apiPut(`/roadmap/group/${group_id}`, {
+        title: editData.title,
+        description: editData.description,
+        learning_objectives: editData.learning_objectives,
+        status: "published",
       });
-
-      const data = await response.json();
 
       if (data.success) {
         const updatedModules = allVenuesModules.map((item) =>
@@ -545,14 +496,7 @@ const StudyRoadmap = ({
     if (!confirmed) return;
 
     try {
-      const response = await fetch(`${API_URL}/roadmap/group/${group_id}`, {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      const data = await response.json();
+      const data = await apiDelete(`/roadmap/group/${group_id}`);
 
       if (data.success) {
         setAllVenuesModules(
@@ -615,14 +559,7 @@ const StudyRoadmap = ({
     if (!confirmed) return;
 
     try {
-      const response = await fetch(`${API_URL}/roadmap/${id}`, {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      const data = await response.json();
+      const data = await apiDelete(`/roadmap/${id}`);
 
       if (data.success) {
         const updatedRoadmap = roadmap.filter((item) => item.roadmap_id !== id);
@@ -796,9 +733,7 @@ const StudyRoadmap = ({
 
           const firstResponse = await fetch(`${API_URL}/roadmap/resources`, {
             method: "POST",
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
+            credentials: 'include',
             body: firstFormData,
           });
 
@@ -836,9 +771,7 @@ const StudyRoadmap = ({
           try {
             const response = await fetch(`${API_URL}/roadmap/resources`, {
               method: "POST",
-              headers: {
-                Authorization: `Bearer ${token}`,
-              },
+              credentials: 'include',
               body: formData,
             });
 
@@ -886,9 +819,7 @@ const StudyRoadmap = ({
 
       const response = await fetch(`${API_URL}/roadmap/resources`, {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        credentials: 'include',
         body: formData,
       });
 
@@ -969,9 +900,7 @@ const StudyRoadmap = ({
         const response = await fetch(
           `${API_URL}/roadmap/resources/download/${res.resource_id}`,
           {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
+            credentials: 'include',
           },
         );
 
@@ -1053,17 +982,7 @@ const StudyRoadmap = ({
     if (!confirmed) return;
 
     try {
-      const response = await fetch(
-        `${API_URL}/roadmap/resources/${resourceId}`,
-        {
-          method: "DELETE",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        },
-      );
-
-      const data = await response.json();
+      const data = await apiDelete(`/roadmap/resources/${resourceId}`);
       if (data.success) {
         // Update local state
         const updatedRoadmap = roadmap.map((item) => {

@@ -9,12 +9,15 @@ async function resolveStudentIdFromToken(req) {
 }
 
 async function resolveStudentVenueIds(studentId) {
+  // Get ONLY the student's current active venue (primary assignment)
+  // This matches the logic in getStudentTasks which shows tasks from current venue only
   const [rows] = await db.query(
     `
-    SELECT DISTINCT g.venue_id
+    SELECT g.venue_id
     FROM group_students gs
     INNER JOIN \`groups\` g ON gs.group_id = g.group_id
     WHERE gs.student_id = ? AND gs.status = 'Active' AND g.status = 'Active'
+    LIMIT 1
     `,
     [studentId]
   );

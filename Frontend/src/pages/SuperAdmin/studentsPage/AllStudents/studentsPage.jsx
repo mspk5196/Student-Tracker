@@ -3,9 +3,10 @@ import useAuthStore from '../../../../store/useAuthStore';
 import { Link } from 'react-router-dom';
 import { debounce } from 'lodash';
 import { encodeIdSimple } from '../../../../utils/idEncoder';
+import { apiGet, apiPost } from '../../../../utils/api';
 
 const StudentsPage = () => {
-  const { token } = useAuthStore();
+  const { user } = useAuthStore();
   const API_URL = import.meta.env.VITE_API_URL;
   const fileInputRef = useRef(null);
 
@@ -43,12 +44,7 @@ const StudentsPage = () => {
 
   const fetchFilters = async () => {
     try {
-      const response = await fetch(`${API_URL}/students/filters`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
+      const response = await apiGet('/students/filters');
 
       const data = await response.json();
       if (data.success) {
@@ -73,12 +69,7 @@ const StudentsPage = () => {
         year: yr
       });
 
-      const response = await fetch(`${API_URL}/students?${params}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
+      const response = await apiGet(`/students?${params}`);
 
       const data = await response.json();
 
@@ -107,11 +98,11 @@ const StudentsPage = () => {
   );
 
   useEffect(() => {
-    if (token) {
+    if (user) {
       fetchFilters();
       fetchStudents();
     }
-  }, [token]);
+  }, [user]);
 
   useEffect(() => {
     if (search) {
@@ -167,13 +158,7 @@ const StudentsPage = () => {
       const formData = new FormData();
       formData.append('file', uploadFile);
 
-      const response = await fetch(`${API_URL}/students/bulk-upload`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
-        body: formData
-      });
+      const response = await apiPost('/students/bulk-upload', formData);
 
       const data = await response.json();
 

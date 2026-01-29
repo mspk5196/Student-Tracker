@@ -12,7 +12,7 @@ const SESSION_SLOTS = [
 
 const MyClassRoom = () => {
   // --- AUTH & STATE ---
-  const { token, user } = useAuthStore();
+  const { user } = useAuthStore();
   const [scheduleData, setScheduleData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -20,7 +20,7 @@ const MyClassRoom = () => {
 
   // --- FETCH DATA ---
   const fetchSchedule = async (date) => {
-    if (!token) return;
+    if (!user) return;
     setLoading(true);
     try {
       // Adjust for timezone to get correct YYYY-MM-DD
@@ -28,15 +28,7 @@ const MyClassRoom = () => {
       const localDate = new Date(date.getTime() - offset * 60 * 1000);
       const dateStr = localDate.toISOString().split("T")[0];
 
-      const response = await fetch(
-        `${import.meta.env.VITE_API_URL}/schedule?date=${dateStr}`,
-        {
-          headers: { 
-            Authorization: `Bearer ${token}`,
-            'Cache-Control': 'no-cache'
-          },
-        },
-      );
+      const response = await apiGet(`/schedule?date=${dateStr}`);
 
       if (response.ok) {
         const result = await response.json();
@@ -55,7 +47,7 @@ const MyClassRoom = () => {
   // Re-fetch when date changes
   useEffect(() => {
     fetchSchedule(selectedDate);
-  }, [selectedDate, token]);
+  }, [selectedDate, user]);
 
   // --- HELPER: GET STATUS ---
   const getSlotStatus = (slotTimeStr, date) => {

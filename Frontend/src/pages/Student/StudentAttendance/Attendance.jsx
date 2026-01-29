@@ -14,9 +14,10 @@ import {
     ChevronLeft
 } from 'lucide-react';
 import useAuthStore from '../../../store/useAuthStore';
+import { apiGet } from '../../../utils/api';
 
 const StudentAttendance = () => {
-    const { user, token } = useAuthStore();
+    const { user } = useAuthStore();
     const API_URL = import.meta.env.VITE_API_URL;
 
     // --- STATE MANAGEMENT ---
@@ -34,7 +35,6 @@ const StudentAttendance = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
-    const [searchQuery, setSearchQuery] = useState('');
     const [filter, setFilter] = useState('all');
     const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
     const [currentPage, setCurrentPage] = useState(1);
@@ -58,15 +58,7 @@ const StudentAttendance = () => {
 
             try {
                 // Fetch dashboard data
-                const dashboardResponse = await fetch(
-                    `${API_URL}/attendance/dashboard`,
-                    {
-                        headers: {
-                            'Authorization': `Bearer ${token}`,
-                            'Content-Type': 'application/json'
-                        }
-                    }
-                );
+                const dashboardResponse = await apiGet('/attendance/dashboard');
 
                 const dashboardData = await dashboardResponse.json();
 
@@ -103,15 +95,7 @@ const StudentAttendance = () => {
                 }
 
                 // Fetch attendance history
-                const historyResponse = await fetch(
-                    `${API_URL}/attendance/history`,
-                    {
-                        headers: {
-                            'Authorization': `Bearer ${token}`,
-                            'Content-Type': 'application/json'
-                        }
-                    }
-                );
+                const historyResponse = await apiGet('/attendance/history');
 
                 const historyData = await historyResponse.json();
 
@@ -194,7 +178,7 @@ const StudentAttendance = () => {
         };
 
         fetchAttendanceData();
-    }, [user, token, API_URL]);
+    }, [user, API_URL]);
 
     // Create a map of dates with attendance records grouped by hour
     const attendanceByDateAndHour = attendanceHistory.reduce((acc, record) => {
@@ -252,12 +236,11 @@ const StudentAttendance = () => {
         return blocks;
     });
 
-    // Filter history based on search, filter, and selected date
+    // Filter history based on filter and selected date
     const filteredHistory = completeHistory.filter(record => {
-        const matchesSearch = record.subject.toLowerCase().includes(searchQuery.toLowerCase());
         const matchesFilter = filter === 'all' || record.status === filter;
         const matchesDate = !selectedDate || record.date === selectedDate;
-        return matchesSearch && matchesFilter && matchesDate;
+        return matchesFilter && matchesDate;
     });
 
     // Group filtered history by date to show daily breakdown
@@ -658,15 +641,6 @@ const StudentAttendance = () => {
                                         {selectedDate ? `Attendance for ${new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}` : 'Attendance History'}
                                     </h2>
                                     <div style={styles.filterGroup} className="filter-group">
-                                        <div style={styles.searchBox} className="search-box">
-                                            <Search size={14} style={styles.searchIcon} />
-                                            <input
-                                                style={styles.searchInput}
-                                                placeholder="Search Subject..."
-                                                value={searchQuery}
-                                                onChange={(e) => setSearchQuery(e.target.value)}
-                                            />
-                                        </div>
                                         <select
                                             style={styles.filterSelect}
                                             value={filter}

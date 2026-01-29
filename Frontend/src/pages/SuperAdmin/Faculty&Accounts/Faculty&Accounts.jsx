@@ -13,9 +13,10 @@ import {
     Cancel
 } from '@mui/icons-material';
 import useAuthStore from '../../../store/useAuthStore'; // Adjust path as needed
+import { apiGet, apiPost, apiPut, apiDelete } from '../../../utils/api';
 
 const FacultyAccounts = () => {
-    const { token } = useAuthStore();
+    const { user } = useAuthStore();
     const API_URL = import.meta.env.VITE_API_URL;
     const fileInputRef = useRef(null);
 
@@ -60,12 +61,7 @@ const FacultyAccounts = () => {
         setLoading(true);
         setError('');
         try {
-            const response = await fetch(`${API_URL}/faculty`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                }
-            });
+            const response = await apiGet('/faculty');
 
             const data = await response.json();
             
@@ -83,10 +79,8 @@ const FacultyAccounts = () => {
     };
 
     useEffect(() => {
-        if (token) {
-            fetchFaculties();
-        }
-    }, [token]);
+        fetchFaculties();
+    }, []);
 
     // Close menu when clicking outside
     useEffect(() => {
@@ -163,19 +157,12 @@ const FacultyAccounts = () => {
         setError('');
 
         try {
-            const response = await fetch(`${API_URL}/faculty`, {
-                method: 'POST',
-                headers:  {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    name: formData.name,
-                    designation: formData.designation,
-                    facultyId: formData.facultyId,
-                    email: formData.email,
-                    department: formData. department
-                })
+            const response = await apiPost('/faculty', {
+                name: formData.name,
+                designation: formData.designation,
+                facultyId: formData.facultyId,
+                email: formData.email,
+                department: formData.department
             });
 
             const data = await response.json();
@@ -255,14 +242,7 @@ const FacultyAccounts = () => {
         setError('');
 
         try {
-            const response = await fetch(`${API_URL}/faculty/${userId}`, {
-                method: 'PUT',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON. stringify(editFormData)
-            });
+            const response = await apiPut(`/faculty/${userId}`, editFormData);
 
             const data = await response.json();
 
@@ -293,13 +273,7 @@ const FacultyAccounts = () => {
         setError('');
 
         try {
-            const response = await fetch(`${API_URL}/faculty/${faculty.user_id}`, {
-                method: 'DELETE',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                }
-            });
+            const response = await apiDelete(`/faculty/${faculty.user_id}`);
 
             const data = await response.json();
 
@@ -350,13 +324,7 @@ const FacultyAccounts = () => {
             const formData = new FormData();
             formData.append('file', uploadFile);
 
-            const response = await fetch(`${API_URL}/faculty/bulk-upload`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                },
-                body: formData
-            });
+            const response = await apiPost('/faculty/bulk-upload', formData);
 
             const data = await response.json();
 

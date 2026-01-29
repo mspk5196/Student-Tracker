@@ -120,22 +120,20 @@ const AttendanceView = ({ selectedVenue, selectedVenueName, selectedDate, setSel
       setError('');
       
       try {
-        const token = localStorage.getItem('token');
-        
         // Fetch students in the venue with their attendance for the selected date/session
         const params = new URLSearchParams({
           date: selectedDate,
           session: selectedSession
         });
         
-        const response = await axios.get(
-          `${API_URL}/attendance/venue/${selectedVenue}/details?${params}`,
-          { headers: { Authorization: `Bearer ${token}` } }
+        const response = await apiGet(
+          `/attendance/venue/${selectedVenue}/details?${params}`
         );
         
-        if (response.data.success) {
-          setStudents(response.data.data?.students || []);
-          setAttendanceData(response.data.data?.summary || null);
+        const data = await response.json();
+        if (data.success) {
+          setStudents(data.data?.students || []);
+          setAttendanceData(data.data?.summary || null);
         }
       } catch (err) {
         console.error('Error fetching attendance:', err);

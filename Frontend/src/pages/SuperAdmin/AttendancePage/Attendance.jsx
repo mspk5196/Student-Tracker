@@ -11,9 +11,10 @@ import {
     AlertCircle
 } from 'lucide-react';
 import useAuthStore from '../../../store/useAuthStore';
+import { apiGet, apiPost } from '../../../utils/api';
 
 const AttendanceManagement = () => {
-    const { token, user } = useAuthStore();
+    const { user } = useAuthStore();
     const API_URL = import.meta.env.VITE_API_URL;
     
     // Track the last initialized session to prevent loops
@@ -66,12 +67,7 @@ const AttendanceManagement = () => {
         setLoading(true);
         setError('');
         try {
-            const response = await fetch(`${API_URL}/attendance/venues`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                }
-            });
+            const response = await apiGet('/attendance/venues');
 
             
             if (!response.ok) {
@@ -104,14 +100,8 @@ const AttendanceManagement = () => {
         
         setLoading(true);
         try {
-            const response = await fetch(
-                `${API_URL}/attendance/students/${selectedVenue.venue_id}`,
-                {
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json'
-                    }
-                }
+            const response = await apiGet(
+                `/attendance/students/${selectedVenue.venue_id}`
             );
             
             const data = await response.json();
@@ -156,14 +146,7 @@ const AttendanceManagement = () => {
 
 
         try {
-            const response = await fetch(`${API_URL}/attendance/session`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(sessionData)
-            });
+            const response = await apiPost('/attendance/session', sessionData);
 
             const data = await response.json();
 
@@ -186,14 +169,8 @@ const AttendanceManagement = () => {
         if (!selectedVenue) return;
 
         try {
-            const response = await fetch(
-                `${API_URL}/attendance/session/${sessionIdToFetch}/${selectedVenue.venue_id}`,
-                {
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json'
-                    }
-                }
+            const response = await apiGet(
+                `/attendance/session/${sessionIdToFetch}/${selectedVenue.venue_id}`
             );
 
             const data = await response.json();
@@ -254,14 +231,7 @@ const AttendanceManagement = () => {
         
         try {
             
-            const response = await fetch(`${API_URL}/attendance/save`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(attendanceData)
-            });
+            const response = await apiPost('/attendance/save', attendanceData);
 
            
             
@@ -342,10 +312,10 @@ const AttendanceManagement = () => {
 
     // ====================== USE EFFECTS ======================
     useEffect(() => {
-        if (token && user) {
+        if (user) {
             fetchVenues();
         }
-    }, [token, user]);
+    }, [user]);
 
     // Single effect that handles session initialization
     useEffect(() => {

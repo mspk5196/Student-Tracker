@@ -1,12 +1,12 @@
-
 import React, { useState, useEffect } from 'react';
 import AssignmentDashboard from './Task-Assignment-page/Task&assignments';
 import StudyRoadmap from './Study-Road-Map/RoadMap';
 import SkillOrderManager from './Study-Road-Map/SkillOrderManager';
 import useAuthStore from '../../../../store/useAuthStore'; // FIXED PATH - 3 levels up
+import { apiGet } from '../../../../utils/api';
 
 const TaskHeader = () => {
-  const { token, user } = useAuthStore();
+  const { user } = useAuthStore();
   const API_URL = import.meta.env.VITE_API_URL;
 
 
@@ -34,16 +34,7 @@ useEffect(() => {
     
     try {
       // Backend will use JWT to determine user and get their venues
-      const url = `${API_URL}/tasks/venues`;
-      
-      
-      const response = await fetch(url, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
+      const response = await apiGet('/tasks/venues');
       
       const data = await response.json();
       
@@ -67,7 +58,7 @@ useEffect(() => {
   };
 
   fetchVenues();
-}, [user, token, API_URL]);
+}, [user, API_URL]);
 
   const EyeIcon = () => (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '8px' }}>

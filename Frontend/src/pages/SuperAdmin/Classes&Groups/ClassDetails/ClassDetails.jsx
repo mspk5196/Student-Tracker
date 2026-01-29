@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import useAuthStore from '../../../../store/useAuthStore';
 import { encodeIdSimple, decodeIdSimple } from '../../../../utils/idEncoder';
+import { apiGet } from '../../../../utils/api';
 import { 
   FolderOpen, 
   Assignment, 
@@ -41,7 +42,6 @@ const ClassDetails = () => {
   const venueId = decodeIdSimple(encodedVenueId) || encodedVenueId; // Fallback for non-encoded IDs
   const { width } = useWindowSize();
   const isMobile = width <= 768;
-  const token = useAuthStore((state) => state.token);
   const API_URL = import.meta.env.VITE_API_URL;
 
   // --- STATE ---
@@ -63,18 +63,13 @@ const ClassDetails = () => {
   // --- FETCH VENUE DETAILS ---
   useEffect(() => {
     const fetchVenueDetails = async () => {
-      if (!venueId || !token) return;
+      if (!venueId) return;
       
       setLoading(true);
       setError(null);
       
       try {
-        const response = await fetch(`${API_URL}/groups/venues/${venueId}/details`, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        });
+        const response = await apiGet(`/groups/venues/${venueId}/details`);
 
         if (!response.ok) {
           throw new Error('Failed to fetch venue details');
@@ -96,22 +91,17 @@ const ClassDetails = () => {
     };
 
     fetchVenueDetails();
-  }, [venueId, token, API_URL]);
+  }, [venueId, API_URL]);
 
   // --- FETCH SKILL COMPLETION DATA (using new API) ---
   useEffect(() => {
     const fetchSkillCompletionData = async () => {
-      if (!venueData?.venue?.venue_id || !token) return;
+      if (!venueData?.venue?.venue_id) return;
       
       setSkillsLoading(true);
       try {
         // Use the new skill-completion API for course-wise data
-        const response = await fetch(`${API_URL}/skill-completion/venues/${venueData.venue.venue_id}/courses`, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        });
+        const response = await apiGet(`/skill-completion/venues/${venueData.venue.venue_id}/courses`);
 
         if (response.ok) {
           const result = await response.json();
@@ -127,7 +117,7 @@ const ClassDetails = () => {
     };
 
     fetchSkillCompletionData();
-  }, [venueData?.venue?.venue_id, token, API_URL]);
+  }, [venueData?.venue?.venue_id, API_URL]);
 
   // Get unique departments and years from students
   const { departments, years } = useMemo(() => {

@@ -1,9 +1,7 @@
   import React, { useState, useEffect } from 'react';
-import useAuthStore from '../../../../../store/useAuthStore';
-import axios from 'axios';
+import { apiGet } from '../../../../../utils/api';
 
   const PSDashboard = ({ studentId }) => {
-  const { token } = useAuthStore();
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
   const [skillReports, setSkillReports] = useState([]);
@@ -18,30 +16,26 @@ import axios from 'axios';
   }, []);
 
   useEffect(() => {
-    if (token && studentId) {
+    if (studentId) {
       fetchSkillCompletionStatus();
     }
-  }, [token, studentId]);
+  }, [studentId]);
 
   const fetchSkillCompletionStatus = async () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await axios.get(`${API_URL}/students/${studentId}/skill-progress`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
+      const response = await apiGet(`/students/${studentId}/skill-progress`);
+      const data = await response.json();
       
-      if (response.data.success) {
-        setSkillReports(response.data.data.skills || []);
+      if (data.success) {
+        setSkillReports(data.data.skills || []);
       } else {
         setError('Failed to load skill progress');
       }
     } catch (err) {
       console.error('Error fetching skill completion status:', err);
-      setError(err.response?.data?.message || 'Failed to load skill progress');
+      setError('Failed to load skill progress');
     } finally {
       setLoading(false);
     }

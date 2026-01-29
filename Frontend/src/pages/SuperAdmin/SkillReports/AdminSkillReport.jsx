@@ -15,6 +15,7 @@ import {
   Users,
   Calendar,
 } from 'lucide-react';
+import { apiGet, apiPost } from '../../../utils/api';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
@@ -46,9 +47,8 @@ const AdminSkillReport = () => {
     setLoading(true);
     setError('');
     try {
-      const token = localStorage.getItem('token');
-      const response = await axios.post(
-        `${API_URL}/skill-reports/faculty/venue/reports`,
+      const response = await apiPost(
+        '/skill-reports/faculty/venue/reports',
         {
           venueId: selectedVenue || null,
           page: currentPage,
@@ -58,15 +58,15 @@ const AdminSkillReport = () => {
           search: searchTerm,
           sortBy: 'updated_at',
           sortOrder: 'DESC'
-        },
-        { headers: { Authorization: `Bearer ${token}` } }
+        }
       );
 
-      setReports(response.data.reports || []);
-      setStatistics(response.data.statistics);
-      setPagination(response.data.pagination);
+      const data = await response.json();
+      setReports(data.reports || []);
+      setStatistics(data.statistics);
+      setPagination(data.pagination);
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to load reports');
+      setError('Failed to load reports');
     } finally {
       setLoading(false);
     }
@@ -74,13 +74,11 @@ const AdminSkillReport = () => {
 
   const loadVenues = useCallback(async () => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get(`${API_URL}/skill-reports/faculty/venues`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setVenues(response.data.venues || []);
-      if (response.data.venues && response.data.venues.length > 0) {
-        setSelectedVenue(response.data.venues[0].venue_id);
+      const response = await apiGet('/skill-reports/faculty/venues');
+      const data = await response.json();
+      setVenues(data.venues || []);
+      if (data.venues && data.venues.length > 0) {
+        setSelectedVenue(data.venues[0].venue_id);
       }
     } catch (err) {
       console.error('Error loading venues:', err);
@@ -127,19 +125,11 @@ const AdminSkillReport = () => {
       const formData = new FormData();
       formData.append('file', selectedFile);
 
-      const token = localStorage.getItem('token');
-      const response = await axios.post(`${API_URL}/skill-reports/upload`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-          Authorization: `Bearer ${token}`,
-        },
-        onUploadProgress: (progressEvent) => {
-          const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-          setUploadProgress(percentCompleted);
-        },
-      });
+      const response = await apiPost('/skill-reports/upload', formData);
+      const data = await response.json();
 
-      setUploadResult(response.data);
+      setUploadProgress(100);
+      setUploadResult(data);
       setSelectedFile(null);
       
       // Reload reports if a venue is selected
@@ -147,7 +137,7 @@ const AdminSkillReport = () => {
         loadReports();
       }
     } catch (err) {
-      setError(err.response?.data?.message || 'Upload failed');
+      setError('Upload failed');
     } finally {
       setUploading(false);
     }

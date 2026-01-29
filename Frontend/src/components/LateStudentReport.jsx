@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { AlertTriangle, Calendar, User } from 'lucide-react';
 import useAuthStore from '../store/useAuthStore';
+import { apiGet } from '../utils/api';
 
 const LateStudentsReport = ({ facultyId = null }) => {
-  const { token } = useAuthStore();
   const API_URL = import.meta.env.VITE_API_URL;
 
   const [lateStudents, setLateStudents] = useState([]);
@@ -21,14 +21,9 @@ const LateStudentsReport = ({ facultyId = null }) => {
       if (facultyId) params.set('facultyId', facultyId);
       params.set('minCount', String(minCount));
 
-      const url = `${API_URL}/attendance/late-students?${params.toString()}`;
+      const url = `/attendance/late-students?${params.toString()}`;
 
-      const response = await fetch(url, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
+      const response = await apiGet(url);
 
       const data = await response.json();
       
@@ -46,10 +41,8 @@ const LateStudentsReport = ({ facultyId = null }) => {
   };
 
   useEffect(() => {
-    if (token) {
-      fetchLateStudents();
-    }
-  }, [token, facultyId, minCount]);
+    fetchLateStudents();
+  }, [facultyId, minCount]);
 
   return (
     <div style={styles.container}>

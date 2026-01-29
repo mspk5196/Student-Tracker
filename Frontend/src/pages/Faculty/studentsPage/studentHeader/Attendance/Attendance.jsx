@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import useAuthStore from '../../../../../store/useAuthStore';
+import { apiGet } from '../../../../../utils/api';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import CancelOutlinedIcon from '@mui/icons-material/CancelOutlined';
@@ -11,7 +11,6 @@ const SUBJECT_SHADES = [
 ];
 
 const AttendanceDashboard = ({ studentId }) => {
-  const { token } = useAuthStore();
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
   const [dashboardData, setDashboardData] = useState(null);
@@ -27,10 +26,10 @@ const AttendanceDashboard = ({ studentId }) => {
   const LIMIT = 5;
 
   useEffect(() => {
-    if (token && studentId) {
+    if (studentId) {
       fetchAttendanceDashboard();
     }
-  }, [token, studentId, selectedYear]);
+  }, [studentId, selectedYear]);
 
   useEffect(() => {
     setIsAnimate(false);
@@ -41,15 +40,7 @@ const AttendanceDashboard = ({ studentId }) => {
   const fetchAttendanceDashboard = async () => {
     setLoading(true);
     try {
-      const response = await fetch(
-        `${API_URL}/students/${studentId}/attendance-dashboard?year=${selectedYear}`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-        }
-      );
+      const response = await apiGet(`/students/${studentId}/attendance-dashboard?year=${selectedYear}`);
 
       const data = await response.json();
       if (data.success) {

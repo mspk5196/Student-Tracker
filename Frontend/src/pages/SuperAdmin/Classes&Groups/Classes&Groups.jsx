@@ -19,10 +19,10 @@ import {
 } from "@mui/icons-material";
 import useAuthStore from "../../../store/useAuthStore";
 import { encodeIdSimple } from "../../../utils/idEncoder";
+import { apiGet, apiPost, apiPut, apiDelete } from '../../../utils/api';
 
 const GroupsClasses = () => {
   const navigate = useNavigate();
-  const { token } = useAuthStore();
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/pbl/api';
 
   const [searchTerm, setSearchTerm] = useState("");
@@ -97,12 +97,7 @@ const GroupsClasses = () => {
     setLoading(true);
     setError("");
     try {
-      const response = await fetch(`${API_URL}/groups/venues`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      });
+      const response = await apiGet('/groups/venues');
       const data = await response.json();
       if (data.success) {
         setVenues(data.data);
@@ -120,12 +115,7 @@ const GroupsClasses = () => {
   // Fetch faculties (only unassigned)
   const fetchFaculties = async () => {
     try {
-      const response = await fetch(`${API_URL}/groups/faculties/available`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      });
+      const response = await apiGet('/groups/faculties/available');
 
       const data = await response.json();
       if (data.success) {
@@ -140,16 +130,11 @@ const GroupsClasses = () => {
   const fetchAvailableFaculties = async (venueId, search = "") => {
     setLoadingFaculties(true);
     try {
-      const url = new URL(`${API_URL}/groups/faculties/available`);
+      const url = new URL('/groups/faculties/available', window.location.origin);
       if (venueId) url.searchParams.append("venueId", venueId);
       if (search) url.searchParams.append("search", search);
 
-      const response = await fetch(url, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      });
+      const response = await apiGet(url.pathname + url.search);
 
       const data = await response.json();
       if (data.success) {
@@ -163,11 +148,9 @@ const GroupsClasses = () => {
   };
 
   useEffect(() => {
-    if (token) {
-      fetchVenues();
-      fetchFaculties();
-    }
-  }, [token]);
+    fetchVenues();
+    fetchFaculties();
+  }, []);
 
   useEffect(() => {
     if (showAssignFacultyModal) {
@@ -270,13 +253,7 @@ const GroupsClasses = () => {
 
     setLoading(true);
     try {
-      const response = await fetch(`${API_URL}/groups/venues/${id}`, {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      });
+      const response = await apiDelete(`/groups/venues/${id}`);
       const data = await response.json();
       if (data.success) {
         await fetchVenues();
@@ -300,16 +277,9 @@ const GroupsClasses = () => {
   const handleUpdate = async () => {
     setLoading(true);
     try {
-      const response = await fetch(
-        `${API_URL}/groups/venues/${editingVenue.venue_id}`,
-        {
-          method: "PUT",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(editingVenue),
-        }
+      const response = await apiPut(
+        `/groups/venues/${editingVenue.venue_id}`,
+        editingVenue
       );
       const data = await response.json();
       if (data.success) {
@@ -343,14 +313,7 @@ const GroupsClasses = () => {
 
     setLoading(true);
     try {
-      const response = await fetch(`${API_URL}/groups/venues`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(newVenue),
-      });
+      const response = await apiPost('/groups/venues', newVenue);
 
       const data = await response.json();
       if (data.success) {
@@ -397,13 +360,8 @@ const GroupsClasses = () => {
     const formData = new FormData();
     formData.append("file", selectedFile);
     try {
-      const url = `${API_URL}/groups/venues/${selectedVenue.venue_id}/bulk-upload${overwriteMode ? '?overwrite=true' : ''}`;
-      const response = await fetch(url, {
-          method: "POST",
-          headers: { Authorization: `Bearer ${token}` },
-          body: formData,
-        }
-      );
+      const url = `/groups/venues/${selectedVenue.venue_id}/bulk-upload${overwriteMode ? '?overwrite=true' : ''}`;
+      const response = await apiPost(url, formData);
       const data = await response.json();
       if (data.success) {
         setShowBulkUploadModal(false);
@@ -432,14 +390,8 @@ const GroupsClasses = () => {
     if (!rollNumber || rollNumber.trim().length < 2) return;
     
     try {
-      const response = await fetch(
-        `${API_URL}/groups/student-lookup/${encodeURIComponent(rollNumber.trim())}`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-        }
+      const response = await apiGet(
+        `/groups/student-lookup/${encodeURIComponent(rollNumber.trim())}`
       );
       const data = await response.json();
       if (data.success && data.data) {
@@ -491,22 +443,15 @@ const GroupsClasses = () => {
 
     setLoading(true);
     try {
-      const response = await fetch(
-        `${API_URL}/groups/venues/${selectedVenue.venue_id}/add-student`,
+      const response = await apiPost(
+        `/groups/venues/${selectedVenue.venue_id}/add-student`,
         {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            name: newStudent.name || newStudent.reg_no,
-            rollNumber: newStudent.reg_no,
-            email: newStudent.email || undefined,
-            department: newStudent.department || "General",
-            year: parseInt(newStudent.year) || 1,
-            semester: parseInt(newStudent.semester) || 1
-          }),
+          name: newStudent.name || newStudent.reg_no,
+          rollNumber: newStudent.reg_no,
+          email: newStudent.email || undefined,
+          department: newStudent.department || "General",
+          year: parseInt(newStudent.year) || 1,
+          semester: parseInt(newStudent.semester) || 1
         }
       );
       const data = await response.json();
@@ -536,15 +481,9 @@ const GroupsClasses = () => {
     setLoading(true);
     try {
       const url = includeDropped 
-        ? `${API_URL}/groups/venues/${venue.venue_id}/students?includeDropped=true`
-        : `${API_URL}/groups/venues/${venue.venue_id}/students`;
-      const response = await fetch(url, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-        }
-      );
+        ? `/groups/venues/${venue.venue_id}/students?includeDropped=true`
+        : `/groups/venues/${venue.venue_id}/students`;
+      const response = await apiGet(url);
       const data = await response.json();
       if (data.success) {
         setVenueStudents(data.data);
@@ -576,15 +515,8 @@ const GroupsClasses = () => {
 
     setLoading(true);
     try {
-      const response = await fetch(
-        `${API_URL}/groups/venues/${selectedVenue.venue_id}/students/${studentId}`,
-        {
-          method: "DELETE",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-        }
+      const response = await apiDelete(
+        `/groups/venues/${selectedVenue.venue_id}/students/${studentId}`
       );
 
       const data = await response.json();
@@ -617,16 +549,9 @@ const GroupsClasses = () => {
 
     setLoading(true);
     try {
-      const response = await fetch(
-        `${API_URL}/groups/venues/${selectedVenue.venue_id}/bulk-remove-students`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ studentIds: selectedStudents }),
-        }
+      const response = await apiPost(
+        `/groups/venues/${selectedVenue.venue_id}/bulk-remove-students`,
+        { studentIds: selectedStudents }
       );
 
       const data = await response.json();
@@ -697,16 +622,9 @@ const GroupsClasses = () => {
 
     setLoading(true);
     try {
-      const response = await fetch(
-        `${API_URL}/groups/venues/${facultyAssignment.venue_id}/assign-faculty`,
-        {
-          method: "PUT",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ faculty_id: facultyAssignment.faculty_id }),
-        }
+      const response = await apiPut(
+        `/groups/venues/${facultyAssignment.venue_id}/assign-faculty`,
+        { faculty_id: facultyAssignment.faculty_id }
       );
 
       const data = await response.json();

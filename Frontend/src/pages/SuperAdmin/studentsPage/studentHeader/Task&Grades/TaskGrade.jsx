@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import useAuthStore from '../../../../../store/useAuthStore';
+import { apiGet } from '../../../../../utils/api';
 
 // --- SVGs & Icons ---
 const Icons = {
@@ -55,7 +55,6 @@ const Icons = {
 };
 
 const TaskGrade = ({ studentId }) => {
-  const { token } = useAuthStore();
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
   const TODAY = new Date().toISOString().split('T')[0];
@@ -92,12 +91,12 @@ const TaskGrade = ({ studentId }) => {
   }, []);
 
   useEffect(() => {
-    if (token && studentId) fetchTaskGradeData();
-  }, [token, studentId]);
+    if (studentId) fetchTaskGradeData();
+  }, [studentId]);
 
   useEffect(() => {
-    if (token && studentId) fetchActivityHeatmap();
-  }, [token, studentId, selectedYear]);
+    if (studentId) fetchActivityHeatmap();
+  }, [studentId, selectedYear]);
 
   useEffect(() => {
     if (studentData?.currentWorkshop) setViewingWorkshop(studentData.currentWorkshop);
@@ -106,9 +105,7 @@ const TaskGrade = ({ studentId }) => {
   const fetchTaskGradeData = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`${API_URL}/students/${studentId}/task-grade`, {
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      });
+      const response = await apiGet(`/students/${studentId}/task-grade`);
       const data = await response.json();
       if (data.success) setStudentData(data.data);
     } catch (err) {
@@ -121,9 +118,7 @@ const TaskGrade = ({ studentId }) => {
   const fetchActivityHeatmap = async () => {
     setHeatmapLoading(true);
     try {
-      const response = await fetch(`${API_URL}/activity/heatmap/${studentId}?year=${selectedYear}`, {
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      });
+      const response = await apiGet(`/activity/heatmap/${studentId}?year=${selectedYear}`);
       const data = await response.json();
       if (data.success) {
         setActivityHeatmapData(data.data);

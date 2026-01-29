@@ -4,6 +4,34 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 
+/**
+ * Sanitize filename to prevent security vulnerabilities
+ * - Double extension prevention  
+ * - Path traversal prevention
+ */
+function sanitizeFilename(filename) {
+  if (!filename) return 'file';
+  
+  const ext = path.extname(filename).toLowerCase();
+  let baseName = path.basename(filename, ext);
+  
+  // Remove ALL dots, slashes, backslashes (prevent double extensions)
+  baseName = baseName.replace(/[.\\\/]/g, '_');
+  baseName = baseName.replace(/[`${};<>|&\"'\\n\\r\\t@#%^*+=\[\]()]/g, '');
+  baseName = baseName.replace(/\\.\\./g, '');
+  baseName = baseName.replace(/[^a-zA-Z0-9_\-\s]/g, '');
+  
+  if (baseName.length > 100) {
+    baseName = baseName.substring(0, 100);
+  }
+  
+  if (!baseName || baseName.trim() === '') {
+    baseName = 'file';
+  }
+  
+  return baseName.trim() + ext;
+}
+
 // Configure multer for resource uploads
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -14,24 +42,34 @@ const storage = multer.diskStorage({
     cb(null, uploadDir);
   },
   filename: (req, file, cb) => {
+    const sanitizedOriginal = sanitizeFilename(file.originalname);
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, uniqueSuffix + path.extname(file.originalname));
+    const ext = path.extname(sanitizedOriginal).toLowerCase();
+    cb(null, uniqueSuffix + ext);
   }
 });
 
 export const upload = multer({
   storage: storage,
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
+  limits: { 
+    fileSize: 10 * 1024 * 1024, // 10MB limit
+    files: 1 // Only 1 PDF per upload
+  },
   fileFilter: (req, file, cb) => {
-    const allowedTypes = /pdf/;
-    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
-    const mimetype = allowedTypes.test(file.mimetype);
+    const sanitizedName = sanitizeFilename(file.originalname);
+    const ext = path.extname(sanitizedName).toLowerCase();
     
-    if (extname && mimetype) {
-      cb(null, true);
-    } else {
-      cb(new Error('Only PDF files are allowed'));
+    // Only allow PDF
+    if (ext !== '.pdf') {
+      return cb(new Error('Only PDF files are allowed'));
     }
+    
+    // Validate MIME type
+    if (file.mimetype !== 'application/pdf') {
+      return cb(new Error('File content must be PDF'));
+    }
+    
+    cb(null, true);
   }
 });
 
@@ -1368,9 +1406,10 @@ export const getStudentRoadmap = async (req, res) => {
 export const getResourceFile = async (req, res) => {
   try {
     const { resource_id } = req.params;
+    const { mode } = req.query; // ?mode=preview or ?mode=download
     const user_id = req.user.user_id;
 
-    console.log('Downloading resource:', resource_id);
+    console.log('Accessing resource:', resource_id, 'mode:', mode || 'preview');
 
     // Get user role
     const [user] = await db.query(`
@@ -1427,14 +1466,14 @@ export const getResourceFile = async (req, res) => {
     let query = '';
     let params = [];
 
-    if (userRole === 1) { // Admin can download any resource
+    if (userRole === 1) { // Admin can access any resource
       query = `
         SELECT rr.resource_name, rr.file_path, rr.resource_type
         FROM roadmap_resources rr
         WHERE rr.resource_id = ?
       `;
       params = [resource_id];
-    } else if (userRole === 2 && faculty_id) { // Faculty can only download their own
+    } else if (userRole === 2 && faculty_id) { // Faculty can only access their own
       query = `
         SELECT rr.resource_name, rr.file_path, rr.resource_type
         FROM roadmap_resources rr
@@ -1442,7 +1481,7 @@ export const getResourceFile = async (req, res) => {
         WHERE rr.resource_id = ? AND r.faculty_id = ?
       `;
       params = [resource_id, faculty_id];
-    } else if (userRole === 3 && student_venue_id) { // Students can download resources from their venue
+    } else if (userRole === 3 && student_venue_id) { // Students can access resources from their venue
       query = `
         SELECT rr.resource_name, rr.file_path, rr.resource_type
         FROM roadmap_resources rr
@@ -1453,7 +1492,7 @@ export const getResourceFile = async (req, res) => {
     } else {
       return res.status(403).json({
         success: false,
-        message: 'Unauthorized to download resource'
+        message: 'Unauthorized to access resource'
       });
     }
 
@@ -1482,18 +1521,26 @@ export const getResourceFile = async (req, res) => {
       });
     }
 
-    // Set proper headers for download
+    // Set proper headers based on mode
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="${resource.resource_name}.pdf"`);
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    
+    if (mode === 'download') {
+      // Force download
+      res.setHeader('Content-Disposition', `attachment; filename="${resource.resource_name}.pdf"`);
+    } else {
+      // Inline preview (default)
+      res.setHeader('Content-Disposition', `inline; filename="${resource.resource_name}.pdf"`);
+    }
     
     // Stream the file
     const fileStream = fs.createReadStream(resource.file_path);
     fileStream.pipe(res);
   } catch (error) {
-    console.error('Error downloading resource:', error);
+    console.error('Error accessing resource:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to download resource'
+      message: 'Failed to access resource'
     });
   }
 };

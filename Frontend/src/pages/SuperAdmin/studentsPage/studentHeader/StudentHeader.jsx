@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import useAuthStore from '../../../../store/useAuthStore';
 import { decodeIdSimple } from '../../../../utils/idEncoder';
+import { apiGet, apiPut } from '../../../../utils/api';
 
 // Material UI Icons
 import EditIcon from '@mui/icons-material/EditOutlined';
@@ -282,7 +282,6 @@ const StudentHeader = () => {
   // Try to decode, fallback to raw ID if decoding fails (for backward compatibility)
   const studentId = decodeIdSimple(encodedStudentId) || encodedStudentId;
   const navigate = useNavigate();
-  const { token } = useAuthStore();
   const API_URL = import.meta.env.VITE_API_URL;
 
   // --- Responsive Logic ---
@@ -517,13 +516,7 @@ const StudentHeader = () => {
     setLoading(true);
     setError('');
     try {
-      const url = `${API_URL}/students/${studentId}`;
-      const response = await fetch(url, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
+      const response = await apiGet(`/students/${studentId}`);
       const data = await response.json();
       if (data.success) {
         setStudent(data.data);
@@ -547,8 +540,8 @@ const StudentHeader = () => {
   };
 
   useEffect(() => {
-    if (token && studentId) fetchStudentDetails();
-  }, [token, studentId]);
+    if (studentId) fetchStudentDetails();
+  }, [studentId]);
 
   const getInitials = (name) => {
     return name.split(' ').map((n) => n[0]).join('').toUpperCase();
@@ -557,9 +550,7 @@ const StudentHeader = () => {
   const handleDownloadReport = async () => {
     setDownloading(true);
     try {
-      const response = await fetch(`${API_URL}/students/${studentId}/download-report`, {
-          headers: { Authorization: `Bearer ${token}` },
-      });
+      const response = await apiGet(`/students/${studentId}/download-report`);
       if (!response.ok) throw new Error('Failed to download report');
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
@@ -579,11 +570,7 @@ const StudentHeader = () => {
 
   const handleSaveEdit = async () => {
     try {
-      const response = await fetch(`${API_URL}/students/${studentId}`, {
-        method: 'PUT',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify(editForm),
-      });
+      const response = await apiPut(`/students/${studentId}`, editForm);
       const data = await response.json();
       if (data.success) {
         alert('Student updated successfully!');

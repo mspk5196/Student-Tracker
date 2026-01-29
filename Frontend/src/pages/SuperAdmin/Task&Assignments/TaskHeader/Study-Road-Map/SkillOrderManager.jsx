@@ -10,11 +10,10 @@ import {
   Loader,
   Edit2
 } from 'lucide-react';
-import useAuthStore from '../../../../../store/useAuthStore';
+import { apiGet, apiPost, apiPut, apiDelete } from '../../../../../utils/api';
 
 const SkillOrderManager = ({ selectedCourseType = 'frontend' }) => {
   const API_URL = import.meta.env.VITE_API_URL;
-  const { token } = useAuthStore();
 
   const [skills, setSkills] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -42,13 +41,7 @@ const SkillOrderManager = ({ selectedCourseType = 'frontend' }) => {
     try {
       const url = `${API_URL}/skill-order?course_type=${selectedCourseType}`;
 
-      const response = await fetch(url, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
+      const response = await apiGet(`/skill-order?course_type=${selectedCourseType}`);
       const data = await response.json();
       if (data.success) {
         const filteredSkills = data.data
@@ -66,12 +59,7 @@ const SkillOrderManager = ({ selectedCourseType = 'frontend' }) => {
 
   const fetchAvailableSkills = async () => {
     try {
-      const response = await fetch(`${API_URL}/skill-order/available-skills`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
+      const response = await apiGet('/skill-order/available-skills');
 
       const data = await response.json();
       if (data.success) {
@@ -95,18 +83,11 @@ const SkillOrderManager = ({ selectedCourseType = 'frontend' }) => {
 
     setSaving(true);
     try {
-      const response = await fetch(`${API_URL}/skill-order`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          course_type: selectedCourseType,
-          skill_name: newSkill.skill_name.trim(),
-          is_prerequisite: newSkill.is_prerequisite,
-          description: newSkill.description.trim() || null
-        })
+      const response = await apiPost('/skill-order', {
+        course_type: selectedCourseType,
+        skill_name: newSkill.skill_name.trim(),
+        is_prerequisite: newSkill.is_prerequisite,
+        description: newSkill.description.trim() || null
       });
 
       const data = await response.json();
@@ -132,13 +113,7 @@ const SkillOrderManager = ({ selectedCourseType = 'frontend' }) => {
     }
 
     try {
-      const response = await fetch(`${API_URL}/skill-order/${skillId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
+      const response = await apiDelete(`/skill-order/${skillId}`);
 
       const data = await response.json();
       if (data.success) {
@@ -155,15 +130,8 @@ const SkillOrderManager = ({ selectedCourseType = 'frontend' }) => {
 
   const handleTogglePrerequisite = async (skillId, currentValue) => {
     try {
-      const response = await fetch(`${API_URL}/skill-order/${skillId}`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          is_prerequisite: !currentValue
-        })
+      const response = await apiPut(`/skill-order/${skillId}`, {
+        is_prerequisite: !currentValue
       });
 
       const data = await response.json();
@@ -185,17 +153,10 @@ const SkillOrderManager = ({ selectedCourseType = 'frontend' }) => {
 
     setSaving(true);
     try {
-      const response = await fetch(`${API_URL}/skill-order/${editingSkill.id}`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          skill_name: editingSkill.skill_name.trim(),
-          is_prerequisite: editingSkill.is_prerequisite,
-          description: editingSkill.description.trim() || null
-        })
+      const response = await apiPut(`/skill-order/${editingSkill.id}`, {
+        skill_name: editingSkill.skill_name.trim(),
+        is_prerequisite: editingSkill.is_prerequisite,
+        description: editingSkill.description.trim() || null
       });
 
       const data = await response.json();
@@ -247,18 +208,11 @@ const SkillOrderManager = ({ selectedCourseType = 'frontend' }) => {
     
     setSaving(true);
     try {
-      const response = await fetch(`${API_URL}/skill-order/reorder/bulk`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          skills: skills.map((s, idx) => ({
-            id: s.id,
-            display_order: idx + 1
-          }))
-        })
+      const response = await apiPut('/skill-order/reorder/bulk', {
+        skills: skills.map((s, idx) => ({
+          id: s.id,
+          display_order: idx + 1
+        }))
       });
 
       const data = await response.json();

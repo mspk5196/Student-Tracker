@@ -1,95 +1,107 @@
 // store/useAuthStore.js
 import { create } from "zustand";
+import { persist } from "zustand/middleware";
 
-const useAuthStore = create((set, get) => ({
-  user: null,
-  token: null,
-  loading: false,
+const useAuthStore = create(
+  persist(
+    (set, get) => ({
+      user: null,
+      loading: false,
+      isRestoring: true, // Track restoration state
 
-  setToken: (token) => {
-    localStorage.setItem("token", token);
-    set({ token });
-  },
+      login: async (credential) => {
+        try {
+          set({ loading: true });
 
-  login: async (token) => {
-    try {
-      set({ loading: true });
-      localStorage.setItem("token", token);
-      set({ token });
+          // Send credential to backend - backend will set httpOnly cookie
+          const authResponse = await fetch(`${import.meta.env.VITE_API_URL}/auth/google`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            credentials: 'include', // Send/receive cookies
+            body: JSON.stringify({ credential })
+          });
 
-      // Fetch user data using the token
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/auth/me`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
+          if (!authResponse.ok) {
+            throw new Error('Authentication failed');
+          }
 
-      if (!response.ok) {
-        throw new Error('Failed to fetch user data');
-      }
+          const authData = await authResponse.json();
 
-      const data = await response.json();
-      // Store user in memory only, not localStorage
-      set({ user: data.user, loading: false });
-      return { success: true };
-    } catch (error) {
-      console.error('Login error:', error);
-      localStorage.removeItem("token");
-      set({ user: null, token: null, loading: false });
-      return { success: false, error: error.message };
-    }
-  },
+          // Fetch user data using cookie
+          const response = await fetch(`${import.meta.env.VITE_API_URL}/auth/me`, {
+            credentials: 'include' // Send cookies automatically
+          });
 
-  logout: () => {
-    localStorage.removeItem("token");
-    set({ user: null, token: null });
-  },
+          if (!response.ok) {
+            throw new Error('Failed to fetch user data');
+          }
 
-  restore: async () => {
-    try {
-      const token = localStorage.getItem("token");
-      
-      if (token) {
-        set({ token });
-        
-        // Fetch fresh user data from server
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/auth/me`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        
-        if (response.ok) {
           const data = await response.json();
-          set({ user: data.user });
-        } else {
-          // Token invalid, clear it
-          localStorage.removeItem("token");
-          set({ token: null, user: null });
+          // Store user in memory only
+          set({ user: data.user, loading: false });
+          return { success: true };
+        } catch (error) {
+          console.error('Login error:', error);
+          set({ user: null, loading: false });
+          return { success: false, error: error.message };
         }
-      }
-    } catch {
-      localStorage.removeItem("token");
-      set({ user: null, token: null });
-    }
-  },
+      },
 
-  // Method to get fresh user data when needed
-  refreshUser: async () => {
-    const { token } = get();
-    if (!token) return;
+      logout: async () => {
+        // Clear httpOnly cookie on server
+        try {
+          await fetch(`${import.meta.env.VITE_API_URL}/auth/logout`, {
+            method: 'POST',
+            credentials: 'include'
+          });
+        } catch (err) {
+          console.warn('Logout request failed:', err);
+        }
+        set({ user: null });
+      },
 
-    try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/auth/me`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        set({ user: data.user });
-      }
-    } catch (err) {
-      console.warn('Could not refresh user data:', err);
+      restore: async () => {
+        try {
+          // Fetch user data using httpOnly cookie
+          const response = await fetch(`${import.meta.env.VITE_API_URL}/auth/me`, {
+            credentials: 'include' // Send cookies automatically
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            set({ user: data.user, isRestoring: false });
+          } else {
+            // Cookie invalid or expired
+            set({ user: null, isRestoring: false });
+          }
+        } catch {
+          set({ user: null, isRestoring: false });
+        }
+      },
+
+      // Method to get fresh user data when needed
+      refreshUser: async () => {
+        try {
+          const response = await fetch(`${import.meta.env.VITE_API_URL}/auth/me`, {
+            credentials: 'include'
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            set({ user: data.user });
+          }
+        } catch (err) {
+          console.warn('Could not refresh user data:', err);
+        }
+      },
+    }),
+    {
+      name: "auth-storage", // localStorage key  
+      partialize: (state) => ({}), // Don't persist anything - cookies handle authentication
     }
-  },
-}));
+  )
+);
 
 export default useAuthStore;
