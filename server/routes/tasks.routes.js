@@ -53,4 +53,44 @@ router.post('/sync/:venue_id', authenticate, facultyOrAdmin, syncTaskSubmissions
 router.get('/submissions/:task_id', authenticate, facultyOrAdmin, getTaskSubmissions);
 router.put('/grade/:submission_id', authenticate, facultyOrAdmin, gradeSubmission);
 
+// Error handling middleware for multer errors
+router.use((err, req, res, next) => {
+  if (err) {
+    // Multer errors
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({
+        success: false,
+        message: 'File size exceeds the limit of 5MB'
+      });
+    }
+    if (err.code === 'LIMIT_FILE_COUNT') {
+      return res.status(400).json({
+        success: false,
+        message: 'Too many files uploaded'
+      });
+    }
+    if (err.code === 'LIMIT_UNEXPECTED_FILE') {
+      return res.status(400).json({
+        success: false,
+        message: 'Unexpected file field'
+      });
+    }
+    
+    // Custom multer/file filter errors
+    if (err.message) {
+      return res.status(400).json({
+        success: false,
+        message: err.message
+      });
+    }
+    
+    // Generic error
+    return res.status(500).json({
+      success: false,
+      message: 'An error occurred while processing your request'
+    });
+  }
+  next();
+});
+
 export default router;

@@ -1663,11 +1663,15 @@ export const submitTask = async (req, res) => {
     }
   } catch (error) {
     console.error('Error submitting task:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to submit assignment',
-      error: error.message
-    });
+    
+    // Ensure we always return JSON, not HTML
+    if (!res.headersSent) {
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to submit assignment',
+        error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+      });
+    }
   }
 };
 

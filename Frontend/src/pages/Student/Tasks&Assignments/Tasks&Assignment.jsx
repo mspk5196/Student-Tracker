@@ -1224,7 +1224,7 @@ const TasksAssignments = () => {
                           ref={fileInputRef}
                           onChange={handleFileSelect}
                           style={{ display: 'none' }}
-                          accept=".pdf,.doc,.docx,.xlsx,.xls,.txt,.zip,.cpp,.py,.js,.java,.c,image/*"
+                          accept=".pdf,.docx"
                         />
                         
                         <div className="upload-options">
@@ -1256,7 +1256,7 @@ const TasksAssignments = () => {
                               <>
                                 <FileText size={32} color="#64748b" />
                                 <span className="upload-label">Upload Document</span>
-                                <span className="upload-sub">PDF, Word, Excel, Images</span>
+                                <span className="upload-sub">PDF or DOCX only</span>
                               </>
                             )}
                           </div>
@@ -1394,7 +1394,7 @@ const TasksAssignments = () => {
                         ref={fileInputRef}
                         onChange={handleFileSelect}
                         style={{ display: 'none' }}
-                        accept=".pdf,.doc,.docx,.xlsx,.xls,.txt,.zip,.cpp,.py,.js,.java,.c,image/*"
+                        accept=".pdf,.docx"
                       />
                       
                       <div className="upload-options">
@@ -1426,7 +1426,7 @@ const TasksAssignments = () => {
                             <>
                               <FileText size={32} color="#64748b" />
                               <span className="upload-label">Upload Document</span>
-                              <span className="upload-sub">PDF, Word, Excel, Images</span>
+                              <span className="upload-sub">PDF or DOCX only</span>
                             </>
                           )}
                         </div>
